@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: 42 Music Room API
+  version: 1.0.0
+  description: REST contract for realtime collaborative playlists and voting.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /events:
+    post:
+      summary: Create event
+      operationId: createEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                visibility:
+                  type: string
+                  enum: [public, private]
+                playlist_init_mode:
+                  type: string
+                  enum: [blank, copied]
+                source_playlist_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+  /events/{eventId}/queue:
+    get:
+      summary: Get current ranked queue
+      operationId: getEventQueue
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ranked queue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_id:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrackEntry'
+  /events/{eventId}/votes:
+    post:
+      summary: Toggle vote for a track entry
+      operationId: toggleVote
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [track_entry_id]
+              properties:
+                track_entry_id:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: Vote processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  track_entry_id:
+                    type: integer
+                    format: int64
+                  active:
+                    type: boolean
+                  score:
+                    type: integer
+                  ordering_version:
+                    type: integer
+        '403':
+          description: User not eligible to vote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibilityError'
+  /playlists/{playlistId}/edits:
+    post:
+      summary: Apply collaborative playlist edit operation
+      operationId: applyPlaylistEdit
+      parameters:
+        - in: path
+          name: playlistId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation, track_entry_id]
+              properties:
+                operation:
+                  type: string
+                  enum: [move, add, remove]
+                track_entry_id:
+                  type: integer
+                  format: int64
+                target_position:
+                  type: integer
+      responses:
+        '200':
+          description: Edit accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  playlist_id:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+        '403':
+          description: User not eligible to edit
+  /delegations:
+    post:
+      summary: Grant delegated playback control for a device
+      operationId: createDelegation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delegate_user_id, playback_device_id]
+              properties:
+                delegate_user_id:
+                  type: string
+                  format: uuid
+                playback_device_id:
+                  type: string
+                  format: uuid
+                starts_at:
+                  type: string
+                  format: date-time
+                ends_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Delegation created
+  /delegations/{delegationId}/revoke:
+    post:
+      summary: Revoke delegation immediately
+      operationId: revokeDelegation
+      parameters:
+        - in: path
+          name: delegationId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Revoked
+  /ws/events/{eventId}:
+    get:
+      summary: WebSocket channel endpoint (documented as upgrade route)
+      operationId: subscribeEventRealtime
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '101':
+          description: Protocol switch to WebSocket
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Event:
+      type: object
+      required: [id, name, visibility, voting_license_mode]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        voting_license_mode:
+          type: string
+          enum: [open, invite_only, location_time]
+    TrackEntry:
+      type: object
+      required: [id, position, score, youtube_video_id, title]
+      properties:
+        id:
+          type: integer
+          format: int64
+        position:
+          type: integer
+        score:
+          type: integer
+        youtube_video_id:
+          type: string
+        title:
+          type: string
+    EligibilityError:
+      type: object
+      required: [code, reason]
+      properties:
+        code:
+          type: string
+          example: VOTE_INELIGIBLE
+        reason:
+          type: string
+          example: time_window_closed
+        window:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
