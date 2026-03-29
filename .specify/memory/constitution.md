@@ -40,7 +40,7 @@ consistency, simplifies security controls, and supports real-time collaboration.
 
 ### III. REST + JSON Contract Discipline
 All feature integration between mobile and backend MUST occur through versioned
-REST endpoints, and request/response payloads MUST use JSON. Any breaking API
+REST endpoints or websockets, and request/response payloads MUST use JSON. Any breaking API
 change MUST include explicit versioning or a documented migration strategy before
 implementation. Rationale: consistent protocol contracts enable parallel team
 delivery and predictable client-server evolution.

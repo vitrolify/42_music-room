@@ -1,19 +1,13 @@
-# Implementation Plan: Real-Time Collaborative Music Room
+# Implementation Plan: [FEATURE]
 
-**Branch**: `001-realtime-collab-playlists` | **Date**: 2026-03-29 | **Spec**: `/specs/001-realtime-collab-playlists/spec.md`
-**Input**: Feature specification from `/specs/001-realtime-collab-playlists/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Deliver a mobile-first collaborative music room with realtime vote-driven queue,
-delegated playback control, and collaborative playlist editing. The solution uses
-Expo React Native (TypeScript) as the client control surface, FastAPI REST +
-WebSocket for backend integration, PostgreSQL as the authoritative store,
-Firebase Auth for user authentication, YouTube Data API for music metadata,
-Dockerized per-service deployment, GitHub Actions CI, FastAPI TestClient-based
-tests, and k6 containerized load testing.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
@@ -23,15 +17,15 @@ tests, and k6 containerized load testing.
   the iteration process.
 -->
 
-**Language/Version**: Python 3.11+ (backend), TypeScript (Expo React Native mobile)  
-**Primary Dependencies**: FastAPI, Pydantic, Firebase Auth SDK/Admin verification, PostgreSQL driver/ORM, Expo/React Native, YouTube Data API client  
-**Storage**: PostgreSQL (authoritative persistent state)  
-**Testing**: pytest + FastAPI TestClient, contract validation, k6 load tests in container  
-**Target Platform**: Linux containers for backend services, Android/iOS clients via Expo
-**Project Type**: Mobile app + web service backend (dockerized multi-service stack)  
-**Performance Goals**: 95% of valid votes reflected in visible ordering in <=2s; API p95 under load <=500ms for vote endpoints  
-**Constraints**: No CSS framework on mobile; all services in separate Docker containers; auth via Firebase (email/google/facebook); REST + JSON contracts; secrets outside git  
-**Scale/Scope**: Collaborative sessions with at least 20 simultaneous editors and high parallel voting per event
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
@@ -51,21 +45,12 @@ tests, and k6 containerized load testing.
 - Secrets safety: Secret handling approach is defined and avoids committing
   sensitive values to repository history.
 
-Gate status before Phase 0: PASS
-
-- Mobile app is defined as thin backend remote with environment-configurable API base URL.
-- PostgreSQL remains sole authoritative persistent store.
-- REST + JSON contract documented in `contracts/rest-api-v1.yaml`, versioned under `/api/v1`.
-- CI gates and quality checks defined in quickstart and plan.
-- Structured backend action logging and capacity observability are explicitly required.
-- Secrets handled via environment variables and CI secret storage.
-
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/001-realtime-collab-playlists/
+specs/[###-feature]/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
@@ -83,71 +68,43 @@ specs/001-realtime-collab-playlists/
 -->
 
 ```text
-api/
-├── app/
-│   ├── api/
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
+
+tests/
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
 │   ├── models/
 │   ├── services/
-│   ├── auth/
-│   └── realtime/
-├── tests/
-│   ├── contract/
-│   ├── integration/
-│   └── unit/
-└── Dockerfile
-
-mobile/
-├── app/
-├── src/
-│   ├── screens/
-│   ├── components/
-│   ├── services/
-│   └── state/
+│   └── api/
 └── tests/
 
-infra/
-├── docker/
-│   ├── compose/
-│   └── k6/
-└── observability/
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
 
-.github/
-└── workflows/
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Use a mobile + API split with infrastructure and CI
-artifacts at repository root. This keeps backend authority and contract testing
-in `api/`, UI/interaction concerns in `mobile/`, and deployment/load tooling in
-`infra/` and `.github/workflows/`.
-
-## Phase 0 Output Alignment
-
-- Research decisions captured in `/specs/001-realtime-collab-playlists/research.md`.
-- All initial clarification points in technical context are resolved by explicit
-  stack and operational choices.
-
-## Phase 1 Design Output Alignment
-
-- Data entities, relationships, validation rules, and state transitions captured
-  in `/specs/001-realtime-collab-playlists/data-model.md`.
-- External interface contract documented in
-  `/specs/001-realtime-collab-playlists/contracts/rest-api-v1.yaml`.
-- Developer execution and verification flow documented in
-  `/specs/001-realtime-collab-playlists/quickstart.md`.
-
-## Constitution Check (Post-Design)
-
-Gate status after Phase 1: PASS
-
-- Principle I satisfied: mobile remains backend remote with configurable API URL.
-- Principle II satisfied: backend owns all authoritative persistent data.
-- Principle III satisfied: versioned REST + JSON contract documented.
-- Principle IV satisfied: CI-first validation gates defined (lint, tests,
-  contracts, container build, optional load).
-- Principle V satisfied: action logging and capacity observability requirements
-  included in plan and quickstart.
-- Security constraints satisfied: secret handling strategy documented without
-  repository-committed credentials.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
@@ -155,4 +112,5 @@ Gate status after Phase 1: PASS
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| None | N/A | N/A |
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
