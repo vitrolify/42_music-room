@@ -7,6 +7,7 @@ type AuthContextType = {
     user: AuthType | null;
     setUser: (user: AuthType | null) => void;
     isLoggedIn: boolean;
+    initializing: boolean;
     login: () => Promise<void>;
     googleSignIn: () => Promise<void>; // alias for login
     logout: () => Promise<void>;
@@ -76,7 +77,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
     return (
-        <AuthContext.Provider value={{ user, setUser, isLoggedIn: !!user, login: googleSignIn, googleSignIn, logout }}>
+        <AuthContext.Provider value={{ user, setUser, isLoggedIn: !!user, initializing, login: googleSignIn, googleSignIn, logout }}>
             {children}
         </AuthContext.Provider>
     );

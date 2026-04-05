@@ -1,1 +1,0 @@
-//simple page to test the app is working and offer logout

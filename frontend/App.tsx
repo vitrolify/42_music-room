@@ -7,7 +7,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <GoogleAuth />  
+        <GoogleAuth />
       </AuthProvider>
     </SafeAreaProvider>
   );
