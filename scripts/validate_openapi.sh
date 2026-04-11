@@ -14,6 +14,6 @@ if ! command -v npx &> /dev/null; then
 fi
 
 echo "Validating OpenAPI spec: $SPEC_FILE"
-npx --yes @stoplight/spectral-cli@^6 lint "$SPEC_FILE" --ruleset "spectral:oas"
+npx --yes @stoplight/spectral-cli@^6 lint "$SPEC_FILE"
 
 echo "OpenAPI validation passed."
