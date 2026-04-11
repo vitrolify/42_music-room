@@ -1,17 +1,90 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
-      - development
+    branches: [main, development]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  basic-test:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-      - run: test -d specs
-      - run: find specs -maxdepth 3 -type f
+
+      - name: Lint Python (ruff)
+        if: hashFiles('api/pyproject.toml') != ''
+        uses: astral-sh/ruff-action@v3
+        with:
+          src: api/
+
+      - name: Setup Node
+        if: hashFiles('mobile/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Lint TypeScript (eslint)
+        if: hashFiles('mobile/package.json') != ''
+        working-directory: mobile
+        run: |
+          npm ci
+          npx eslint .
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        if: hashFiles('api/pyproject.toml') != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies and run tests
+        if: hashFiles('api/pyproject.toml') != ''
+        working-directory: api
+        run: |
+          pip install -e ".[dev]"
+          pytest --tb=short -q
+
+  contract:
+    name: Contract validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate OpenAPI spec
+        run: bash scripts/validate_openapi.sh
+
+  container:
+    name: Container build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        if: hashFiles('api/Dockerfile') != ''
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        if: hashFiles('api/Dockerfile') != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: api
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
