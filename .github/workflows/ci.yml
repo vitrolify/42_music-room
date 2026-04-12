@@ -23,16 +23,16 @@ jobs:
           src: api/
 
       - name: Setup Node
-        if: hashFiles('mobile/package.json') != ''
+        if: hashFiles('frontend/package.json') != ''
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Lint TypeScript (eslint)
-        if: hashFiles('mobile/package.json') != ''
-        working-directory: mobile
+        if: hashFiles('frontend/.eslintrc.js') != '' || hashFiles('frontend/.eslintrc.json') != '' || hashFiles('frontend/eslint.config.js') != ''
+        working-directory: frontend
         run: |
           npm ci
           npx eslint .
@@ -47,7 +47,7 @@ jobs:
         if: hashFiles('api/pyproject.toml') != ''
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install dependencies and run tests
         if: hashFiles('api/pyproject.toml') != ''
