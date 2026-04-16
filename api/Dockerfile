@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Pull the uv binary from the official Astral image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -8,16 +8,16 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ENV PYTHONDONTWRITEBYTECODE=1 \ 
     PYTHONUNBUFFERED=1
 
-WORKDIR /app
+WORKDIR /api
 
 # Keep image lean while still supporting common Python package builds.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./app/ /app
+COPY pyproject.toml /api/
+COPY ./app /api/app
 
-# Install dependencies only when available.
 RUN uv pip install --system --no-cache .
 
 EXPOSE 8000
