@@ -17,7 +17,7 @@
 - [ ] T002 Create FastAPI application entrypoint and router bootstrap in api/app/main.py
 - [ ] T003 [P] Create Expo TypeScript app scaffold files in mobile/package.json
 - [X] T004 [P] Create backend Docker image definition in api/Dockerfile
-- [ ] T005 [P] Create multi-service docker compose file for api, db, and k6 in infra/docker/compose/docker-compose.yml
+- [X] T005 [P] Create multi-service docker compose file for api, db, and k6 in infra/docker/compose/docker-compose.yml
 - [ ] T006 [P] Create environment template files for api and mobile in .env.example
 - [ ] T007 [P] Create GitHub Actions CI workflow with lint/test/contract/container jobs in .github/workflows/ci.yml
 - [ ] T008 [P] Create OpenAPI validation script referenced by CI in scripts/validate_openapi.sh
