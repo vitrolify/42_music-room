@@ -15,8 +15,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Uncomment when ready for production
+# COPY ./app /api/app
 COPY pyproject.toml /api/
-COPY ./app /api/app
 
 RUN uv pip install --system --no-cache .
 
