@@ -25,5 +25,5 @@ class UserActionMiddleware(BaseHTTPMiddleware):
             "status": response.status_code,
             "client_ip": request.client.host
         }
-        logger.info(json.dumps(log_data))
+        logger.info(log_data)
         return response
