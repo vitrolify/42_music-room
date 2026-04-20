@@ -1,5 +1,4 @@
 import logging
-import json
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger("vitrolify user actions")
