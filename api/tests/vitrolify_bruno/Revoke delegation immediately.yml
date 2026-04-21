@@ -1,0 +1,19 @@
+info:
+  name: Revoke delegation immediately
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{domain}}{{port}}{{baseUrl}}/delegations/:delegationId/revoke"
+  params:
+    - name: delegationId
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
