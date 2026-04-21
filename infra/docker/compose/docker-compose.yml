@@ -30,6 +30,15 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
 
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dozzle-data:/data
+    ports:
+      - 8888:8080
+
   k6:
     image: grafana/k6:0.52.0
     profiles: ["test"]
@@ -42,5 +51,7 @@ services:
       K6_API_BASE_URL: http://api:8000/api/v1
     entrypoint: ["k6"]
 
+
 volumes:
   db-data:
+  dozzle-data:
