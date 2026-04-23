@@ -6,6 +6,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENABLE_METRICS: ${ENABLE_METRICS}
     depends_on:
       db:
         condition: service_healthy
@@ -40,8 +41,39 @@ services:
     container_name: prometheus
     volumes:
       - ../../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.size=500MB'
     ports:
       - "9090:9090"
+    networks:
+      - vitrolify-observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+  
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - vitrolify-observability
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ../../observability/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
     networks:
       - vitrolify-observability
 
@@ -52,17 +84,11 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-    networks:
-      - vitrolify-observability
-
-  dozzle:
-    container_name: dozzle
-    image: amir20/dozzle:latest
+    depends_on:
+      prometheus:
+        condition: service_healthy
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - dozzle-data:/data
-    ports:
-      - 8888:8080
+      - ../../observability/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - vitrolify-observability
 
@@ -83,7 +109,7 @@ services:
 
 volumes:
   db-data:
-  dozzle-data:
+  prometheus_data:
 
 networks:
   vitrolify-db:
