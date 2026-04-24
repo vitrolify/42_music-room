@@ -43,3 +43,7 @@ yarn-error.*
 
 # google-services
 google-services.json
+
+# local notes and tools
+my_notes/
+.claude/
