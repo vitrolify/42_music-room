@@ -44,9 +44,6 @@ yarn-error.*
 # google-services
 google-services.json
 
-.claude
-android/
-my_notes
-package-lock.json
-package.json
-app.json
+# local notes and tools
+my_notes/
+.claude/
