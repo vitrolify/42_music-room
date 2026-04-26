@@ -26,7 +26,7 @@ class UserActionMiddleware(BaseHTTPMiddleware):
             "method": request.method,
             "path": request.url.path,
             "status": response.status_code,
-            "client_ip": request.client.host,
+            "client_ip": request.client.host if request.client else "unknown",
         }
         logger.info(log_data)
         return response
