@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import globalStyles from '../styles';
 
@@ -9,6 +9,7 @@ const EmailSignUp = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const [processing, setProcessing] = useState(false);
 
     const getErrorMessage = (code: string) => {
         switch (code) {
@@ -30,12 +31,19 @@ const EmailSignUp = () => {
             return;
         }
 
+        if (processing) {
+            return;
+        }
+
+        setProcessing(true);
         setError('');
 
         try {
             await emailSignUp(cleanEmail, password);
         } catch (error: any) {
             setError(getErrorMessage(error?.code));
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -45,6 +53,7 @@ const EmailSignUp = () => {
                 placeholder="Email"
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="next"
                 value={email}
                 onChangeText={setEmail}
                 style={globalStyles.input}
@@ -52,6 +61,7 @@ const EmailSignUp = () => {
             <TextInput
                 placeholder="Password"
                 secureTextEntry
+                returnKeyType="next"
                 value={password}
                 onChangeText={setPassword}
                 style={globalStyles.input}
@@ -59,13 +69,21 @@ const EmailSignUp = () => {
             <TextInput
                 placeholder="Confirm Password"
                 secureTextEntry
+                returnKeyType="done"
+                onSubmitEditing={onSubmit}
+                blurOnSubmit
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 style={globalStyles.input}
             />
             {!!error && <Text style={globalStyles.errorText}>{error}</Text>}
-            <Pressable style={globalStyles.button} onPress={onSubmit}>
-                <Text style={globalStyles.buttonText}>Sign up with Email</Text>
+            <Pressable style={globalStyles.button} onPress={onSubmit} disabled={processing}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {processing && <ActivityIndicator color="#fff" />}
+                    <Text style={globalStyles.buttonText}>
+                        {processing ? 'Signing up...' : 'Sign up with Email'}
+                    </Text>
+                </View>
             </Pressable>
         </>
     );
