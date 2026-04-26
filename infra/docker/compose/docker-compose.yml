@@ -46,8 +46,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.size=500MB'
-    ports:
-      - "9090:9090"
     networks:
       - vitrolify-observability
     healthcheck:
@@ -60,8 +58,6 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: loki
-    ports:
-      - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - vitrolify-observability
