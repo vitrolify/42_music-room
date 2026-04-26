@@ -1,6 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, TextInput, Button, Text} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LoginButton from '../../src/components/LoginButton';
+import EmailSignIn from '../../src/components/EmailSignIn';
 
 export default function LoginScreen() {
     const insets = useSafeAreaInsets();
@@ -12,6 +13,8 @@ export default function LoginScreen() {
                 { paddingTop: insets.top, paddingBottom: insets.bottom },
             ]}
         >
+            <EmailSignIn />
+                <Text>or</Text>
             <LoginButton />
         </View>
     );

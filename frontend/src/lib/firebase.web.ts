@@ -4,6 +4,7 @@ import {
   getAuth,
   onAuthStateChanged as webOnAuthStateChanged,
   signInWithPopup,
+  signInWithEmailAndPassword,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -48,6 +49,10 @@ export async function signInWithGoogle() {
   provider.setCustomParameters({ prompt: 'select_account' });
 
   await signInWithPopup(auth, provider);
+}
+
+export async function signInWithEmail(email: string, password: string) {
+  await signInWithEmailAndPassword(auth, email, password);
 }
 
 export async function signOutUser() {
