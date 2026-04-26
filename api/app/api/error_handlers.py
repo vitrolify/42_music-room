@@ -1,17 +1,19 @@
 import logging
 
-from fastapi import Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 
 # Response models for internal error responses
 class ErrorResponse(BaseModel):
-    success: bool = Field(default=False, example=False)
-    error_code: str = Field(example="DATABASE_ERROR")
+    success: bool = Field(default=False, examples=[False])
+    error_code: str = Field(examples=["DATABASE_ERROR"])
     message: str = Field(
         description="Message to be shown to end user",
-        example="An error occurred while processing your request. Please try again later.",
+        examples=[
+            "An error occurred while processing your request. Please try again later."
+        ],
     )
 
 
@@ -41,7 +43,7 @@ async def virtolify_exception_handler(request: Request, exc: BaseVirtolifyExcept
     return JSONResponse(status_code=exc.status_code, content=error_body.model_dump())
 
 
-def setup_exception_handlers(app):
+def setup_exception_handlers(app: FastAPI):
     app.add_exception_handler(BaseVirtolifyException, virtolify_exception_handler)
 
 
