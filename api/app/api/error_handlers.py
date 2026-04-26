@@ -17,8 +17,8 @@ class ErrorResponse(BaseModel):
     )
 
 
-# Custom exceptions for Virtolify errors
-class BaseVirtolifyException(Exception):
+# Custom exceptions for Vitrolify errors
+class BaseVitrolifyException(Exception):
     error_code: str
     message: str
     status_code: int
@@ -36,7 +36,7 @@ class BaseVirtolifyException(Exception):
 
 
 # Exception Handlers
-async def virtolify_exception_handler(request: Request, exc: BaseVirtolifyException):
+async def vitrolify_exception_handler(request: Request, exc: BaseVitrolifyException):
     logger = logging.getLogger(__name__)
     logger.error(
         {"event": "exception_handled", "code": exc.error_code, "msg": exc.message},
@@ -49,13 +49,13 @@ async def virtolify_exception_handler(request: Request, exc: BaseVirtolifyExcept
 
 def setup_exception_handlers(app: FastAPI):
     app.add_exception_handler(
-        BaseVirtolifyException,
-        virtolify_exception_handler,  # pyright: ignore[reportArgumentType]
+        BaseVitrolifyException,
+        vitrolify_exception_handler,  # pyright: ignore[reportArgumentType]
     )
 
 
 def throw_exception():
-    raise BaseVirtolifyException(
+    raise BaseVitrolifyException(
         error_code="TEST_ERROR",
         message="This is a test error for demonstration purposes.",
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
