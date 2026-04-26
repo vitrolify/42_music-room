@@ -35,9 +35,4 @@ def setup_logging() -> None:
     root_logger.setLevel(logging.INFO)
     root_logger.addHandler(handler)
 
-    for name in ["uvicorn", "uvicorn.error"]:
-        uv_logger = logging.getLogger(name)
-        uv_logger.handlers = [handler]
-        uv_logger.propagate = False
-
     logging.getLogger().handlers = [handler]
