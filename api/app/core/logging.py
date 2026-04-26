@@ -1,10 +1,12 @@
-import logging
 import json
+import logging
 from datetime import datetime, timezone
+from typing import override
 
 
 class JsonFormatter(logging.Formatter):
-    def format(self, record):
+    @override
+    def format(self, record: logging.LogRecord) -> str:
         t = datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat()
         log_record = {
             "timestamp": t,
