@@ -5,6 +5,7 @@ type GlobalStyles = {
     input: ViewStyle;
     button: ViewStyle;
     buttonText: TextStyle;
+    errorText: TextStyle;
 };
 
 const globalStyles: GlobalStyles = {
@@ -31,6 +32,10 @@ const globalStyles: GlobalStyles = {
     buttonText: {
         color: '#fff',
         fontSize: 16,
+    },
+    errorText: {
+        color: '#b00020',
+        marginBottom: 10,
     },
 };
 

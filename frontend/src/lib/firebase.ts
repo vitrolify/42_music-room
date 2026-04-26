@@ -14,6 +14,10 @@ export async function signInWithEmail(email: string, password: string) {
     throw new Error('Platform-specific Firebase auth module was not resolved.');
 }
 
+export async function signUpWithEmail(email: string, password: string) {
+	throw new Error('Platform-specific Firebase auth module was not resolved.');
+}
+
 export async function signOutUser() {
 	throw new Error('Platform-specific Firebase auth module was not resolved.');
 }

@@ -7,14 +7,33 @@ const EmailSignIn = () => {
     const { emailSignIn } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const getErrorMessage = (code: string) => {
+        switch (code) {
+            case 'auth/invalid-credential':
+                return 'Wrong email or password.';
+            case 'auth/invalid-email':
+                return 'Please enter a valid email address.';
+            default:
+                return 'Unable to sign in right now.';
+        }
+    };
 
     const onSubmit = async () => {
         const cleanEmail = email.trim();
         if (!cleanEmail || !password) {
+            setError('Email and password are required.');
             return;
         }
 
-        await emailSignIn(cleanEmail, password);
+        setError('');
+
+        try {
+            await emailSignIn(cleanEmail, password);
+        } catch (error: any) {
+            setError(getErrorMessage(error?.code));
+        }
     };
 
     return (
@@ -34,6 +53,7 @@ const EmailSignIn = () => {
                 onChangeText={setPassword}
                 style={globalStyles.input}
             />
+            {!!error && <Text style={globalStyles.errorText}>{error}</Text>}
             <Pressable style={globalStyles.button} onPress={onSubmit}>
                 <Text style={globalStyles.buttonText}>Sign in with Email</Text>
             </Pressable>

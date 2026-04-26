@@ -73,3 +73,7 @@ export async function signOutUser() {
 export async function signInWithEmail(email: string, password: string) {
 	await auth().signInWithEmailAndPassword(email, password);
 }
+
+export async function signUpWithEmail(email: string, password: string) {
+	await auth().createUserWithEmailAndPassword(email, password);
+}
