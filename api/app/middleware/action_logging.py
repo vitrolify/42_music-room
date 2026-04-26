@@ -1,17 +1,21 @@
 import logging
+from typing import override
+
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(f"{__name__}")
 
 EXCLUDED_PATHS = {
     "/favicon.ico",
+    "/metrics",
 }
 
 
 class UserActionMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        # Add GET method later
-        if request.url.path in EXCLUDED_PATHS or request.method in {"HEAD", "OPTIONS"}:
+    @override
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path in EXCLUDED_PATHS:
             return await call_next(request)
 
         user_id = 42  # Placeholder for user ID extraction logic
@@ -22,7 +26,7 @@ class UserActionMiddleware(BaseHTTPMiddleware):
             "method": request.method,
             "path": request.url.path,
             "status": response.status_code,
-            "client_ip": request.client.host
+            "client_ip": request.client.host,
         }
         logger.info(log_data)
         return response
