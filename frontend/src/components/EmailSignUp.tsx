@@ -56,7 +56,8 @@ const EmailSignUp = () => {
                 returnKeyType="next"
                 value={email}
                 onChangeText={setEmail}
-                style={globalStyles.input}
+                style={{ ...globalStyles.input, marginTop: 100 }}
+                placeholderTextColor={'#999'}
             />
             <TextInput
                 placeholder="Password"
@@ -65,6 +66,7 @@ const EmailSignUp = () => {
                 value={password}
                 onChangeText={setPassword}
                 style={globalStyles.input}
+                placeholderTextColor={'#999'}
             />
             <TextInput
                 placeholder="Confirm Password"
@@ -75,6 +77,7 @@ const EmailSignUp = () => {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 style={globalStyles.input}
+                placeholderTextColor={'#999'}
             />
             {!!error && <Text style={globalStyles.errorText}>{error}</Text>}
             <Pressable style={globalStyles.button} onPress={onSubmit} disabled={processing}>

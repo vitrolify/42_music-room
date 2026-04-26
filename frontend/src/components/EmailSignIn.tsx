@@ -54,6 +54,7 @@ const EmailSignIn = () => {
                 value={email}
                 onChangeText={setEmail}
                 style={globalStyles.input}
+                placeholderTextColor={'#999'}
             />
             <TextInput
                 placeholder="Password"
@@ -64,6 +65,7 @@ const EmailSignIn = () => {
                 value={password}
                 onChangeText={setPassword}
                 style={globalStyles.input}
+                placeholderTextColor={'#999'}
             />
             {!!error && <Text style={globalStyles.errorText}>{error}</Text>}
             <Pressable style={globalStyles.button} onPress={onSubmit} disabled={processing}>
