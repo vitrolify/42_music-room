@@ -19,11 +19,15 @@ class ErrorResponse(BaseModel):
 
 # Custom exceptions for Virtolify errors
 class BaseVirtolifyException(Exception):
+    error_code: str
+    message: str
+    status_code: int
+
     def __init__(
         self,
         error_code: str,
         message: str,
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
     ):
         self.error_code = error_code
         self.message = message
@@ -44,7 +48,10 @@ async def virtolify_exception_handler(request: Request, exc: BaseVirtolifyExcept
 
 
 def setup_exception_handlers(app: FastAPI):
-    app.add_exception_handler(BaseVirtolifyException, virtolify_exception_handler)
+    app.add_exception_handler(
+        BaseVirtolifyException,
+        virtolify_exception_handler,  # pyright: ignore[reportArgumentType]
+    )
 
 
 def throw_exception():
