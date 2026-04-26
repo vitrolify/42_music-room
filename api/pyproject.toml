@@ -7,6 +7,10 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "pydantic-settings>=2.4.0"
+    "sqlalchemy[asyncio]",
+    "asyncpg",
+    "alembic",
+    "psycopg[binary]"
 ]
 
 [project.optional-dependencies]
