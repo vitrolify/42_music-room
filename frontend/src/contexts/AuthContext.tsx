@@ -2,6 +2,7 @@ import { createContext, useEffect, useState, use } from 'react';
 import {
     onAuthStateChanged,
     signInWithGoogle,
+    signInWithEmail,
     signOutUser,
     type AuthUser,
 } from '../lib/firebase';
@@ -14,6 +15,7 @@ type AuthContextType = {
     initializing: boolean;
     login: () => Promise<void>;
     googleSignIn: () => Promise<void>; // alias for login
+    emailSignIn: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
 };
 
@@ -42,6 +44,15 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }
 
+    async function emailSignIn(email: string, password: string) {
+        try {
+            return await signInWithEmail(email, password);
+        } catch (error) {
+            console.error('Error signing in with email/password: ', error);
+            return;
+        }
+    }
+
     const logout = async () => {
         try {
             await signOutUser();
@@ -53,7 +64,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
     return (
-        <AuthContext.Provider value={{ user, setUser, isLoggedIn: !!user, initializing, login: googleSignIn, googleSignIn, logout }}>
+        <AuthContext.Provider value={{ user, setUser, isLoggedIn: !!user, initializing, login: googleSignIn, googleSignIn, emailSignIn, logout }}>
             {children}
         </AuthContext.Provider>
     );

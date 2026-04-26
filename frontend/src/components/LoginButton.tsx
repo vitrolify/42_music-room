@@ -1,5 +1,4 @@
 import { Button, Platform } from 'react-native';
-import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginButton = () => {
@@ -9,16 +8,7 @@ const LoginButton = () => {
         return <Button title="Sign in with Google" onPress={googleSignIn} />;
     }
     
-    return (
-        <GoogleSigninButton
-            size={GoogleSigninButton.Size.Wide}
-            color={GoogleSigninButton.Color.Dark}
-            onPress={() => {
-                googleSignIn();
-            }}
-            // disabled={isInProgress}
-        />
-    )
+    return <Button title="Sign in with Google" onPress={googleSignIn} />;
 }
 
 export default LoginButton

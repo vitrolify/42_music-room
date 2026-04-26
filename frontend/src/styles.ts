@@ -1,4 +1,13 @@
-const globalStyles = {
+import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
+
+type GlobalStyles = {
+    container: ViewStyle;
+    input: ViewStyle;
+    button: ViewStyle;
+    buttonText: TextStyle;
+};
+
+const globalStyles: GlobalStyles = {
     container: {
         flex: 1,
         justifyContent: 'center',
@@ -25,4 +34,4 @@ const globalStyles = {
     },
 };
 
-export default globalStyles;
+export default StyleSheet.create(globalStyles);

@@ -69,3 +69,7 @@ export async function signOutUser() {
 		// Ignore Google sign-out failures so Firebase sign-out still succeeds.
 	}
 }
+
+export async function signInWithEmail(email: string, password: string) {
+	await auth().signInWithEmailAndPassword(email, password);
+}
