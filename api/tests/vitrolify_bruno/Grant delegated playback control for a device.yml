@@ -1,0 +1,24 @@
+info:
+  name: Grant delegated playback control for a device
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{domain}}{{port}}{{baseUrl}}/delegations"
+  body:
+    type: json
+    data: |-
+      {
+        "delegate_user_id": "",
+        "playback_device_id": "",
+        "starts_at": "",
+        "ends_at": ""
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

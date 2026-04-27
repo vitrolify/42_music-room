@@ -1,8 +1,38 @@
+import json
 import logging
+from datetime import datetime, timezone
+from typing import override
+
+
+class JsonFormatter(logging.Formatter):
+    @override
+    def format(self, record: logging.LogRecord) -> str:
+        t = datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat()
+        log_record = {
+            "timestamp": t,
+            "level": record.levelname,
+            "logger": record.name,
+        }
+
+        if isinstance(record.msg, dict):
+            log_record.update(record.msg)
+        else:
+            log_record["message"] = record.getMessage()
+
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+            log_record["caller"] = f"{record.pathname}:{record.lineno}"
+
+        return json.dumps(log_record)
 
 
 def setup_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-    )
+    root_logger = logging.getLogger()
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
+
+    logging.getLogger().handlers = [handler]

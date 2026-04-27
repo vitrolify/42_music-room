@@ -6,6 +6,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENABLE_METRICS: ${ENABLE_METRICS}
     depends_on:
       db:
         condition: service_healthy
@@ -14,7 +15,10 @@ services:
     # Delete the volume and command when ready for production
     volumes:
       - ../../../api/app:/api/app
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
+    networks:
+      - vitrolify-observability
+      - vitrolify-db
 
   db:
     image: postgres:16-alpine
@@ -29,6 +33,64 @@ services:
       retries: 10
     volumes:
       - db-data:/var/lib/postgresql/data
+    networks:
+      - vitrolify-db
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ../../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.size=500MB'
+    networks:
+      - vitrolify-observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+  
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ../../observability/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - vitrolify-observability
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ../../observability/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - promtail_data:/var/lib/promtail
+    networks:
+      - vitrolify-observability
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    volumes:
+      - ../../observability/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - vitrolify-observability
 
   k6:
     image: grafana/k6:0.52.0
@@ -41,6 +103,18 @@ services:
     environment:
       K6_API_BASE_URL: http://api:8000/api/v1
     entrypoint: ["k6"]
+    networks:
+      - vitrolify-observability
+
 
 volumes:
   db-data:
+  prometheus_data:
+  loki_data:
+  promtail_data:
+
+networks:
+  vitrolify-db:
+    internal: true
+  vitrolify-observability:
+    driver: bridge
