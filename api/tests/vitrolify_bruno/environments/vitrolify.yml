@@ -1,0 +1,8 @@
+name: vitrolify
+variables:
+  - name: baseUrl
+    value: /api/v1
+  - name: domain
+    value: http://localhost
+  - name: port
+    value: :8000

@@ -1,0 +1,24 @@
+info:
+  name: Create event
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{domain}}{{port}}{{baseUrl}}/events"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "visibility": "public",
+        "playlist_init_mode": "blank",
+        "source_playlist_id": ""
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

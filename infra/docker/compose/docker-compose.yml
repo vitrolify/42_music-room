@@ -16,7 +16,7 @@ services:
     volumes:
       - ../../../api/app:/api/app
       - ../../../api/alembic.ini:/api/alembic.ini:ro
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
     networks:
       - vitrolify-observability
       - vitrolify-db

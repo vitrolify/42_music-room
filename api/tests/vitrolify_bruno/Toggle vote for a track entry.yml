@@ -1,0 +1,25 @@
+info:
+  name: Toggle vote for a track entry
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{domain}}{{port}}{{baseUrl}}/events/:eventId/votes"
+  params:
+    - name: eventId
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "track_entry_id": 0
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
