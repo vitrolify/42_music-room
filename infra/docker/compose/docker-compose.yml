@@ -29,6 +29,8 @@ services:
       retries: 10
     volumes:
       - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   k6:
     image: grafana/k6:0.52.0
