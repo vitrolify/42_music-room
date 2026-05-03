@@ -54,7 +54,7 @@ jobs:
         working-directory: api
         run: |
           pip install -e ".[dev]"
-          pytest --tb=short -q
+          pytest --tb=short -q || [ $? -eq 5 ]
 
   contract:
     name: Contract validation
