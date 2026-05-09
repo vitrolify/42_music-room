@@ -10,13 +10,24 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8000:8000"
     # Delete the volume and command when ready for production
     volumes:
       - ../../../api/app:/api/app
       - ../../../api/alembic.ini:/api/alembic.ini:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
+    networks:
+      - vitrolify-observability
+      - vitrolify-db
+
+  nginx:
+    image: nginx:1.29.8-alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
     networks:
       - vitrolify-observability
       - vitrolify-db
