@@ -7,13 +7,14 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
 
+    # Overriden in .env file for production
     database_url: str = (
         "postgresql+asyncpg://music_room:music_room@localhost:5432/music_room"
     )
 
     db_echo: bool = False
 
-    model_config = SettingsConfigDict(
+    model_config: SettingsConfigDict = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
