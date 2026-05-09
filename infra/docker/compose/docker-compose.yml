@@ -45,8 +45,6 @@ services:
       - db-data:/var/lib/postgresql/data
     networks:
       - vitrolify-db
-    ports:
-      - "5432:5432"
 
   prometheus:
     image: prom/prometheus:latest
