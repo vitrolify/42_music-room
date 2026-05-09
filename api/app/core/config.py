@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     database_url: str = (
-        "postgresql+asyncpg://music_room:music_room@localhost:5432/music_room"
+        "postgresql+asyncpg://music_room:music_room@localhost:5432/music_room" #overriden in .env file for production
     )
 
     db_echo: bool = False
