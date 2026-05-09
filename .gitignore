@@ -9,6 +9,16 @@ __pycache__/
 *.egg-info/
 .env
 
+# Additional Python caches and test artifacts
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+
 # Expo
 .expo/
 dist/
