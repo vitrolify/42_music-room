@@ -4,7 +4,7 @@ services:
       context: ../../../api
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ENABLE_METRICS: ${ENABLE_METRICS}
     depends_on:
@@ -15,6 +15,7 @@ services:
     # Delete the volume and command when ready for production
     volumes:
       - ../../../api/app:/api/app
+      - ../../../api/alembic.ini:/api/alembic.ini:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
     networks:
       - vitrolify-observability
@@ -35,6 +36,8 @@ services:
       - db-data:/var/lib/postgresql/data
     networks:
       - vitrolify-db
+    ports:
+      - "5432:5432"
 
   prometheus:
     image: prom/prometheus:latest
@@ -91,7 +94,7 @@ services:
       - ../../observability/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - vitrolify-observability
-
+  
   k6:
     image: grafana/k6:0.52.0
     profiles: ["test"]
