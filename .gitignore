@@ -60,6 +60,16 @@ yarn-error.*
 # google-services
 google-services.json
 
+# Firebase service-account credentials — must NEVER be committed (OSR-004)
+# NOTE: `secrets/*` (not `secrets/`) so the negation below actually works —
+# git won't descend into a wholly-excluded directory.
+secrets/*
+!secrets/README.md
+firebase-adminsdk-*.json
+*-firebase-adminsdk-*.json
+vitrolify-sa*.json
+
 # local notes and tools
-my_notes/
+docs/
 .claude/
+.idea/

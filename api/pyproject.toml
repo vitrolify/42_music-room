@@ -10,7 +10,8 @@ dependencies = [
     "prometheus-fastapi-instrumentator>=7.1.0",
     "sqlalchemy[asyncio]>=2.0.30",
     "asyncpg>=0.29.0",
-    "alembic>=1.13.0"
+    "alembic>=1.13.0",
+    "firebase-admin>=6.5.0"
 ]
 
 [project.optional-dependencies]
