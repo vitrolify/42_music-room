@@ -14,6 +14,7 @@ services:
     volumes:
       - ../../../api/app:/api/app
       - ../../../api/alembic.ini:/api/alembic.ini:ro
+      - ${FIREBASE_SA_HOST_PATH:-../../../secrets/vitrolify-sa.json}:/run/secrets/firebase-sa.json:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
     networks:
       - vitrolify-observability
