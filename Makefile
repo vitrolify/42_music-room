@@ -8,7 +8,7 @@ fclean:
 	cd infra/docker/compose && docker compose down -v --rmi all
 
 test:
-	cd infra/docker/compose && docker compose --profile test up --build
+	cd infra/docker/compose && docker compose --profile test run --rm k6
 
 re: fclean up
 

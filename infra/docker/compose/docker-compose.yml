@@ -107,10 +107,11 @@ services:
       api:
         condition: service_started
     volumes:
-      - ../k6:/scripts:ro
+      - ../../k6:/scripts:ro
     environment:
-      K6_API_BASE_URL: http://api:8000/api/v1
+      K6_API_BASE_URL: http://nginx
     entrypoint: ["k6"]
+    command: ["run", "/scripts/basic_test.js"]
     networks:
       - vitrolify-observability
 
