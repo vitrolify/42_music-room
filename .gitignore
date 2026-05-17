@@ -72,3 +72,4 @@ vitrolify-sa*.json
 # local notes and tools
 docs/
 .claude/
+.idea/
