@@ -6,11 +6,13 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "postinstall": "node -e \"var p='node_modules/phosphor-react-native/package.json';var j=require('./'+p);j['react-native']='lib/commonjs/index.js';require('fs').writeFileSync(p,JSON.stringify(j,null,2)+'\\n')\""
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/montserrat": "^0.4.2",
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-firebase/app": "^24.0.0",
     "@react-native-firebase/auth": "^24.0.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
@@ -23,10 +25,12 @@
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~55.0.6",
     "firebase": "^12.12.1",
+    "phosphor-react-native": "^3.0.6",
     "react": "19.2.0",
     "react-native": "0.83.6",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
+    "react-native-tab-view": "^4.3.0",
     "react-native-web": "^0.21.0"
   },
   "devDependencies": {
