@@ -46,7 +46,12 @@ class User(Base):
     )
 
     avatar: Mapped[Avatar] = mapped_column(
-        SAEnum(Avatar, name="avatar_enum", create_type=False),
+        SAEnum(
+            Avatar,
+            name="avatar_enum",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=Avatar.VINIL,
         server_default=Avatar.VINIL.value,
