@@ -1,6 +1,7 @@
 import { View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LogoutButton from '../../src/components/LogoutButton';
+import { colors, fonts, fontSizes, spacing, globalStyles } from '../../src/styles';
 
 export default function Home() {
     const insets = useSafeAreaInsets();
@@ -8,13 +9,14 @@ export default function Home() {
     return (
         <View
             style={[
-                { flex: 1, alignItems: 'center', justifyContent: 'center' },
-                { paddingTop: insets.top, paddingBottom: insets.bottom },
+                globalStyles.container,
+                { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl },
             ]}
         >
-            <Text style={{ fontSize: 20, color: 'red' }}>Home Screen</Text>
-            <LogoutButton />
+            <Text style={globalStyles.title}>Home Screen</Text>
+            <View style={{ marginTop: spacing.xxl }}>
+                <LogoutButton />
+            </View>
         </View>
     );
 }
-
