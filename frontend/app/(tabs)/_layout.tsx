@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { House, MagnifyingGlass, Playlist } from 'phosphor-react-native';
+import { House, MagnifyingGlass, Playlist, UserCircle } from 'phosphor-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
 
@@ -51,6 +51,15 @@ export default function TabsLayout() {
                     title: 'Playlists',
                     tabBarIcon: ({ focused, color, size }) => (
                         <Playlist weight={focused ? 'fill' : 'bold'} size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'Profile',
+                    tabBarIcon: ({ focused, color, size }) => (
+                        <UserCircle weight={focused ? 'fill' : 'bold'} size={size} color={color} />
                     ),
                 }}
             />
