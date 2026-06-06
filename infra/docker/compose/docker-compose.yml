@@ -7,6 +7,7 @@ services:
       dockerfile: Dockerfile
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql+asyncpg://music_room:music_room@db:5432/music_room
     depends_on:
       db:
         condition: service_healthy
