@@ -1,8 +1,18 @@
-import { useState } from 'react';
-import { View, Text, TextInput, Pressable, Image, ScrollView } from 'react-native';
+import { useState, useEffect } from 'react';
+import {
+    View,
+    Text,
+    TextInput,
+    Pressable,
+    Image,
+    ScrollView,
+    ActivityIndicator,
+    Alert,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { colors, spacing, borderRadius, globalStyles } from '../../src/styles';
+import { getMyProfile, updateMyProfile } from '../../src/lib/api';
+import { colors, spacing, globalStyles } from '../../src/styles';
 
 const AVATAR_OPTIONS = ['vinil', 'tape', 'globe', 'et', 'cat', 'owl'] as const;
 
@@ -21,8 +31,70 @@ function getAvatarSource(avatar: string) {
 export default function Profile() {
     const { user, logout } = useAuth();
     const insets = useSafeAreaInsets();
+
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [displayName, setDisplayName] = useState(user?.displayName ?? '');
     const [selectedAvatar, setSelectedAvatar] = useState('vinil');
+    const [initialValues, setInitialValues] = useState({ displayName: '', avatar: 'vinil' });
+
+    const hasChanges =
+        displayName !== initialValues.displayName ||
+        selectedAvatar !== initialValues.avatar;
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const profile = await getMyProfile();
+                setDisplayName(profile.display_name ?? '');
+                setSelectedAvatar(profile.avatar);
+                setInitialValues({
+                    displayName: profile.display_name ?? '',
+                    avatar: profile.avatar,
+                });
+            } catch (err) {
+                console.warn('Failed to fetch profile:', err);
+                setDisplayName(user?.displayName ?? '');
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, []);
+
+    async function handleSave() {
+        setSaving(true);
+        try {
+            const updated = await updateMyProfile({
+                display_name: displayName || null,
+                avatar: selectedAvatar,
+            });
+            setDisplayName(updated.display_name ?? '');
+            setSelectedAvatar(updated.avatar);
+            setInitialValues({
+                displayName: updated.display_name ?? '',
+                avatar: updated.avatar,
+            });
+            Alert.alert('Saved', 'Your profile has been updated.');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to save profile';
+            Alert.alert('Error', message);
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    if (loading) {
+        return (
+            <View
+                style={[
+                    globalStyles.container,
+                    { paddingTop: insets.top + spacing.xl },
+                ]}
+            >
+                <ActivityIndicator size="large" color={colors.brand} />
+            </View>
+        );
+    }
 
     return (
         <ScrollView
@@ -33,7 +105,6 @@ export default function Profile() {
                 alignItems: 'center',
             }}
         >
-            {/* Current avatar */}
             <View style={{ alignItems: 'center', marginBottom: spacing.xxl }}>
                 <Image
                     source={getAvatarSource(selectedAvatar)}
@@ -52,7 +123,6 @@ export default function Profile() {
                 )}
             </View>
 
-            {/* Display name input */}
             <View style={{ width: '100%', marginBottom: spacing.lg }}>
                 <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
                     Display Name
@@ -66,7 +136,6 @@ export default function Profile() {
                 />
             </View>
 
-            {/* Avatar selection */}
             <View style={{ width: '100%' }}>
                 <Text style={[globalStyles.caption, { marginBottom: spacing.md }]}>
                     Avatar
@@ -101,11 +170,26 @@ export default function Profile() {
                 </View>
             </View>
 
-            {/* Logout */}
             <Pressable
                 style={({ pressed }) => ({
                     ...globalStyles.pillButton,
                     marginTop: spacing.xxl * 1.5,
+                    opacity: pressed || !hasChanges || saving ? 0.8 : 1,
+                })}
+                onPress={handleSave}
+                disabled={!hasChanges || saving}
+            >
+                {saving ? (
+                    <ActivityIndicator size="small" color={colors.text.primary} />
+                ) : (
+                    <Text style={globalStyles.pillButtonText}>Save</Text>
+                )}
+            </Pressable>
+
+            <Pressable
+                style={({ pressed }) => ({
+                    ...globalStyles.pillButton,
+                    marginTop: spacing.lg,
                     opacity: pressed ? 0.8 : 1,
                 })}
                 onPress={logout}
