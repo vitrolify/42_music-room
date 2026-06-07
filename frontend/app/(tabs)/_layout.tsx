@@ -1,11 +1,68 @@
-import { Slot } from 'expo-router';
-import { View } from 'react-native';
-import { colors } from '../../src/styles';
+import { Tabs } from 'expo-router';
+import { House, MagnifyingGlass, Playlist, UserCircle } from 'phosphor-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../src/styles';
 
 export default function TabsLayout() {
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.bg.surface }}>
-      <Slot />
-    </View>
-  );
+    const insets = useSafeAreaInsets();
+
+    return (
+        <Tabs
+            screenOptions={{
+                headerShown: false,
+                tabBarActiveTintColor: colors.brand,
+                tabBarInactiveTintColor: colors.text.secondary,
+                tabBarStyle: {
+                    backgroundColor: colors.bg.surface,
+                    borderTopColor: colors.border.gray,
+                    borderTopWidth: 0.5,
+                    paddingTop: spacing.sm / 2,
+                    height: 56 + insets.bottom,
+                    paddingBottom: insets.bottom + spacing.xs,
+                },
+                tabBarLabelStyle: {
+                    fontFamily: 'Inter_600SemiBold',
+                    fontSize: 10,
+                    marginTop: -2,
+                },
+            }}
+        >
+            <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Home',
+                    tabBarIcon: ({ focused, color, size }) => (
+                        <House weight={focused ? 'fill' : 'bold'} size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="search"
+                options={{
+                    title: 'Search',
+                    tabBarIcon: ({ focused, color, size }) => (
+                        <MagnifyingGlass weight={focused ? 'fill' : 'bold'} size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="playlists"
+                options={{
+                    title: 'Playlists',
+                    tabBarIcon: ({ focused, color, size }) => (
+                        <Playlist weight={focused ? 'fill' : 'bold'} size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'Profile',
+                    tabBarIcon: ({ focused, color, size }) => (
+                        <UserCircle weight={focused ? 'fill' : 'bold'} size={size} color={color} />
+                    ),
+                }}
+            />
+        </Tabs>
+    );
 }
