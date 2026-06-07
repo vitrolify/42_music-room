@@ -34,6 +34,7 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+extend-exclude = ["app/db/migrations/versions/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
