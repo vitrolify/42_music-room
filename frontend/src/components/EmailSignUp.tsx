@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import globalStyles from '../styles';
+import { colors, fonts, fontSizes, borderRadius, spacing, globalStyles } from '../styles';
 
 const EmailSignUp = () => {
     const { emailSignUp } = useAuth();
@@ -31,9 +31,7 @@ const EmailSignUp = () => {
             return;
         }
 
-        if (processing) {
-            return;
-        }
+        if (processing) return;
 
         setProcessing(true);
         setError('');
@@ -51,25 +49,26 @@ const EmailSignUp = () => {
         <>
             <TextInput
                 placeholder="Email"
+                placeholderTextColor={colors.text.secondary}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 returnKeyType="next"
                 value={email}
                 onChangeText={setEmail}
-                style={{ ...globalStyles.input, marginTop: 100 }}
-                placeholderTextColor={'#999'}
+                style={[globalStyles.input, { marginTop: 100 }]}
             />
             <TextInput
                 placeholder="Password"
+                placeholderTextColor={colors.text.secondary}
                 secureTextEntry
                 returnKeyType="next"
                 value={password}
                 onChangeText={setPassword}
                 style={globalStyles.input}
-                placeholderTextColor={'#999'}
             />
             <TextInput
                 placeholder="Confirm Password"
+                placeholderTextColor={colors.text.secondary}
                 secureTextEntry
                 returnKeyType="done"
                 onSubmitEditing={onSubmit}
@@ -77,14 +76,21 @@ const EmailSignUp = () => {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 style={globalStyles.input}
-                placeholderTextColor={'#999'}
             />
             {!!error && <Text style={globalStyles.errorText}>{error}</Text>}
-            <Pressable style={globalStyles.button} onPress={onSubmit} disabled={processing}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {processing && <ActivityIndicator color="#fff" />}
-                    <Text style={globalStyles.buttonText}>
-                        {processing ? 'Signing up...' : 'Sign up with Email'}
+            <Pressable
+                style={({ pressed }) => ({
+                    ...globalStyles.primaryPillButton,
+                    width: '100%',
+                    opacity: pressed ? 0.9 : 1,
+                })}
+                onPress={onSubmit}
+                disabled={processing}
+            >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    {processing && <ActivityIndicator color={colors.text.primary} style={globalStyles.activityIndicator} />}
+                    <Text style={globalStyles.primaryPillButtonText}>
+                        {processing ? 'Signing up...' : 'Sign up'}
                     </Text>
                 </View>
             </Pressable>

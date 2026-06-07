@@ -1,14 +1,22 @@
-import { Button, Platform } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { globalStyles } from '../styles';
 
 const LoginButton = () => {
     const { googleSignIn } = useAuth();
 
-    if (Platform.OS === 'web') {
-        return <Button title="Sign in with Google" onPress={googleSignIn} />;
-    }
-    
-    return <Button title="Sign in with Google" onPress={googleSignIn} />;
+    return (
+        <Pressable
+            style={({ pressed }) => ({
+                ...globalStyles.pillButton,
+                width: '100%',
+                opacity: pressed ? 0.8 : 1,
+            })}
+            onPress={googleSignIn}
+        >
+            <Text style={globalStyles.pillButtonText}>Sign in with Google</Text>
+        </Pressable>
+    );
 }
 
-export default LoginButton
+export default LoginButton;
