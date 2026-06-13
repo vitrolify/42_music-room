@@ -18,7 +18,11 @@ from app.schemas.playlist import PlaylistCreate, PlaylistRead, PlaylistUpdate
 router = APIRouter(tags=["playlists"])
 
 
-@router.post("/playlists", response_model=PlaylistRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/playlists",
+    response_model=PlaylistRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_playlist(
     payload: PlaylistCreate,
     db: AsyncSession = Depends(get_db),

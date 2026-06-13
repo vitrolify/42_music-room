@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from typing import Annotated
 
 from fastapi import Depends, Header, status
 from sqlalchemy import select
