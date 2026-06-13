@@ -1,0 +1,225 @@
+{
+    "info": {
+        "_postman_id": "vitrolify-collection-m3",
+        "name": "Vitrolify - API (M3 Playlist)",
+        "description": "Coleção do M3 — Playlist Editor.\n\nFluxo:\n1. Login no app Expo, pega o JWT do IndexedDB.\n2. Cola na variável auth_token do Environment (SEM 'Bearer').\n3. Rode POST /playlists (atualiza playlist_id auto).\n4. Teste demais endpoints usando {{playlist_id}}.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{auth_token}}", "type": "string" }]
+    },
+    "item": [
+        {
+            "name": "00 - Sanity",
+            "item": [
+                {
+                    "name": "GET / (root)",
+                    "request": {
+                        "auth": { "type": "noauth" },
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] }
+                    }
+                },
+                {
+                    "name": "GET /api/v1/health",
+                    "request": {
+                        "auth": { "type": "noauth" },
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/health", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "health"] }
+                    }
+                },
+                {
+                    "name": "GET /docs (Swagger UI)",
+                    "request": {
+                        "auth": { "type": "noauth" },
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "text/html" }],
+                        "url": { "raw": "{{base_url}}/docs", "host": ["{{base_url}}"], "path": ["docs"] }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "01 - Autenticação (Firebase)",
+            "description": "Sem endpoint /login no backend — Firebase cuida disso.\n\nPra pegar o token, no console do app web (DevTools → Console):\n\n```js\nconst req = indexedDB.open('firebaseLocalStorageDb');\nreq.onsuccess = () => {\n  req.result.transaction('firebaseLocalStorage', 'readonly')\n    .objectStore('firebaseLocalStorage')\n    .getAll().onsuccess = (e) => {\n      const u = e.target.result.find(r => r.fbase_key?.startsWith('firebase:authUser:'));\n      if (!u) { console.log('❌ não logado'); return; }\n      const t = u.value.stsTokenManager.accessToken;\n      console.log(t);\n    };\n};\n```\n\nBotão direito no token → Copy string contents → cola em `auth_token` (SEM 'Bearer').",
+            "item": [
+                {
+                    "name": "GET /users/me - Token válido (200)",
+                    "request": {
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/users/me", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "users", "me"] }
+                    }
+                },
+                {
+                    "name": "GET /users/me - Token inválido (401)",
+                    "request": {
+                        "auth": { "type": "noauth" },
+                        "method": "GET",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer token.invalido.aqui" }
+                        ],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/users/me", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "users", "me"] }
+                    }
+                },
+                {
+                    "name": "GET /users/me - Sem Authorization (401)",
+                    "request": {
+                        "auth": { "type": "noauth" },
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/users/me", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "users", "me"] }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "02 - Playlists",
+            "item": [
+                {
+                    "name": "POST /playlists - Criar",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('status 201', () => pm.response.to.have.status(201));",
+                                    "const body = pm.response.json();",
+                                    "if (body.id) {",
+                                    "    pm.environment.set('playlist_id', body.id);",
+                                    "    console.log('playlist_id atualizado:', body.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Festa Teste\",\n    \"public\": true,\n    \"invited_only_edit\": false\n}"
+                        },
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists"] }
+                    }
+                },
+                {
+                    "name": "GET /playlists - Listar",
+                    "request": {
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists"] }
+                    }
+                },
+                {
+                    "name": "GET /playlists/{id} - Detalhe",
+                    "request": {
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists/{{playlist_id}}", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists", "{{playlist_id}}"] }
+                    }
+                },
+                {
+                    "name": "PATCH /playlists/{id} - Editar (só dono)",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Festa Teste (editada)\",\n    \"public\": false\n}"
+                        },
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists/{{playlist_id}}", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists", "{{playlist_id}}"] }
+                    }
+                },
+                {
+                    "name": "DELETE /playlists/{id} - Apagar (só dono)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists/{{playlist_id}}", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists", "{{playlist_id}}"] }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "03 - Invites",
+            "description": "Antes de criar invite: precisa de outro user com UUID na tabela `users`. Faz login com outra conta Firebase pra criar a linha automaticamente, daí pega o UUID com SELECT id, email FROM users; e cola em `invited_user_id`.",
+            "item": [
+                {
+                    "name": "POST /playlists/{id}/invites - Dono convida",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('status 201', () => pm.response.to.have.status(201));",
+                                    "const body = pm.response.json();",
+                                    "if (body.id) {",
+                                    "    pm.environment.set('invite_id', body.id);",
+                                    "    console.log('invite_id atualizado:', body.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Accept", "value": "application/json" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"user_id\": \"{{invited_user_id}}\"\n}"
+                        },
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists/{{playlist_id}}/invites", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists", "{{playlist_id}}", "invites"] }
+                    }
+                },
+                {
+                    "name": "GET /playlists/{id}/invites - Lista (só dono)",
+                    "request": {
+                        "method": "GET",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/playlists/{{playlist_id}}/invites", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "playlists", "{{playlist_id}}", "invites"] }
+                    }
+                },
+                {
+                    "name": "PATCH /invites/{id}/accept - Convidado aceita",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/invites/{{invite_id}}/accept", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "invites", "{{invite_id}}", "accept"] }
+                    }
+                },
+                {
+                    "name": "PATCH /invites/{id}/decline - Convidado recusa",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/invites/{{invite_id}}/decline", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "invites", "{{invite_id}}", "decline"] }
+                    }
+                },
+                {
+                    "name": "DELETE /invites/{id} - Cancela (dono ou convidado)",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [{ "key": "Accept", "value": "application/json" }],
+                        "url": { "raw": "{{base_url}}/api/{{api_version}}/invites/{{invite_id}}", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "invites", "{{invite_id}}"] }
+                    }
+                }
+            ]
+        }
+    ]
+}
