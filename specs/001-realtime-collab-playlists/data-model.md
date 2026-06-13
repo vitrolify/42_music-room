@@ -131,6 +131,7 @@ State transitions:
 - firebase_uid: string unique
 - email: string nullable
 - display_name: string nullable
+- avatar: enum(vinil, tape, globe, et, cat, owl) default vinil
 - created_at: timestamptz
 - updated_at: timestamptz
 
