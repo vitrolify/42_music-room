@@ -14,6 +14,16 @@ class Settings(BaseSettings):
 
     db_echo: bool = False
 
+    cors_origins: list[str] = [
+        "http://localhost:8081",
+        "http://localhost:8080",
+        "http://127.0.0.1:8081",
+        "http://127.0.0.1:8080",
+    ]
+
+    firebase_credentials_path: str = "secrets/vitrolify-sa.json"
+    firebase_project_id: str = "vitrolify-5c94a"
+
     model_config: SettingsConfigDict = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

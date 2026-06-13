@@ -1,8 +1,9 @@
 import { Link } from 'expo-router';
-import { StyleSheet, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LoginButton from '../../src/components/LoginButton';
 import EmailSignIn from '../../src/components/EmailSignIn';
+import { colors, fonts, fontSizes, spacing, globalStyles } from '../../src/styles';
 
 export default function LoginScreen() {
     const insets = useSafeAreaInsets();
@@ -10,28 +11,22 @@ export default function LoginScreen() {
     return (
         <View
             style={[
-                styles.container,
-                { paddingTop: insets.top, paddingBottom: insets.bottom },
+                globalStyles.container,
+                { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl },
             ]}
         >
+            <Text style={[globalStyles.title, { marginBottom: spacing.xxl }]}>
+                Vitrolify
+            </Text>
             <EmailSignIn />
-            <Link href="/(auth)/signup" style={styles.signupLink}>
+            <Link
+                href="/(auth)/signup"
+                style={[globalStyles.link, { marginTop: spacing.lg }]}
+            >
                 Create an account
             </Link>
-            <Text>or</Text>
+            <Text style={globalStyles.separator}>or</Text>
             <LoginButton />
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    signupLink: {
-        marginBottom: 16,
-        color: '#007AFF',
-    },
-});

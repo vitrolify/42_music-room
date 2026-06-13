@@ -1,0 +1,117 @@
+import { useState } from 'react';
+import { View, Text, TextInput, Pressable, Image, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { colors, spacing, borderRadius, globalStyles } from '../../src/styles';
+
+const AVATAR_OPTIONS = ['vinil', 'tape', 'globe', 'et', 'cat', 'owl'] as const;
+
+function getAvatarSource(avatar: string) {
+    switch (avatar) {
+        case 'vinil': return require('../../assets/avatars/avatar_vinil.png');
+        case 'tape':  return require('../../assets/avatars/avatar_tape.png');
+        case 'globe': return require('../../assets/avatars/avatar_globe.png');
+        case 'et':    return require('../../assets/avatars/avatar_et.png');
+        case 'cat':   return require('../../assets/avatars/avatar_cat.png');
+        case 'owl':   return require('../../assets/avatars/avatar_owl.png');
+        default:      return require('../../assets/avatars/avatar_vinil.png');
+    }
+}
+
+export default function Profile() {
+    const { user, logout } = useAuth();
+    const insets = useSafeAreaInsets();
+    const [displayName, setDisplayName] = useState(user?.displayName ?? '');
+    const [selectedAvatar, setSelectedAvatar] = useState('vinil');
+
+    return (
+        <ScrollView
+            style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
+            contentContainerStyle={{
+                padding: spacing.xl,
+                paddingBottom: insets.bottom + spacing.xxl,
+                alignItems: 'center',
+            }}
+        >
+            {/* Current avatar */}
+            <View style={{ alignItems: 'center', marginBottom: spacing.xxl }}>
+                <Image
+                    source={getAvatarSource(selectedAvatar)}
+                    style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 50,
+                        marginBottom: spacing.lg,
+                    }}
+                />
+                <Text style={globalStyles.title}>
+                    {displayName || user?.email || 'User'}
+                </Text>
+                {user?.email && (
+                    <Text style={globalStyles.secondaryText}>{user.email}</Text>
+                )}
+            </View>
+
+            {/* Display name input */}
+            <View style={{ width: '100%', marginBottom: spacing.lg }}>
+                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                    Display Name
+                </Text>
+                <TextInput
+                    style={globalStyles.input}
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="Enter display name"
+                    placeholderTextColor={colors.text.secondary}
+                />
+            </View>
+
+            {/* Avatar selection */}
+            <View style={{ width: '100%' }}>
+                <Text style={[globalStyles.caption, { marginBottom: spacing.md }]}>
+                    Avatar
+                </Text>
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: spacing.md,
+                        justifyContent: 'center',
+                    }}
+                >
+                    {AVATAR_OPTIONS.map((avatar) => (
+                        <Pressable
+                            key={avatar}
+                            onPress={() => setSelectedAvatar(avatar)}
+                            style={{
+                                width: 72,
+                                height: 72,
+                                borderRadius: 36,
+                                borderWidth: selectedAvatar === avatar ? 2.5 : 0,
+                                borderColor: colors.brand,
+                                opacity: selectedAvatar === avatar ? 1 : 0.55,
+                            }}
+                        >
+                            <Image
+                                source={getAvatarSource(avatar)}
+                                style={{ width: '100%', height: '100%', borderRadius: 36 }}
+                            />
+                        </Pressable>
+                    ))}
+                </View>
+            </View>
+
+            {/* Logout */}
+            <Pressable
+                style={({ pressed }) => ({
+                    ...globalStyles.pillButton,
+                    marginTop: spacing.xxl * 1.5,
+                    opacity: pressed ? 0.8 : 1,
+                })}
+                onPress={logout}
+            >
+                <Text style={globalStyles.pillButtonText}>Sign out</Text>
+            </Pressable>
+        </ScrollView>
+    );
+}
