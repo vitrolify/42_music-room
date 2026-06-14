@@ -66,5 +66,5 @@ export async function signOutUser() {
 
 export async function getAuthToken(): Promise<string | null> {
   if (!auth.currentUser) return null;
-  return auth.currentUser.getIdToken(true);
+  return auth.currentUser.getIdToken(false);
 }

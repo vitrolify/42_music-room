@@ -29,12 +29,12 @@ function getAvatarSource(avatar: string) {
 }
 
 export default function Profile() {
-    const { user, logout } = useAuth();
+    const { user, initializing, logout } = useAuth();
     const insets = useSafeAreaInsets();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [displayName, setDisplayName] = useState(user?.displayName ?? '');
+    const [displayName, setDisplayName] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState('vinil');
     const [initialValues, setInitialValues] = useState({ displayName: '', avatar: 'vinil' });
 
@@ -43,6 +43,7 @@ export default function Profile() {
         selectedAvatar !== initialValues.avatar;
 
     useEffect(() => {
+        if (initializing || !user) return;
         (async () => {
             try {
                 const profile = await getMyProfile();
@@ -59,7 +60,7 @@ export default function Profile() {
                 setLoading(false);
             }
         })();
-    }, []);
+    }, [user, initializing]);
 
     async function handleSave() {
         setSaving(true);
