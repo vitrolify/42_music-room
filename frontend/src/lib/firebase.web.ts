@@ -63,3 +63,8 @@ export async function signUpWithEmail(email: string, password: string) {
 export async function signOutUser() {
   await signOut(auth);
 }
+
+export async function getAuthToken(): Promise<string | null> {
+  if (!auth.currentUser) return null;
+  return auth.currentUser.getIdToken(false);
+}

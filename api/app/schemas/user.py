@@ -21,8 +21,8 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     firebase_uid: str
-    email: str | None
-    display_name: str | None
+    email: str | None = None
+    display_name: str | None = None
     avatar: Avatar
     created_at: datetime
     updated_at: datetime
