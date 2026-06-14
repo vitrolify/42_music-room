@@ -18,7 +18,11 @@ def _safe_get_route_name(scope, routes, route_name=None):
             route_name = route_path
             child_scope = {**scope, **child_scope}
             if isinstance(route, Mount) and route.routes:
-                child_route_name = _safe_get_route_name(child_scope, route.routes, route_name)
+                child_route_name = _safe_get_route_name(
+                    child_scope,
+                    route.routes,
+                    route_name,
+                )
                 if child_route_name is None:
                     route_name = None
                 else:
