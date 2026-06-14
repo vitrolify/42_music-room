@@ -31,7 +31,6 @@ class User(Base):
     firebase_uid: Mapped[str] = mapped_column(
         String(255),
         unique=True,
-        index=True,
         nullable=False,
     )
 

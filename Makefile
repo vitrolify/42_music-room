@@ -1,15 +1,19 @@
 up:
-	cd infra/docker/compose && docker compose up --build -d
+	cd infra/docker/compose && docker compose --env-file ../../../.env up --build -d
 
 down:
-	cd infra/docker/compose && docker compose down
+	cd infra/docker/compose && docker compose --env-file ../../../.env down
 
 fclean:
-	cd infra/docker/compose && docker compose down -v --rmi all
+	cd infra/docker/compose && docker compose --env-file ../../../.env down -v --rmi all
 
 test:
-	cd infra/docker/compose && docker compose --profile test run --rm k6
+	cd infra/docker/compose && docker compose --env-file ../../../.env --profile test run --rm k6
 
 re: fclean up
 
-.PHONY: up down fclean test
+migration:
+	@read -p "Enter migration message: " msg; \
+	cd infra/docker/compose && docker compose --env-file ../../../.env run --rm migration-generator alembic revision --autogenerate -m "$$msg"
+
+.PHONY: up down fclean test migration
