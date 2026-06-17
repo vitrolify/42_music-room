@@ -1,6 +1,6 @@
 """create users table
 
-Revision ID: 0001
+Revision ID: c4e8a2f6b1d3
 Revises:
 Create Date: 2026-06-06
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0001"
+revision: str = "c4e8a2f6b1d3"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
