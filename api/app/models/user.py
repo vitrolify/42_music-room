@@ -73,4 +73,6 @@ class User(Base):
 
     # Relationships
     added_tracks: Mapped[list["PlaylistTrack"]] = relationship(back_populates="user")
-    my_playlists: Mapped[list["Playlist"]] = relationship(back_populates="owner")
+    my_playlists: Mapped[list["Playlist"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
