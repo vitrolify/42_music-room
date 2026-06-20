@@ -41,3 +41,15 @@ async def update_invite_status(
 async def delete_invite_in_db(db: AsyncSession, invite: Invite) -> None:
     await db.delete(invite)
     await db.commit()
+
+
+async def check_user_has_accepted_invite(
+    db: AsyncSession, user_id: uuid.UUID, playlist_id: int
+) -> bool:
+    query = select(Invite).where(
+        Invite.playlist_id == playlist_id,
+        Invite.user_id == user_id,
+        Invite.status == InviteStatus.ACCEPTED,
+    )
+    result = await db.execute(query)
+    return result.scalar_one_or_none() is not None
