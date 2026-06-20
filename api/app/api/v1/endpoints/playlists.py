@@ -3,15 +3,13 @@
 import uuid
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.session import get_db
-from app.models.invite import Invite, InviteStatus
-from app.models.playlist import Playlist
 from app.schemas.playlist import PlaylistCreate, PlaylistRead, PlaylistUpdate
+from app.services import playlist_service
 
 router = APIRouter(tags=["playlists"])
 
@@ -26,16 +24,13 @@ async def create_playlist(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    playlist = Playlist(
+    return await playlist_service.create_playlist(
+        db=db,
         name=payload.name,
         owner_id=user_id,
         public=payload.public,
         invited_only_edit=payload.invited_only_edit,
     )
-    db.add(playlist)
-    await db.commit()
-    await db.refresh(playlist)
-    return playlist
 
 
 @router.get("/playlists", response_model=list[PlaylistRead])
@@ -43,17 +38,7 @@ async def list_playlists(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    invited = select(Invite.playlist_id).where(
-        Invite.user_id == user_id,
-        Invite.status == InviteStatus.ACCEPTED,
-    )
-    query = select(Playlist).where(
-        Playlist.public.is_(True)
-        | (Playlist.owner_id == user_id)
-        | Playlist.id.in_(invited)
-    )
-    result = await db.execute(query)
-    return list(result.scalars().all())
+    return await playlist_service.get_user_playlists(db=db, user_id=user_id)
 
 
 @router.get("/playlists/{playlist_id}", response_model=PlaylistRead)
@@ -62,7 +47,7 @@ async def get_playlist(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    playlist = await db.get(Playlist, playlist_id)
+    playlist = await playlist_service.get_playlist_by_id(db=db, playlist_id=playlist_id)
     if playlist is None:
         raise BaseVitrolifyException(
             error_code="PLAYLIST_NOT_FOUND",
@@ -79,7 +64,7 @@ async def update_playlist(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    playlist = await db.get(Playlist, playlist_id)
+    playlist = await playlist_service.get_playlist_by_id(db=db, playlist_id=playlist_id)
     if playlist is None:
         raise BaseVitrolifyException(
             error_code="PLAYLIST_NOT_FOUND",
@@ -93,13 +78,12 @@ async def update_playlist(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(playlist, field, value)
+    # Extrai o dicionário validado do Pydantic
+    update_data = payload.model_dump(exclude_unset=True)
 
-    await db.commit()
-    await db.refresh(playlist)
-    return playlist
+    return await playlist_service.update_playlist(
+        db=db, playlist=playlist, update_data=update_data
+    )
 
 
 @router.delete("/playlists/{playlist_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -108,7 +92,7 @@ async def delete_playlist(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    playlist = await db.get(Playlist, playlist_id)
+    playlist = await playlist_service.get_playlist_by_id(db=db, playlist_id=playlist_id)
     if playlist is None:
         raise BaseVitrolifyException(
             error_code="PLAYLIST_NOT_FOUND",
@@ -122,5 +106,4 @@ async def delete_playlist(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
-    await db.delete(playlist)
-    await db.commit()
+    await playlist_service.delete_playlist(db=db, playlist=playlist)
