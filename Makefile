@@ -17,6 +17,6 @@ migration:
 	cd infra/docker/compose && docker compose --env-file ../../../.env run --rm migration-generator alembic revision --autogenerate -m "$$msg"
 
 psql:
-	cd infra/docker/compose && docker compose --env-file ../../../.env exec db psql -U $${POSTGRES_USER:-music_room} -d $${POSTGRES_DB:-music_room}
+	cd infra/docker/compose && docker compose exec db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
 .PHONY: up down fclean test migration psql

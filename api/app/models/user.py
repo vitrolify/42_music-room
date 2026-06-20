@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Enum as SAEnum
 
 from app.db.base import Base
@@ -70,3 +70,7 @@ class User(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+
+    # Relationships
+    added_tracks: Mapped[list["PlaylistTrack"]] = relationship(back_populates="user")
+    my_playlists: Mapped[list["Playlist"]] = relationship(back_populates="owner")

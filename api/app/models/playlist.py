@@ -5,7 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -55,4 +55,12 @@ class Playlist(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    # Relationships
+    tracks: Mapped[list["PlaylistTrack"]] = relationship(
+        back_populates="playlist", cascade="all, delete-orphan"
+    )
+    owner: Mapped["User"] = relationship(
+        back_populates="my_playlists", cascade="all, delete-orphan"
     )
