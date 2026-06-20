@@ -1,5 +1,12 @@
 from enum import Enum
 
+# To deal with ruff lint checking
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from api.app.models.playlist import Playlist
+    from api.app.models.user import User
+
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship

@@ -1,3 +1,10 @@
+# To deal with ruff lint checking
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from api.app.models.playlist import Playlist
+    from api.app.models.playlist_track import PlaylistTrack
+
 import enum
 import uuid
 from datetime import datetime
