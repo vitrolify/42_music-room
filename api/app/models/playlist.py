@@ -1,11 +1,8 @@
-"""Model SQLAlchemy da Playlist (M3)."""
-
-# To deal with ruff lint checking
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from api.app.models.playlist_track import PlaylistTrack
-    from api.app.models.user import User
+    from app.models.playlist_track import PlaylistTrack
+    from app.models.user import User
 
 import uuid
 from datetime import datetime

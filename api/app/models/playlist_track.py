@@ -4,8 +4,8 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from api.app.models.playlist import Playlist
-    from api.app.models.user import User
+    from app.models.playlist import Playlist
+    from app.models.user import User
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM
