@@ -19,4 +19,7 @@ migration:
 psql:
 	cd infra/docker/compose && docker compose exec db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
+ruff:
+	uvx ruff check .
+
 .PHONY: up down fclean test migration psql
