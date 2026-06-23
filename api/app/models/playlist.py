@@ -1,11 +1,18 @@
 """Model SQLAlchemy da Playlist (M3)."""
 
+# To deal with ruff lint checking
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from api.app.models.playlist_track import PlaylistTrack
+    from api.app.models.user import User
+
 import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -56,3 +63,9 @@ class Playlist(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    # Relationships
+    tracks: Mapped[list["PlaylistTrack"]] = relationship(
+        back_populates="playlist", cascade="all, delete-orphan"
+    )
+    owner: Mapped["User"] = relationship(back_populates="my_playlists")

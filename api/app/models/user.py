@@ -1,10 +1,17 @@
+# To deal with ruff lint checking
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from api.app.models.playlist import Playlist
+    from api.app.models.playlist_track import PlaylistTrack
+
 import enum
 import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Enum as SAEnum
 
 from app.db.base import Base
@@ -69,4 +76,10 @@ class User(Base):
         server_default=func.now(),
         default=func.now(),
         onupdate=func.now(),
+    )
+
+    # Relationships
+    added_tracks: Mapped[list["PlaylistTrack"]] = relationship(back_populates="user")
+    my_playlists: Mapped[list["Playlist"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
     )

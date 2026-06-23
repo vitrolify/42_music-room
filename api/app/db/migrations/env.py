@@ -1,4 +1,6 @@
 import asyncio
+import importlib
+import pkgutil
 from logging.config import fileConfig
 
 from alembic import context
@@ -6,7 +8,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app import models  # noqa: F401
+import app.models
 from app.core.config import settings
 from app.db.base import Base
 
@@ -19,6 +21,10 @@ config.set_main_option(
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+
+for _, module_name, _ in pkgutil.iter_modules(app.models.__path__):
+    importlib.import_module(f"app.models.{module_name}")
 
 target_metadata = Base.metadata
 
