@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict
 
 # Importamos o Enum diretamente do seu modelo para manter a consistência
@@ -6,7 +8,7 @@ from app.models.playlist_track import TrackPlaybackStatus
 
 class PlaylistTrackBase(BaseModel):
     track_info_id: str | None = None
-    user_id: int | None = None
+    user_id: UUID | None = None
     status: TrackPlaybackStatus = TrackPlaybackStatus.queued
     position: int
 
