@@ -3,7 +3,7 @@
 import logging
 import uuid
 
-from fastapi import Depends, Header, status
+from fastapi import Depends, Header, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +38,7 @@ def get_current_user(authorization: str = Header(default="")) -> dict:
 
 
 async def get_current_user_id(
+    request: Request,
     claims: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> uuid.UUID:
@@ -63,4 +64,5 @@ async def get_current_user_id(
         await db.commit()
         await db.refresh(user)
 
+    request.state.user_id = user.id
     return user.id

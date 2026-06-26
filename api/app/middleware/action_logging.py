@@ -18,11 +18,12 @@ class UserActionMiddleware(BaseHTTPMiddleware):
         if request.url.path in EXCLUDED_PATHS:
             return await call_next(request)
 
-        user_id = 42  # Placeholder for user ID extraction logic
         response = await call_next(request)
+
+        user_id = getattr(request.state, "user_id", None)
         log_data = {
-            "event": "action_placeholder",
-            "user": user_id,
+            "event": "user_action",
+            "user": str(user_id) if user_id else "anonymous",
             "method": request.method,
             "path": request.url.path,
             "status": response.status_code,
