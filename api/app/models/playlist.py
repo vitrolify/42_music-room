@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from app.models.event_queue import EventQueue
     from app.models.playlist_track import PlaylistTrack
     from app.models.user import User
 
@@ -66,3 +67,6 @@ class Playlist(Base):
         back_populates="playlist", cascade="all, delete-orphan"
     )
     owner: Mapped["User"] = relationship(back_populates="my_playlists")
+    events: Mapped[list["EventQueue"]] = relationship(
+        back_populates="playlist", cascade="all, delete-orphan"
+    )
