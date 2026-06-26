@@ -1,11 +1,12 @@
-from enum import Enum
-
 # To deal with ruff lint checking
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.playlist import Playlist
     from app.models.user import User
+
+import uuid
+from enum import Enum
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM
@@ -30,7 +31,7 @@ class PlaylistTrack(Base):
         ForeignKey("playlists.id", ondelete="CASCADE"), nullable=False
     )
     track_info_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
