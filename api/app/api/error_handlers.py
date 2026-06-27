@@ -57,7 +57,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
     if first_error.get("type") == "enum":
         expected = first_error.get("ctx", {}).get("expected", "")
-        message = f"O valor enviado para o campo '{field_name}' é inválido. Valores esperados: {expected}."
+        message = (
+            f"O valor enviado para o campo '{field_name}' é inválido. "
+            f"Valores esperados: {expected}."
+        )
     else:
         message = f"Erro de validação no campo '{field_name}': {first_error.get('msg')}"
 
