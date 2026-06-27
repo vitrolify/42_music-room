@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 import uuid
 from enum import Enum
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,7 +49,12 @@ class PlaylistTrack(Base):
 
     # Optimizations and Constraints
     __table_args__ = (
-        CheckConstraint("position > 0", name="chk_positive_position"),
-        UniqueConstraint("playlist_id", "position", name="uq_playlist_position"),
+        UniqueConstraint(
+            "playlist_id",
+            "position",
+            name="uq_playlist_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         Index("idx_playlist_track_query", "playlist_id", "position"),
     )

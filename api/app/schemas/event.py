@@ -23,3 +23,10 @@ class EventRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Payloads Definition
+class MoveEventPayload(BaseModel):
+    playlist_track_id: int
+    new_position: int
+    current_position: int
