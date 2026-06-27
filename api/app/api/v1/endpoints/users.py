@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -11,6 +11,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me", response_model=UserResponse)
 async def get_my_profile(
+    request: Request,
     auth_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
@@ -20,12 +21,14 @@ async def get_my_profile(
         email=auth_user.get("email"),
         display_name=auth_user.get("name"),
     )
+    request.state.user_id = user.id
     return UserResponse.model_validate(user)
 
 
 @router.put("/me", response_model=UserResponse)
 async def update_my_profile(
     data: UserUpdate,
+    request: Request,
     auth_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
@@ -35,5 +38,6 @@ async def update_my_profile(
         email=auth_user.get("email"),
         display_name=auth_user.get("name"),
     )
+    request.state.user_id = user.id
     updated = await service.update(user, data)
     return UserResponse.model_validate(updated)
