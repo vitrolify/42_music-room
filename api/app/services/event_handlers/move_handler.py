@@ -15,120 +15,34 @@ logger = logging.getLogger(__name__)
 async def process_move_track(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
-    try:
-        payload = MoveEventPayload.model_validate(event.payload)
-    except ValidationError as e:
-        logger.error(
-            {
-                "event": "worker_move_failed",
-                "reason": "invalid_payload_schema",
-                "event_id": event.id,
-                "error": e.errors(),
-            }
-        )
-        return
 
-    track_id = payload.playlist_track_id
-    new_position = payload.new_position
-    expected_current_position = payload.current_position
-
-    if new_position <= 0:
-        logger.error(
-            {
-                "event": "worker_move_aborted",
-                "reason": "invalid_new_position",
-                "event_id": event.id,
-                "requested_position": new_position,
-            }
-        )
+    payload = _validate_payload(event)
+    if not payload:
         return
 
     try:
-        # Lock playlist
-        await db.execute(
-            select(Playlist.id).where(Playlist.id == playlist_id).with_for_update()
-        )
-        target_track = await db.get(PlaylistTrack, track_id)
+        await _lock_playlist(db, playlist_id)
 
-        # Check validity
-        if not target_track or target_track.playlist_id != playlist_id:
-            logger.warning(
-                {
-                    "event": "worker_move_aborted",
-                    "reason": "track_not_found_or_invalid",
-                    "event_id": event.id,
-                    "track_id": track_id,
-                }
-            )
-            return
-        if target_track.position != expected_current_position:
-            logger.warning(
-                {
-                    "event": "worker_move_aborted",
-                    "reason": "stale_state_detected",
-                    "event_id": event.id,
-                    "track_id": track_id,
-                    "actual_position": target_track.position,
-                    "expected_position": expected_current_position,
-                }
-            )
-            return
-        old_position = target_track.position
-        if old_position == new_position:
+        target_track = await _validate_track(db, event, playlist_id, payload)
+        if not target_track:
             return
 
-        # Deal with out of bounds position
-        count_query = select(func.count(PlaylistTrack.id)).where(
-            PlaylistTrack.playlist_id == playlist_id
-        )
-        total_tracks_result = await db.execute(count_query)
-        total_tracks = total_tracks_result.scalar() or 0
-        if new_position > total_tracks:
-            logger.info(
-                {
-                    "event": "worker_move_clamped_to_last",
-                    "event_id": event.id,
-                    "requested_position": new_position,
-                    "adjusted_position": total_tracks,
-                }
-            )
-            new_position = total_tracks
-            if old_position == new_position:
-                return
+        new_position = await _get_clamped_position(db, event, playlist_id, payload)
+        if not new_position:
+            return
 
-        # Update queue
         target_track.position = -1
         await db.flush()
-        if new_position < old_position:
-            stmt = (
-                update(PlaylistTrack)
-                .where(
-                    PlaylistTrack.playlist_id == playlist_id,
-                    PlaylistTrack.position >= new_position,
-                    PlaylistTrack.position < old_position,
-                )
-                .values(position=PlaylistTrack.position + 1)
-            )
-        else:
-            stmt = (
-                update(PlaylistTrack)
-                .where(
-                    PlaylistTrack.playlist_id == playlist_id,
-                    PlaylistTrack.position > old_position,
-                    PlaylistTrack.position <= new_position,
-                )
-                .values(position=PlaylistTrack.position - 1)
-            )
-
-        await db.execute(stmt)
+        await _shift_tracks(db, playlist_id, payload.current_position, new_position)
         target_track.position = new_position
         await db.commit()
+
         logger.info(
             {
                 "event": "worker_track_moved",
                 "event_id": event.id,
-                "track_id": track_id,
-                "old_position": old_position,
+                "track_id": payload.playlist_track_id,
+                "old_position": payload.current_position,
                 "new_position": new_position,
                 "status": "success",
             }
@@ -144,3 +58,161 @@ async def process_move_track(
                 "error": str(e),
             }
         )
+
+
+def _validate_payload(event: EventQueue) -> MoveEventPayload | None:
+    try:
+        payload = MoveEventPayload.model_validate(event.payload)
+    except ValidationError as e:
+        logger.error(
+            {
+                "event": "worker_move_failed",
+                "reason": "invalid_payload_schema",
+                "event_id": event.id,
+                "error": e.errors(),
+            }
+        )
+        return None
+
+    if payload.new_position <= 0:
+        logger.error(
+            {
+                "event": "worker_move_aborted",
+                "reason": "invalid_new_position",
+                "event_id": event.id,
+                "requested_position": payload.new_position,
+            }
+        )
+        return None
+    return payload
+
+
+async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
+    """Acquire a row-level lock on the playlist to serialize concurrent moves."""
+    await db.execute(
+        select(Playlist.id).where(Playlist.id == playlist_id).with_for_update()
+    )
+
+
+async def _validate_track(
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: MoveEventPayload
+) -> PlaylistTrack | None:
+    """
+    Fetch and validate the target track. Returns the track on success, None on failure.
+    Checks:
+      - Track exists and belongs to the playlist.
+      - Track position matches the expected position (stale-state guard).
+    """
+
+    target_track = await db.get(PlaylistTrack, payload.playlist_track_id)
+
+    if not target_track or target_track.playlist_id != playlist_id:
+        logger.warning(
+            {
+                "event": "worker_move_aborted",
+                "reason": "track_not_found_or_invalid",
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+            }
+        )
+        return
+
+    if target_track.position != payload.current_position:
+        logger.warning(
+            {
+                "event": "worker_move_aborted",
+                "reason": "stale_state_detected",
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+                "actual_position": target_track.position,
+                "expected_position": payload.current_position,
+            }
+        )
+        return
+
+    old_position = target_track.position
+    if old_position == payload.new_position:
+        logger.warning(
+            {
+                "event": "worker_move_aborted",
+                "reason": "track_already_in_position",
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+            }
+        )
+        return
+
+    return target_track
+
+
+async def _get_clamped_position(
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: MoveEventPayload
+) -> int | None:
+    """
+    Clamp new_position to the total number of tracks in the playlist.
+    Logs a warning if clamping occurs.
+    """
+    count_query = select(func.count(PlaylistTrack.id)).where(
+        PlaylistTrack.playlist_id == playlist_id
+    )
+    total_tracks = (await db.execute(count_query)).scalar() or 0
+
+    if payload.new_position > total_tracks:
+        logger.info(
+            {
+                "event": "worker_move_clamped_to_last",
+                "event_id": event.id,
+                "requested_position": payload.new_position,
+                "adjusted_position": total_tracks,
+            }
+        )
+        if payload.current_position == total_tracks:
+            logger.warning(
+                {
+                    "event": "worker_move_aborted",
+                    "reason": "track_already_in_position",
+                    "event_id": event.id,
+                    "track_id": payload.playlist_track_id,
+                }
+            )
+            return
+        return total_tracks
+    return payload.new_position
+
+
+async def _shift_tracks(
+    db: AsyncSession,
+    playlist_id: int,
+    old_position: int,
+    new_position: int,
+) -> None:
+    """
+    Shift the positions of tracks between old_position and new_position
+    to make room for the moved track.
+      - Moving up (new < old): tracks in [new, old) shift down by +1.
+      - Moving down (new > old): tracks in (old, new] shift up by -1.
+    Caller must set the moving track's position to -1 and flush before calling
+    this, so it is excluded from the range updates.
+    """
+    if new_position < old_position:
+        stmt = (
+            update(PlaylistTrack)
+            .where(
+                PlaylistTrack.playlist_id == playlist_id,
+                PlaylistTrack.position >= new_position,
+                PlaylistTrack.position < old_position,
+            )
+            .values(position=PlaylistTrack.position + 1)
+        )
+    else:
+        stmt = (
+            update(PlaylistTrack)
+            .where(
+                PlaylistTrack.playlist_id == playlist_id,
+                PlaylistTrack.position > old_position,
+                PlaylistTrack.position <= new_position,
+            )
+            .values(position=PlaylistTrack.position - 1)
+        )
+
+    await db.execute(stmt)
