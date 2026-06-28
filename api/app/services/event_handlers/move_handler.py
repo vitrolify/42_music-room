@@ -23,13 +23,8 @@ async def process_move_track(
     try:
         await _lock_playlist(db, playlist_id)
 
-        target_track = await _validate_track(db, event, playlist_id, payload)
-        if not target_track:
-            return
-
+        target_track = await _validate_track(db, playlist_id, payload)
         new_position = await _get_clamped_position(db, event, playlist_id, payload)
-        if not new_position:
-            return
 
         target_track.position = -1
         await db.flush()
@@ -48,6 +43,16 @@ async def process_move_track(
             }
         )
 
+    except ValueError as e:
+        await db.rollback()
+        logger.warning(
+            {
+                "event": "worker_move_aborted",
+                "reason": str(e),
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+            }
+        )
     except Exception as e:
         await db.rollback()
         logger.error(
@@ -95,8 +100,8 @@ async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
 
 
 async def _validate_track(
-    db: AsyncSession, event: EventQueue, playlist_id: int, payload: MoveEventPayload
-) -> PlaylistTrack | None:
+    db: AsyncSession, playlist_id: int, payload: MoveEventPayload
+) -> PlaylistTrack:
     """
     Fetch and validate the target track. Returns the track on success, None on failure.
     Checks:
@@ -107,47 +112,20 @@ async def _validate_track(
     target_track = await db.get(PlaylistTrack, payload.playlist_track_id)
 
     if not target_track or target_track.playlist_id != playlist_id:
-        logger.warning(
-            {
-                "event": "worker_move_aborted",
-                "reason": "track_not_found_or_invalid",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-            }
-        )
-        return
+        raise ValueError("track_not_found_or_invalid")
 
     if target_track.position != payload.current_position:
-        logger.warning(
-            {
-                "event": "worker_move_aborted",
-                "reason": "stale_state_detected",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-                "actual_position": target_track.position,
-                "expected_position": payload.current_position,
-            }
-        )
-        return
+        raise ValueError("stale_state_detected")
 
-    old_position = target_track.position
-    if old_position == payload.new_position:
-        logger.warning(
-            {
-                "event": "worker_move_aborted",
-                "reason": "track_already_in_position",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-            }
-        )
-        return
+    if target_track.position == payload.new_position:
+        raise ValueError("track_already_in_position")
 
     return target_track
 
 
 async def _get_clamped_position(
     db: AsyncSession, event: EventQueue, playlist_id: int, payload: MoveEventPayload
-) -> int | None:
+) -> int:
     """
     Clamp new_position to the total number of tracks in the playlist.
     Logs a warning if clamping occurs.
@@ -167,15 +145,7 @@ async def _get_clamped_position(
             }
         )
         if payload.current_position == total_tracks:
-            logger.warning(
-                {
-                    "event": "worker_move_aborted",
-                    "reason": "track_already_in_position",
-                    "event_id": event.id,
-                    "track_id": payload.playlist_track_id,
-                }
-            )
-            return
+            raise ValueError("track_already_in_last_position")
         return total_tracks
     return payload.new_position
 

@@ -22,7 +22,6 @@ async def process_add_track_event(
         next_position = await _get_next_position(db, playlist_id)
         await _insert_track(db, event, playlist_id, next_position)
         await db.commit()
-        return
     except Exception as e:
         await db.rollback()
         logger.error(
