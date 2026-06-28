@@ -2,8 +2,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from api.app.models.playlist import Playlist
-    from api.app.models.user import User
+    from app.models.playlist import Playlist
+    from app.models.user import User
 
 import uuid
 from enum import Enum

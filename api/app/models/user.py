@@ -2,8 +2,9 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from api.app.models.playlist import Playlist
-    from api.app.models.playlist_track import PlaylistTrack
+    from app.models.event_queue import EventQueue
+    from app.models.playlist import Playlist
+    from app.models.playlist_track import PlaylistTrack
 
 import enum
 import uuid
@@ -82,4 +83,7 @@ class User(Base):
     added_tracks: Mapped[list["PlaylistTrack"]] = relationship(back_populates="user")
     my_playlists: Mapped[list["Playlist"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
+    )
+    events: Mapped[list["EventQueue"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )

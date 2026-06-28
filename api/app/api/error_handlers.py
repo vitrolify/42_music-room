@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -47,10 +48,41 @@ async def vitrolify_exception_handler(request: Request, exc: BaseVitrolifyExcept
     return JSONResponse(status_code=exc.status_code, content=error_body.model_dump())
 
 
+# NOVO HANDLER AQUI:
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger = logging.getLogger(__name__)
+
+    first_error = exc.errors()[0]
+    field_name = ".".join(str(loc) for loc in first_error.get("loc", []))
+
+    if first_error.get("type") == "enum":
+        expected = first_error.get("ctx", {}).get("expected", "")
+        message = (
+            f"O valor enviado para o campo '{field_name}' é inválido. "
+            f"Valores esperados: {expected}."
+        )
+    else:
+        message = f"Erro de validação no campo '{field_name}': {first_error.get('msg')}"
+
+    logger.warning(
+        {"event": "validation_error", "code": "VALIDATION_ERROR", "msg": message},
+    )
+
+    error_body = ErrorResponse(error_code="VALIDATION_ERROR", message=message)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=error_body.model_dump(),
+    )
+
+
 def setup_exception_handlers(app: FastAPI):
     app.add_exception_handler(
         BaseVitrolifyException,
         vitrolify_exception_handler,  # pyright: ignore[reportArgumentType]
+    )
+    app.add_exception_handler(
+        RequestValidationError,
+        validation_exception_handler,  # pyright: ignore[reportArgumentType]
     )
 
 
