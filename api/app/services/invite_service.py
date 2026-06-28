@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.invite import Invite, InviteStatus
 from app.models.playlist import Playlist
+from app.models.user import User
 
 
 async def create_invite_in_db(
@@ -24,6 +25,17 @@ async def create_invite_in_db(
 async def get_invites_by_playlist(db: AsyncSession, playlist_id: int) -> list[Invite]:
     result = await db.execute(select(Invite).where(Invite.playlist_id == playlist_id))
     return list(result.scalars().all())
+
+
+async def get_invites_with_users_by_playlist(
+    db: AsyncSession, playlist_id: int
+) -> list[tuple[Invite, User]]:
+    result = await db.execute(
+        select(Invite, User)
+        .join(User, Invite.user_id == User.id)
+        .where(Invite.playlist_id == playlist_id)
+    )
+    return list(result.all())
 
 
 async def get_invites_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Invite]:

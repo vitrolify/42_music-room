@@ -15,7 +15,7 @@ import {
     deleteInvite,
     ApiError,
     type Playlist,
-    type Invite,
+    type InviteWithUser,
 } from '../lib/api';
 import { colors, spacing, globalStyles } from '../styles';
 
@@ -29,7 +29,7 @@ type Props = {
 };
 
 export default function InviteModal({ playlist, visible, onClose, onInviteChanged }: Props) {
-    const [invites, setInvites] = useState<Invite[]>([]);
+    const [invites, setInvites] = useState<InviteWithUser[]>([]);
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [sending, setSending] = useState(false);
@@ -191,16 +191,12 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
                                                     justifyContent: 'space-between',
                                                 }}
                                             >
-                                                <Text
-                                                    style={globalStyles.body}
-                                                    numberOfLines={1}
-                                                >
-                                                    {invite.user_id}
-                                                </Text>
+                                                <InviteUserLabel invite={invite} />
                                                 <Pressable
                                                     style={({ pressed }) => ({
                                                         ...globalStyles.pillButton,
                                                         backgroundColor: colors.semantic.error,
+                                                        flexShrink: 0,
                                                         opacity: pressed ? 0.7 : 1,
                                                         paddingVertical: spacing.xs,
                                                     })}
@@ -237,9 +233,7 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
                                                     opacity: 0.6,
                                                 }}
                                             >
-                                                <Text style={globalStyles.body} numberOfLines={1}>
-                                                    {invite.user_id}
-                                                </Text>
+                                                <InviteUserLabel invite={invite} muted />
                                             </View>
                                         ))}
                                     </View>
@@ -262,9 +256,7 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
                                                     opacity: 0.4,
                                                 }}
                                             >
-                                                <Text style={globalStyles.body} numberOfLines={1}>
-                                                    {invite.user_id}
-                                                </Text>
+                                                <InviteUserLabel invite={invite} muted />
                                             </View>
                                         ))}
                                     </View>
@@ -281,6 +273,28 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
                 </View>
             </View>
         </Modal>
+    );
+}
+
+function InviteUserLabel({ invite, muted = false }: { invite: InviteWithUser; muted?: boolean }) {
+    const primary = invite.user.display_name || invite.user.email || 'Invited user';
+    const secondary = invite.user.display_name && invite.user.email ? invite.user.email : null;
+
+    return (
+        <View style={{ flex: 1, marginRight: spacing.md }}>
+            <Text style={globalStyles.body} numberOfLines={1} ellipsizeMode="tail">
+                {primary}
+            </Text>
+            {secondary && (
+                <Text
+                    style={[globalStyles.small, muted ? { color: colors.text.secondary } : null]}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                >
+                    {secondary}
+                </Text>
+            )}
+        </View>
     );
 }
 

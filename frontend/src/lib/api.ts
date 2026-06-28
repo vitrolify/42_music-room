@@ -114,6 +114,17 @@ export type InviteWithPlaylist = Invite & {
     playlist: Playlist;
 };
 
+export type InviteUser = {
+    id: string;
+    email: string | null;
+    display_name: string | null;
+    avatar: string;
+};
+
+export type InviteWithUser = Invite & {
+    user: InviteUser;
+};
+
 export type UserProfile = {
     id: string;
     firebase_uid: string;
@@ -159,8 +170,8 @@ export async function getMyInvites(): Promise<InviteWithPlaylist[]> {
     return request<InviteWithPlaylist[]>('GET', '/invites/mine');
 }
 
-export async function listInvites(playlistId: number): Promise<Invite[]> {
-    return request<Invite[]>('GET', `/playlists/${playlistId}/invites`);
+export async function listInvites(playlistId: number): Promise<InviteWithUser[]> {
+    return request<InviteWithUser[]>('GET', `/playlists/${playlistId}/invites`);
 }
 
 export async function createInviteByEmail(playlistId: number, email: string): Promise<Invite> {

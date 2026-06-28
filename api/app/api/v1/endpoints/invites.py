@@ -13,6 +13,7 @@ from app.schemas.invite import (
     InviteCreate,
     InviteRead,
     InviteWithPlaylistRead,
+    InviteWithUserRead,
 )
 from app.services import invite_service, playlist_service
 from app.services.user_service import UserService
@@ -144,7 +145,7 @@ async def list_my_invites(
 
 @router.get(
     "/playlists/{playlist_id}/invites",
-    response_model=list[InviteRead],
+    response_model=list[InviteWithUserRead],
 )
 async def list_invites(
     playlist_id: int,
@@ -165,7 +166,21 @@ async def list_invites(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
-    return await invite_service.get_invites_by_playlist(db=db, playlist_id=playlist_id)
+    rows = await invite_service.get_invites_with_users_by_playlist(
+        db=db, playlist_id=playlist_id
+    )
+    return [
+        {
+            "id": invite.id,
+            "user_id": invite.user_id,
+            "playlist_id": invite.playlist_id,
+            "status": invite.status,
+            "created_at": invite.created_at,
+            "updated_at": invite.updated_at,
+            "user": user,
+        }
+        for invite, user in rows
+    ]
 
 
 @router.patch("/invites/{invite_id}/accept", response_model=InviteRead)
