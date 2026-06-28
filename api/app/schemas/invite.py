@@ -27,10 +27,6 @@ class InviteRead(BaseModel):
     updated_at: datetime
 
 
-class InviteWithPlaylistRead(InviteRead):
-    playlist: PlaylistRead
-
-
 class InviteUserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -38,6 +34,11 @@ class InviteUserRead(BaseModel):
     email: str | None = None
     display_name: str | None = None
     avatar: Avatar
+
+
+class InviteWithPlaylistRead(InviteRead):
+    playlist: PlaylistRead
+    owner: InviteUserRead
 
 
 class InviteWithUserRead(InviteRead):

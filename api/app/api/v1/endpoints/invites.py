@@ -138,8 +138,9 @@ async def list_my_invites(
             "created_at": invite.created_at,
             "updated_at": invite.updated_at,
             "playlist": playlist,
+            "owner": owner,
         }
-        for invite, playlist in rows
+        for invite, playlist, owner in rows
     ]
 
 

@@ -1,20 +1,28 @@
 """Verificador de tokens do Firebase (T012)."""
 
+from threading import Lock
+
 import firebase_admin
 from firebase_admin import auth, credentials
 
 from app.core.config import settings
+
+_firebase_app_lock = Lock()
 
 
 def _get_app() -> firebase_admin.App:
     try:
         return firebase_admin.get_app()
     except ValueError:
-        cred = credentials.Certificate(settings.firebase_credentials_path)
-        return firebase_admin.initialize_app(
-            cred,
-            {"projectId": settings.firebase_project_id},
-        )
+        with _firebase_app_lock:
+            try:
+                return firebase_admin.get_app()
+            except ValueError:
+                cred = credentials.Certificate(settings.firebase_credentials_path)
+                return firebase_admin.initialize_app(
+                    cred,
+                    {"projectId": settings.firebase_project_id},
+                )
 
 
 class FirebaseTokenVerifier:

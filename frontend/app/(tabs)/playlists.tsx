@@ -12,6 +12,7 @@ import {
     Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/contexts/AuthContext';
 import {
     listPlaylists,
     createPlaylist,
@@ -28,6 +29,7 @@ import { colors, spacing, globalStyles } from '../../src/styles';
 import InviteModal from '../../src/components/InviteModal';
 
 export default function Playlists() {
+    const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
 
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -60,12 +62,14 @@ export default function Playlists() {
     }, []);
 
     useEffect(() => {
+        if (initializing || !user) return;
+
         (async () => {
             setLoading(true);
             await fetchData();
             setLoading(false);
         })();
-    }, [fetchData]);
+    }, [fetchData, initializing, user]);
 
     async function handleRefresh() {
         setRefreshing(true);
@@ -190,17 +194,9 @@ export default function Playlists() {
                 </Pressable>
             </View>
 
-            {/* Pending Invites */}
             {pendingInvites.length > 0 && (
                 <View style={{ marginBottom: spacing.xxl }}>
-                    <Text
-                        style={[
-                            globalStyles.heading,
-                            { marginBottom: spacing.md, color: colors.semantic.info },
-                        ]}
-                    >
-                        Pending Invites ({pendingInvites.length})
-                    </Text>
+                    <Text style={[globalStyles.heading, { marginBottom: spacing.md }]}>Invitations ({pendingInvites.length})</Text>
                     {pendingInvites.map(invite => (
                         <View
                             key={invite.id}
@@ -217,6 +213,9 @@ export default function Playlists() {
                             <View style={{ flex: 1, marginRight: spacing.md }}>
                                 <Text style={globalStyles.bodyBold}>
                                     {invite.playlist.name}
+                                </Text>
+                                <Text style={globalStyles.small} numberOfLines={1}>
+                                    From {formatInviteOwner(invite)}
                                 </Text>
                             </View>
                             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -509,4 +508,8 @@ function getInviteActionErrorMessage(error: unknown, action: 'accept' | 'decline
         if (error.errorCode === 'FORBIDDEN') return `You cannot ${action} this invite.`;
     }
     return error instanceof Error ? error.message : `Failed to ${action} invite`;
+}
+
+function formatInviteOwner(invite: InviteWithPlaylist) {
+    return invite.owner.display_name || invite.owner.email || 'playlist owner';
 }

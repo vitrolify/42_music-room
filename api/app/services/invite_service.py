@@ -47,10 +47,11 @@ async def get_invites_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Inv
 
 async def get_invites_with_playlists_for_user(
     db: AsyncSession, user_id: uuid.UUID
-) -> list[tuple[Invite, Playlist]]:
+) -> list[tuple[Invite, Playlist, User]]:
     result = await db.execute(
-        select(Invite, Playlist)
+        select(Invite, Playlist, User)
         .join(Playlist, Invite.playlist_id == Playlist.id)
+        .join(User, Playlist.owner_id == User.id)
         .where(Invite.user_id == user_id)
     )
     return list(result.all())

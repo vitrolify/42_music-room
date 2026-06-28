@@ -20,6 +20,10 @@ function getApiBaseUrl(): string {
 
 const API_BASE = getApiBaseUrl();
 
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export class ApiError extends Error {
     status: number;
     errorCode?: string;
@@ -33,11 +37,16 @@ export class ApiError extends Error {
 }
 
 async function getFirebaseToken(): Promise<string | null> {
-    try {
-        return await Firebase.getAuthToken();
-    } catch {
-        return null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            const token = await Firebase.getAuthToken();
+            if (token) return token;
+        } catch {}
+
+        await sleep(200);
     }
+
+    return null;
 }
 
 async function request<T>(
@@ -47,13 +56,14 @@ async function request<T>(
 ): Promise<T> {
     const token = await getFirebaseToken();
 
+    if (!token) {
+        throw new ApiError('Not authenticated', 401, 'AUTH_TOKEN_MISSING');
+    }
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
     };
-
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const res = await fetch(`${API_BASE}${path}`, {
         method,
@@ -112,6 +122,7 @@ export type Invite = {
 
 export type InviteWithPlaylist = Invite & {
     playlist: Playlist;
+    owner: InviteUser;
 };
 
 export type InviteUser = {
