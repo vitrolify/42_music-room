@@ -1,13 +1,19 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
-from app.db.session import get_db
+from app.db.session import AsyncSessionLocal, get_db
+from app.models.event_queue import EventQueue
 from app.schemas.event import EventCreate, EventRead
-from app.services import event_service, invite_service, playlist_service
+from app.services import (
+    event_service,
+    invite_service,
+    playlist_service,
+    worker_service,  # Importe o serviço do worker
+)
 
 router = APIRouter(tags=["events"], prefix="/playlists/{playlist_id}")
 
@@ -20,6 +26,7 @@ router = APIRouter(tags=["events"], prefix="/playlists/{playlist_id}")
 async def create_playlist_event(
     playlist_id: int,
     payload: EventCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
@@ -66,6 +73,11 @@ async def create_playlist_event(
         payload=payload.payload,
     )
 
-    # implement background worker here
+    background_tasks.add_task(run_worker_task, event_record)
 
     return event_record
+
+
+async def run_worker_task(event: EventQueue):
+    async with AsyncSessionLocal() as db_session:
+        await worker_service.dispatch_event(db_session, event)

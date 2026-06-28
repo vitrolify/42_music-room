@@ -38,3 +38,9 @@ extend-exclude = ["app/db/migrations/versions/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["."]
+typeCheckingMode = "standard"
