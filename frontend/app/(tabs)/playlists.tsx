@@ -9,11 +9,13 @@ import {
     Alert,
     Switch,
     RefreshControl,
+    Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     listPlaylists,
     createPlaylist,
+    deletePlaylist,
     getMyProfile,
     getMyInvites,
     acceptInvite,
@@ -38,6 +40,7 @@ export default function Playlists() {
     const [createPublic, setCreatePublic] = useState(true);
     const [createInvitedOnly, setCreateInvitedOnly] = useState(false);
     const [creating, setCreating] = useState(false);
+    const [createModalVisible, setCreateModalVisible] = useState(false);
 
     const [inviteModalPlaylist, setInviteModalPlaylist] = useState<Playlist | null>(null);
 
@@ -82,6 +85,7 @@ export default function Playlists() {
             setCreateName('');
             setCreatePublic(true);
             setCreateInvitedOnly(false);
+            setCreateModalVisible(false);
             await fetchData();
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Failed to create playlist';
@@ -89,6 +93,32 @@ export default function Playlists() {
         } finally {
             setCreating(false);
         }
+    }
+
+    function handleDelete(playlist: Playlist) {
+        Alert.alert(
+            'Delete playlist?',
+            `This will permanently delete "${playlist.name}".`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deletePlaylist(playlist.id);
+                            if (inviteModalPlaylist?.id === playlist.id) {
+                                setInviteModalPlaylist(null);
+                            }
+                            await fetchData();
+                        } catch (err) {
+                            const msg = err instanceof Error ? err.message : 'Failed to delete playlist';
+                            Alert.alert('Error', msg);
+                        }
+                    },
+                },
+            ],
+        );
     }
 
     async function handleAccept(inviteId: number) {
@@ -114,6 +144,7 @@ export default function Playlists() {
     const ownedPlaylists = playlists.filter(p => p.owner_id === userDbId);
     const sharedPlaylists = playlists.filter(p => p.owner_id !== userDbId);
     const pendingInvites = myInvites.filter(i => i.status === 'pending' && i.user_id === userDbId);
+    const hasPlaylists = playlists.length > 0;
 
     if (loading) {
         return (
@@ -138,63 +169,24 @@ export default function Playlists() {
                 />
             }
         >
-            <Text style={[globalStyles.title, { marginBottom: spacing.xl }]}>Playlists</Text>
-
-            {/* Create Playlist */}
             <View
                 style={{
-                    backgroundColor: colors.bg.card,
-                    borderRadius: 8,
-                    padding: spacing.lg,
-                    marginBottom: spacing.xxl,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: spacing.xl,
                 }}
             >
-                <Text
-                    style={[
-                        globalStyles.captionBold,
-                        { marginBottom: spacing.md, textTransform: 'uppercase' },
-                    ]}
-                >
-                    Create New Playlist
-                </Text>
-                <TextInput
-                    style={globalStyles.input}
-                    value={createName}
-                    onChangeText={setCreateName}
-                    placeholder="Playlist name"
-                    placeholderTextColor={colors.text.secondary}
-                />
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-                    <Switch
-                        value={createPublic}
-                        onValueChange={setCreatePublic}
-                        trackColor={{ false: colors.bg.elevated, true: colors.brand }}
-                        thumbColor={colors.text.primary}
-                    />
-                    <Text style={[globalStyles.body, { marginLeft: spacing.sm }]}>Public</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
-                    <Switch
-                        value={createInvitedOnly}
-                        onValueChange={setCreateInvitedOnly}
-                        trackColor={{ false: colors.bg.elevated, true: colors.brand }}
-                        thumbColor={colors.text.primary}
-                    />
-                    <Text style={[globalStyles.body, { marginLeft: spacing.sm }]}>Invited only edit</Text>
-                </View>
+                <Text style={globalStyles.title}>Playlists</Text>
                 <Pressable
                     style={({ pressed }) => ({
                         ...globalStyles.primaryPillButton,
-                        opacity: pressed || creating || !createName.trim() ? 0.7 : 1,
+                        paddingHorizontal: spacing.lg,
+                        opacity: pressed ? 0.8 : 1,
                     })}
-                    onPress={handleCreate}
-                    disabled={creating || !createName.trim()}
+                    onPress={() => setCreateModalVisible(true)}
                 >
-                    {creating ? (
-                        <ActivityIndicator size="small" color={colors.text.primary} />
-                    ) : (
-                        <Text style={globalStyles.primaryPillButtonText}>Create</Text>
-                    )}
+                    <Text style={globalStyles.primaryPillButtonText}>New</Text>
                 </Pressable>
             </View>
 
@@ -210,66 +202,91 @@ export default function Playlists() {
                         Pending Invites ({pendingInvites.length})
                     </Text>
                     {pendingInvites.map(invite => (
-                            <View
-                                key={invite.id}
-                                style={{
-                                    backgroundColor: colors.bg.card,
-                                    borderRadius: 8,
-                                    padding: spacing.lg,
-                                    marginBottom: spacing.sm,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                }}
-                            >
-                                <View style={{ flex: 1, marginRight: spacing.md }}>
-                                    <Text style={globalStyles.bodyBold}>
-                                        {invite.playlist.name}
-                                    </Text>
-                                </View>
-                                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                                    <Pressable
-                                        style={({ pressed }) => ({
-                                            ...globalStyles.pillButton,
-                                            backgroundColor: colors.brand,
-                                            opacity: pressed ? 0.7 : 1,
-                                        })}
-                                        onPress={() => handleAccept(invite.id)}
-                                    >
-                                        <Text
-                                            style={[
-                                                globalStyles.pillButtonText,
-                                                { color: colors.text.primary },
-                                            ]}
-                                        >
-                                            Accept
-                                        </Text>
-                                    </Pressable>
-                                    <Pressable
-                                        style={({ pressed }) => ({
-                                            ...globalStyles.pillButton,
-                                            opacity: pressed ? 0.7 : 1,
-                                        })}
-                                        onPress={() => handleDecline(invite.id)}
-                                    >
-                                        <Text style={globalStyles.pillButtonText}>Decline</Text>
-                                    </Pressable>
-                                </View>
+                        <View
+                            key={invite.id}
+                            style={{
+                                backgroundColor: colors.bg.card,
+                                borderRadius: 8,
+                                padding: spacing.lg,
+                                marginBottom: spacing.sm,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                            }}
+                        >
+                            <View style={{ flex: 1, marginRight: spacing.md }}>
+                                <Text style={globalStyles.bodyBold}>
+                                    {invite.playlist.name}
+                                </Text>
                             </View>
-                        ))}
+                            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                                <Pressable
+                                    style={({ pressed }) => ({
+                                        ...globalStyles.pillButton,
+                                        backgroundColor: colors.brand,
+                                        opacity: pressed ? 0.7 : 1,
+                                    })}
+                                    onPress={() => handleAccept(invite.id)}
+                                >
+                                    <Text
+                                        style={[
+                                            globalStyles.pillButtonText,
+                                            { color: colors.text.primary },
+                                        ]}
+                                    >
+                                        Accept
+                                    </Text>
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => ({
+                                        ...globalStyles.pillButton,
+                                        opacity: pressed ? 0.7 : 1,
+                                    })}
+                                    onPress={() => handleDecline(invite.id)}
+                                >
+                                    <Text style={globalStyles.pillButtonText}>Decline</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            )}
+
+            {!hasPlaylists && (
+                <View
+                    style={{
+                        backgroundColor: colors.bg.card,
+                        borderRadius: 8,
+                        padding: spacing.xl,
+                        marginBottom: spacing.xxl,
+                        alignItems: 'center',
+                    }}
+                >
+                    <Text style={[globalStyles.heading, { marginBottom: spacing.sm }]}>No playlists yet</Text>
+                    <Text
+                        style={[
+                            globalStyles.secondaryText,
+                            { textAlign: 'center', marginBottom: spacing.lg },
+                        ]}
+                    >
+                        Create your first playlist or accept an invite to see shared playlists here.
+                    </Text>
+                    <Pressable
+                        style={({ pressed }) => ({
+                            ...globalStyles.primaryPillButton,
+                            opacity: pressed ? 0.8 : 1,
+                        })}
+                        onPress={() => setCreateModalVisible(true)}
+                    >
+                        <Text style={globalStyles.primaryPillButtonText}>Create Playlist</Text>
+                    </Pressable>
                 </View>
             )}
 
             {/* My Playlists */}
-            <Text style={[globalStyles.heading, { marginBottom: spacing.md }]}>
-                My Playlists ({ownedPlaylists.length})
-            </Text>
-            {ownedPlaylists.length === 0 ? (
-                <Text style={[globalStyles.secondaryText, { marginBottom: spacing.xxl }]}>
-                    No playlists yet. Create one above.
-                </Text>
-            ) : (
+            {ownedPlaylists.length > 0 && (
                 <View style={{ marginBottom: spacing.xxl }}>
+                    <Text style={[globalStyles.heading, { marginBottom: spacing.md }]}>My Playlists ({ownedPlaylists.length})</Text>
                     {ownedPlaylists.map(playlist => (
                         <View
                             key={playlist.id}
@@ -290,19 +307,36 @@ export default function Playlists() {
                                     {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
                                 </Text>
                             </View>
-                            <Pressable
-                                style={({ pressed }) => ({
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 20,
-                                    backgroundColor: pressed ? colors.bg.elevated : 'transparent',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                })}
-                                onPress={() => setInviteModalPlaylist(playlist)}
-                            >
-                                <Text style={{ fontSize: 20, color: colors.text.secondary }}>⚙</Text>
-                            </Pressable>
+                            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                                <Pressable
+                                    style={({ pressed }) => ({
+                                        ...globalStyles.pillButton,
+                                        paddingHorizontal: spacing.md,
+                                        opacity: pressed ? 0.7 : 1,
+                                    })}
+                                    onPress={() => setInviteModalPlaylist(playlist)}
+                                >
+                                    <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Invite</Text>
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => ({
+                                        ...globalStyles.pillButton,
+                                        backgroundColor: colors.semantic.error,
+                                        paddingHorizontal: spacing.md,
+                                        opacity: pressed ? 0.7 : 1,
+                                    })}
+                                    onPress={() => handleDelete(playlist)}
+                                >
+                                    <Text
+                                        style={[
+                                            globalStyles.pillButtonText,
+                                            { fontSize: 11, color: colors.text.primary },
+                                        ]}
+                                    >
+                                        Delete
+                                    </Text>
+                                </Pressable>
+                            </View>
                         </View>
                     ))}
                 </View>
@@ -340,7 +374,131 @@ export default function Playlists() {
                 onClose={() => setInviteModalPlaylist(null)}
                 onInviteChanged={fetchData}
             />
+
+            <CreatePlaylistModal
+                visible={createModalVisible}
+                name={createName}
+                isPublic={createPublic}
+                invitedOnly={createInvitedOnly}
+                creating={creating}
+                onChangeName={setCreateName}
+                onChangePublic={setCreatePublic}
+                onChangeInvitedOnly={setCreateInvitedOnly}
+                onCreate={handleCreate}
+                onClose={() => setCreateModalVisible(false)}
+            />
         </ScrollView>
+    );
+}
+
+type CreatePlaylistModalProps = {
+    visible: boolean;
+    name: string;
+    isPublic: boolean;
+    invitedOnly: boolean;
+    creating: boolean;
+    onChangeName: (name: string) => void;
+    onChangePublic: (value: boolean) => void;
+    onChangeInvitedOnly: (value: boolean) => void;
+    onCreate: () => void;
+    onClose: () => void;
+};
+
+function CreatePlaylistModal({
+    visible,
+    name,
+    isPublic,
+    invitedOnly,
+    creating,
+    onChangeName,
+    onChangePublic,
+    onChangeInvitedOnly,
+    onCreate,
+    onClose,
+}: CreatePlaylistModalProps) {
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <View
+                style={{
+                    flex: 1,
+                    backgroundColor: colors.overlay,
+                    justifyContent: 'center',
+                    padding: spacing.xl,
+                }}
+            >
+                <View
+                    style={{
+                        backgroundColor: colors.bg.elevated,
+                        borderRadius: 12,
+                        padding: spacing.xl,
+                    }}
+                >
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: spacing.lg,
+                        }}
+                    >
+                        <Text style={globalStyles.heading}>Create Playlist</Text>
+                        <Pressable
+                            onPress={onClose}
+                            style={({ pressed }) => ({
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: pressed ? colors.bg.card : 'transparent',
+                            })}
+                        >
+                            <Text style={{ fontSize: 18, color: colors.text.secondary }}>✕</Text>
+                        </Pressable>
+                    </View>
+
+                    <TextInput
+                        style={globalStyles.input}
+                        value={name}
+                        onChangeText={onChangeName}
+                        placeholder="Playlist name"
+                        placeholderTextColor={colors.text.secondary}
+                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                        <Switch
+                            value={isPublic}
+                            onValueChange={onChangePublic}
+                            trackColor={{ false: colors.bg.card, true: colors.brand }}
+                            thumbColor={colors.text.primary}
+                        />
+                        <Text style={[globalStyles.body, { marginLeft: spacing.sm }]}>Public</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
+                        <Switch
+                            value={invitedOnly}
+                            onValueChange={onChangeInvitedOnly}
+                            trackColor={{ false: colors.bg.card, true: colors.brand }}
+                            thumbColor={colors.text.primary}
+                        />
+                        <Text style={[globalStyles.body, { marginLeft: spacing.sm }]}>Invited only edit</Text>
+                    </View>
+                    <Pressable
+                        style={({ pressed }) => ({
+                            ...globalStyles.primaryPillButton,
+                            opacity: pressed || creating || !name.trim() ? 0.7 : 1,
+                        })}
+                        onPress={onCreate}
+                        disabled={creating || !name.trim()}
+                    >
+                        {creating ? (
+                            <ActivityIndicator size="small" color={colors.text.primary} />
+                        ) : (
+                            <Text style={globalStyles.primaryPillButtonText}>Create</Text>
+                        )}
+                    </Pressable>
+                </View>
+            </View>
+        </Modal>
     );
 }
 
