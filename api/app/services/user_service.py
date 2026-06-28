@@ -29,6 +29,12 @@ class UserService:
         await self.db.refresh(user)
         return user
 
+    async def get_by_email(self, email: str) -> User | None:
+        result = await self.db.execute(
+            select(User).where(User.email == email)
+        )
+        return result.scalar_one_or_none()
+
     async def get_or_create(
         self,
         firebase_uid: str,

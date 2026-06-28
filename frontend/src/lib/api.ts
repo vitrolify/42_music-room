@@ -20,12 +20,33 @@ function getApiBaseUrl(): string {
 
 const API_BASE = getApiBaseUrl();
 
-async function getFirebaseToken(): Promise<string | null> {
-    try {
-        return await Firebase.getAuthToken();
-    } catch {
-        return null;
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export class ApiError extends Error {
+    status: number;
+    errorCode?: string;
+
+    constructor(message: string, status: number, errorCode?: string) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.errorCode = errorCode;
     }
+}
+
+async function getFirebaseToken(): Promise<string | null> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            const token = await Firebase.getAuthToken();
+            if (token) return token;
+        } catch {}
+
+        await sleep(200);
+    }
+
+    return null;
 }
 
 async function request<T>(
@@ -35,13 +56,14 @@ async function request<T>(
 ): Promise<T> {
     const token = await getFirebaseToken();
 
+    if (!token) {
+        throw new ApiError('Not authenticated', 401, 'AUTH_TOKEN_MISSING');
+    }
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
     };
-
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const res = await fetch(`${API_BASE}${path}`, {
         method,
@@ -51,11 +73,68 @@ async function request<T>(
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message ?? 'Request failed');
+        throw new ApiError(
+            err.message ?? res.statusText ?? 'Request failed',
+            res.status,
+            err.error_code,
+        );
+    }
+
+    if (res.status === 204) {
+        return undefined as T;
     }
 
     return res.json() as Promise<T>;
 }
+
+export type InviteStatus = 'pending' | 'accepted' | 'declined';
+
+export type Playlist = {
+    id: number;
+    name: string;
+    owner_id: string;
+    public: boolean;
+    invited_only_edit: boolean;
+    created_at: string;
+    updated_at: string;
+};
+
+export type PlaylistCreate = {
+    name: string;
+    public?: boolean;
+    invited_only_edit?: boolean;
+};
+
+export type PlaylistUpdate = {
+    name?: string;
+    public?: boolean;
+    invited_only_edit?: boolean;
+};
+
+export type Invite = {
+    id: number;
+    user_id: string;
+    playlist_id: number;
+    status: InviteStatus;
+    created_at: string;
+    updated_at: string;
+};
+
+export type InviteWithPlaylist = Invite & {
+    playlist: Playlist;
+    owner: InviteUser;
+};
+
+export type InviteUser = {
+    id: string;
+    email: string | null;
+    display_name: string | null;
+    avatar: string;
+};
+
+export type InviteWithUser = Invite & {
+    user: InviteUser;
+};
 
 export type UserProfile = {
     id: string;
@@ -76,4 +155,48 @@ export async function updateMyProfile(data: {
     avatar?: string;
 }): Promise<UserProfile> {
     return request<UserProfile>('PUT', '/users/me', data);
+}
+
+export async function listPlaylists(): Promise<Playlist[]> {
+    return request<Playlist[]>('GET', '/playlists');
+}
+
+export async function createPlaylist(data: PlaylistCreate): Promise<Playlist> {
+    return request<Playlist>('POST', '/playlists', data);
+}
+
+export async function getPlaylist(id: number): Promise<Playlist> {
+    return request<Playlist>('GET', `/playlists/${id}`);
+}
+
+export async function updatePlaylist(id: number, data: PlaylistUpdate): Promise<Playlist> {
+    return request<Playlist>('PATCH', `/playlists/${id}`, data);
+}
+
+export async function deletePlaylist(id: number): Promise<void> {
+    return request<void>('DELETE', `/playlists/${id}`);
+}
+
+export async function getMyInvites(): Promise<InviteWithPlaylist[]> {
+    return request<InviteWithPlaylist[]>('GET', '/invites/mine');
+}
+
+export async function listInvites(playlistId: number): Promise<InviteWithUser[]> {
+    return request<InviteWithUser[]>('GET', `/playlists/${playlistId}/invites`);
+}
+
+export async function createInviteByEmail(playlistId: number, email: string): Promise<Invite> {
+    return request<Invite>('POST', `/playlists/${playlistId}/invites/by-email`, { email });
+}
+
+export async function acceptInvite(inviteId: number): Promise<Invite> {
+    return request<Invite>('PATCH', `/invites/${inviteId}/accept`);
+}
+
+export async function declineInvite(inviteId: number): Promise<Invite> {
+    return request<Invite>('PATCH', `/invites/${inviteId}/decline`);
+}
+
+export async function deleteInvite(inviteId: number): Promise<void> {
+    return request<void>('DELETE', `/invites/${inviteId}`);
 }
