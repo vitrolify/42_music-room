@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from app.models.invite import InviteStatus
+from app.schemas.playlist import PlaylistRead
 
 
 class InviteCreate(BaseModel):
@@ -23,3 +24,7 @@ class InviteRead(BaseModel):
     status: InviteStatus
     created_at: datetime
     updated_at: datetime
+
+
+class InviteWithPlaylistRead(InviteRead):
+    playlist: PlaylistRead

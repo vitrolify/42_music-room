@@ -13,10 +13,13 @@ import {
     listInvites,
     createInviteByEmail,
     deleteInvite,
+    ApiError,
     type Playlist,
     type Invite,
 } from '../lib/api';
 import { colors, spacing, globalStyles } from '../styles';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Props = {
     playlist: Playlist | null;
@@ -47,16 +50,22 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
     }, [visible, playlist]);
 
     async function handleSend() {
-        if (!playlist || !email.trim()) return;
+        const normalizedEmail = email.trim().toLowerCase();
+        if (!playlist || !normalizedEmail) return;
+        if (!EMAIL_RE.test(normalizedEmail)) {
+            Alert.alert('Invalid email', 'Enter a valid email address.');
+            return;
+        }
+
         setSending(true);
         try {
-            await createInviteByEmail(playlist.id, email.trim());
+            await createInviteByEmail(playlist.id, normalizedEmail);
             setEmail('');
             await onInviteChanged();
             const data = await listInvites(playlist.id);
             setInvites(data);
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to send invite';
+            const msg = getInviteErrorMessage(err);
             Alert.alert('Error', msg);
         } finally {
             setSending(false);
@@ -69,7 +78,7 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
             setInvites(prev => prev.filter(i => i.id !== inviteId));
             await onInviteChanged();
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to cancel invite';
+            const msg = getInviteErrorMessage(err, 'cancel');
             Alert.alert('Error', msg);
         }
     }
@@ -273,4 +282,20 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
             </View>
         </Modal>
     );
+}
+
+function getInviteErrorMessage(error: unknown, action: 'send' | 'cancel' = 'send') {
+    if (error instanceof ApiError) {
+        if (error.errorCode === 'USER_NOT_FOUND') return 'No user found with that email.';
+        if (error.errorCode === 'INVITE_SELF') return "You can't invite yourself.";
+        if (error.errorCode === 'INVITE_DUPLICATE') return 'That user has already been invited.';
+        if (error.errorCode === 'PLAYLIST_NOT_FOUND') return 'This playlist no longer exists.';
+        if (error.errorCode === 'INVITE_NOT_FOUND') return 'This invite no longer exists.';
+        if (error.errorCode === 'FORBIDDEN') {
+            return action === 'cancel'
+                ? 'You cannot cancel this invite.'
+                : 'Only the playlist owner can send invites.';
+        }
+    }
+    return error instanceof Error ? error.message : `Failed to ${action} invite`;
 }

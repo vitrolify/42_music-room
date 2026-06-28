@@ -8,7 +8,12 @@ from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.session import get_db
 from app.models.invite import InviteStatus
-from app.schemas.invite import InviteByEmailCreate, InviteCreate, InviteRead
+from app.schemas.invite import (
+    InviteByEmailCreate,
+    InviteCreate,
+    InviteRead,
+    InviteWithPlaylistRead,
+)
 from app.services import invite_service, playlist_service
 from app.services.user_service import UserService
 
@@ -114,13 +119,27 @@ async def create_invite_by_email(
 
 @router.get(
     "/invites/mine",
-    response_model=list[InviteRead],
+    response_model=list[InviteWithPlaylistRead],
 )
 async def list_my_invites(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    return await invite_service.get_invites_for_user(db=db, user_id=user_id)
+    rows = await invite_service.get_invites_with_playlists_for_user(
+        db=db, user_id=user_id
+    )
+    return [
+        {
+            "id": invite.id,
+            "user_id": invite.user_id,
+            "playlist_id": invite.playlist_id,
+            "status": invite.status,
+            "created_at": invite.created_at,
+            "updated_at": invite.updated_at,
+            "playlist": playlist,
+        }
+        for invite, playlist in rows
+    ]
 
 
 @router.get(

@@ -11,7 +11,6 @@ import {
     RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../src/contexts/AuthContext';
 import {
     listPlaylists,
     createPlaylist,
@@ -19,18 +18,18 @@ import {
     getMyInvites,
     acceptInvite,
     declineInvite,
+    ApiError,
     type Playlist,
-    type Invite,
+    type InviteWithPlaylist,
 } from '../../src/lib/api';
 import { colors, spacing, globalStyles } from '../../src/styles';
 import InviteModal from '../../src/components/InviteModal';
 
 export default function Playlists() {
-    const { user } = useAuth();
     const insets = useSafeAreaInsets();
 
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
-    const [myInvites, setMyInvites] = useState<Invite[]>([]);
+    const [myInvites, setMyInvites] = useState<InviteWithPlaylist[]>([]);
     const [userDbId, setUserDbId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -97,7 +96,7 @@ export default function Playlists() {
             await acceptInvite(inviteId);
             await fetchData();
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to accept invite';
+            const msg = getInviteActionErrorMessage(err, 'accept');
             Alert.alert('Error', msg);
         }
     }
@@ -107,7 +106,7 @@ export default function Playlists() {
             await declineInvite(inviteId);
             await fetchData();
         } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Failed to decline invite';
+            const msg = getInviteActionErrorMessage(err, 'decline');
             Alert.alert('Error', msg);
         }
     }
@@ -210,9 +209,7 @@ export default function Playlists() {
                     >
                         Pending Invites ({pendingInvites.length})
                     </Text>
-                    {pendingInvites.map(invite => {
-                        const playlist = playlists.find(p => p.id === invite.playlist_id);
-                        return (
+                    {pendingInvites.map(invite => (
                             <View
                                 key={invite.id}
                                 style={{
@@ -227,7 +224,7 @@ export default function Playlists() {
                             >
                                 <View style={{ flex: 1, marginRight: spacing.md }}>
                                     <Text style={globalStyles.bodyBold}>
-                                        {playlist?.name ?? `Playlist #${invite.playlist_id}`}
+                                        {invite.playlist.name}
                                     </Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -259,8 +256,7 @@ export default function Playlists() {
                                     </Pressable>
                                 </View>
                             </View>
-                        );
-                    })}
+                        ))}
                 </View>
             )}
 
@@ -346,4 +342,13 @@ export default function Playlists() {
             />
         </ScrollView>
     );
+}
+
+function getInviteActionErrorMessage(error: unknown, action: 'accept' | 'decline') {
+    if (error instanceof ApiError) {
+        if (error.errorCode === 'INVITE_ALREADY_RESPONDED') return 'This invite was already responded to.';
+        if (error.errorCode === 'INVITE_NOT_FOUND') return 'This invite no longer exists.';
+        if (error.errorCode === 'FORBIDDEN') return `You cannot ${action} this invite.`;
+    }
+    return error instanceof Error ? error.message : `Failed to ${action} invite`;
 }

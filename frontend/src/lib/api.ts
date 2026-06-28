@@ -20,6 +20,18 @@ function getApiBaseUrl(): string {
 
 const API_BASE = getApiBaseUrl();
 
+export class ApiError extends Error {
+    status: number;
+    errorCode?: string;
+
+    constructor(message: string, status: number, errorCode?: string) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.errorCode = errorCode;
+    }
+}
+
 async function getFirebaseToken(): Promise<string | null> {
     try {
         return await Firebase.getAuthToken();
@@ -51,7 +63,15 @@ async function request<T>(
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message ?? 'Request failed');
+        throw new ApiError(
+            err.message ?? res.statusText ?? 'Request failed',
+            res.status,
+            err.error_code,
+        );
+    }
+
+    if (res.status === 204) {
+        return undefined as T;
     }
 
     return res.json() as Promise<T>;
@@ -88,6 +108,10 @@ export type Invite = {
     status: InviteStatus;
     created_at: string;
     updated_at: string;
+};
+
+export type InviteWithPlaylist = Invite & {
+    playlist: Playlist;
 };
 
 export type UserProfile = {
@@ -131,8 +155,8 @@ export async function deletePlaylist(id: number): Promise<void> {
     return request<void>('DELETE', `/playlists/${id}`);
 }
 
-export async function getMyInvites(): Promise<Invite[]> {
-    return request<Invite[]>('GET', '/invites/mine');
+export async function getMyInvites(): Promise<InviteWithPlaylist[]> {
+    return request<InviteWithPlaylist[]>('GET', '/invites/mine');
 }
 
 export async function listInvites(playlistId: number): Promise<Invite[]> {
