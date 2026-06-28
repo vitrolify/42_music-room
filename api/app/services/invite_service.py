@@ -25,6 +25,13 @@ async def get_invites_by_playlist(db: AsyncSession, playlist_id: int) -> list[In
     return list(result.scalars().all())
 
 
+async def get_invites_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Invite]:
+    result = await db.execute(
+        select(Invite).where(Invite.user_id == user_id)
+    )
+    return list(result.scalars().all())
+
+
 async def get_invite_by_id(db: AsyncSession, invite_id: int) -> Invite | None:
     return await db.get(Invite, invite_id)
 

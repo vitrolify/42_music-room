@@ -113,6 +113,17 @@ async def create_invite_by_email(
 
 
 @router.get(
+    "/invites/mine",
+    response_model=list[InviteRead],
+)
+async def list_my_invites(
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    return await invite_service.get_invites_for_user(db=db, user_id=user_id)
+
+
+@router.get(
     "/playlists/{playlist_id}/invites",
     response_model=list[InviteRead],
 )

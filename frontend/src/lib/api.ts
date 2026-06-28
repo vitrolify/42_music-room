@@ -131,6 +131,10 @@ export async function deletePlaylist(id: number): Promise<void> {
     return request<void>('DELETE', `/playlists/${id}`);
 }
 
+export async function getMyInvites(): Promise<Invite[]> {
+    return request<Invite[]>('GET', '/invites/mine');
+}
+
 export async function listInvites(playlistId: number): Promise<Invite[]> {
     return request<Invite[]>('GET', `/playlists/${playlistId}/invites`);
 }
