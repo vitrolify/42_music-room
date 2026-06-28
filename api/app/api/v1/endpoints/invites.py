@@ -8,8 +8,9 @@ from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.session import get_db
 from app.models.invite import InviteStatus
-from app.schemas.invite import InviteCreate, InviteRead
+from app.schemas.invite import InviteByEmailCreate, InviteCreate, InviteRead
 from app.services import invite_service, playlist_service
+from app.services.user_service import UserService
 
 router = APIRouter(tags=["invites"])
 
@@ -48,6 +49,59 @@ async def create_invite(
     try:
         return await invite_service.create_invite_in_db(
             db=db, user_id=payload.user_id, playlist_id=playlist_id
+        )
+    except IntegrityError:
+        await db.rollback()
+        raise BaseVitrolifyException(
+            error_code="INVITE_DUPLICATE",
+            message="Usuario ja foi convidado",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+
+@router.post(
+    "/playlists/{playlist_id}/invites/by-email",
+    response_model=InviteRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_invite_by_email(
+    playlist_id: int,
+    payload: InviteByEmailCreate,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    playlist = await playlist_service.get_playlist_by_id(db=db, playlist_id=playlist_id)
+    if playlist is None:
+        raise BaseVitrolifyException(
+            error_code="PLAYLIST_NOT_FOUND",
+            message="Playlist nao encontrada",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    if playlist.owner_id != user_id:
+        raise BaseVitrolifyException(
+            error_code="FORBIDDEN",
+            message="Forbidden",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    user_service = UserService(db)
+    invited_user = await user_service.get_by_email(payload.email)
+    if invited_user is None:
+        raise BaseVitrolifyException(
+            error_code="USER_NOT_FOUND",
+            message="Usuario nao encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    if invited_user.id == user_id:
+        raise BaseVitrolifyException(
+            error_code="INVITE_SELF",
+            message="Voce nao pode se convidar",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        return await invite_service.create_invite_in_db(
+            db=db, user_id=invited_user.id, playlist_id=playlist_id
         )
     except IntegrityError:
         await db.rollback()

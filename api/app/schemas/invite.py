@@ -10,6 +10,10 @@ class InviteCreate(BaseModel):
     user_id: uuid.UUID
 
 
+class InviteByEmailCreate(BaseModel):
+    email: str
+
+
 class InviteRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
