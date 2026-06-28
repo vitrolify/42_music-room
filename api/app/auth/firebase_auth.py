@@ -5,19 +5,16 @@ from firebase_admin import auth, credentials
 
 from app.core.config import settings
 
-# App Firebase, inicializado uma vez por processo na primeira chamada
-_app: firebase_admin.App | None = None
-
 
 def _get_app() -> firebase_admin.App:
-    global _app
-    if _app is None:
+    try:
+        return firebase_admin.get_app()
+    except ValueError:
         cred = credentials.Certificate(settings.firebase_credentials_path)
-        _app = firebase_admin.initialize_app(
+        return firebase_admin.initialize_app(
             cred,
             {"projectId": settings.firebase_project_id},
         )
-    return _app
 
 
 class FirebaseTokenVerifier:
