@@ -38,7 +38,10 @@ export default function PlaylistDetail() {
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
-        if (!Number.isFinite(playlistId)) return;
+        if (!Number.isFinite(playlistId)) {
+            setError('Invalid playlist id.');
+            return;
+        }
 
         try {
             setError(null);
@@ -49,7 +52,7 @@ export default function PlaylistDetail() {
             setPlaylist(nextPlaylist);
             setTracks(nextTracks);
         } catch (err) {
-            const message = getPlaylistTrackErrorMessage(err, 'load playlist tracks');
+            const message = getPlaylistTrackLoadErrorMessage(err);
             setError(message);
         }
     }, [playlistId]);
@@ -101,7 +104,7 @@ export default function PlaylistDetail() {
                 'The add request was accepted, but the track has not appeared yet. Refresh and try again if it does not show up.',
             );
         } catch (err) {
-            Alert.alert('Error', getPlaylistTrackErrorMessage(err, 'add track'));
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'add track'));
         } finally {
             setMutationMessage(null);
             setMutating(false);
@@ -122,7 +125,7 @@ export default function PlaylistDetail() {
                 'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
             );
         } catch (err) {
-            Alert.alert('Error', getPlaylistTrackErrorMessage(err, 'move track'));
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
         } finally {
             setMutationMessage(null);
             setMutating(false);
@@ -315,11 +318,23 @@ function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function getPlaylistTrackErrorMessage(error: unknown, action: string) {
+function getPlaylistTrackLoadErrorMessage(error: unknown) {
+    if (error instanceof ApiError) {
+        if (error.errorCode === 'PLAYLIST_NOT_FOUND') return 'Playlist not found.';
+        if (error.errorCode === 'FORBIDDEN') return 'You do not have permission to view this playlist.';
+        if (error.errorCode === 'AUTH_TOKEN_MISSING') return 'Please sign in again.';
+        if (error.errorCode === 'VALIDATION_ERROR') return 'This playlist request is invalid.';
+    }
+
+    return error instanceof Error ? error.message : 'Failed to load playlist tracks';
+}
+
+function getPlaylistTrackMutationErrorMessage(error: unknown, action: string) {
     if (error instanceof ApiError) {
         if (error.errorCode === 'PLAYLIST_NOT_FOUND') return 'Playlist not found.';
         if (error.errorCode === 'FORBIDDEN') return 'You do not have permission to edit this playlist.';
         if (error.errorCode === 'AUTH_TOKEN_MISSING') return 'Please sign in again.';
+        if (error.errorCode === 'VALIDATION_ERROR') return 'Track update request is invalid.';
     }
 
     return error instanceof Error ? error.message : `Failed to ${action}`;
