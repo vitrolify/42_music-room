@@ -1,13 +1,13 @@
 import { Tabs } from 'expo-router';
 import { House, MagnifyingGlass, Playlist, UserCircle } from 'phosphor-react-native';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
 
 export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
-    const useSideNav = Platform.OS === 'web' && width >= 900;
+    const useSideNav = width >= 900;
 
     return (
         <Tabs
@@ -17,6 +17,8 @@ export default function TabsLayout() {
                 tabBarLabelPosition: useSideNav ? 'beside-icon' : 'below-icon',
                 tabBarActiveTintColor: colors.brand,
                 tabBarInactiveTintColor: colors.text.secondary,
+                tabBarActiveBackgroundColor: useSideNav ? colors.bg.elevated : 'transparent',
+                tabBarInactiveBackgroundColor: 'transparent',
                 tabBarStyle: useSideNav
                     ? {
                         backgroundColor: colors.bg.surface,
@@ -39,6 +41,8 @@ export default function TabsLayout() {
                     ? {
                         height: 76,
                         paddingVertical: spacing.sm,
+                        marginHorizontal: spacing.sm,
+                        borderRadius: 10,
                     }
                     : undefined,
                 tabBarLabelStyle: {
