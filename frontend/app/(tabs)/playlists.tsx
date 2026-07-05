@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { MusicNote } from 'phosphor-react-native';
 import { useAuth } from '../../src/contexts/AuthContext';
 import {
     listPlaylists,
@@ -296,9 +297,9 @@ export default function Playlists() {
                 <View style={{ marginBottom: spacing.xxl }}>
                     <Text style={[globalStyles.heading, { marginBottom: spacing.md }]}>My Playlists ({ownedPlaylists.length})</Text>
                     {ownedPlaylists.map(playlist => (
-                        <View
+                        <Pressable
                             key={playlist.id}
-                            style={{
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
@@ -306,26 +307,21 @@ export default function Playlists() {
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                            }}
+                                opacity: pressed ? 0.85 : 1,
+                            })}
+                            onPress={() => openPlaylist(playlist)}
                         >
-                            <View style={{ flex: 1, marginRight: spacing.md }}>
-                                <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
-                                <Text style={globalStyles.small}>
-                                    {playlist.public ? 'Public' : 'Private'}
-                                    {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
-                                </Text>
+                            <PlaylistArtwork />
+                            <View style={{ flex: 1, marginHorizontal: spacing.md }}>
+                                <View>
+                                    <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
+                                    <Text style={globalStyles.small}>
+                                        {playlist.public ? 'Public' : 'Private'}
+                                        {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
+                                    </Text>
+                                </View>
                             </View>
                             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                                <Pressable
-                                    style={({ pressed }) => ({
-                                        ...globalStyles.pillButton,
-                                        paddingHorizontal: spacing.md,
-                                        opacity: pressed ? 0.7 : 1,
-                                    })}
-                                    onPress={() => openPlaylist(playlist)}
-                                >
-                                    <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Tracks</Text>
-                                </Pressable>
                                 <Pressable
                                     style={({ pressed }) => ({
                                         ...globalStyles.pillButton,
@@ -355,7 +351,7 @@ export default function Playlists() {
                                     </Text>
                                 </Pressable>
                             </View>
-                        </View>
+                        </Pressable>
                     ))}
                 </View>
             )}
@@ -367,9 +363,9 @@ export default function Playlists() {
                         Shared with Me ({sharedPlaylists.length})
                     </Text>
                     {sharedPlaylists.map(playlist => (
-                        <View
+                        <Pressable
                             key={playlist.id}
-                            style={{
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
@@ -377,26 +373,19 @@ export default function Playlists() {
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                            }}
+                                opacity: pressed ? 0.85 : 1,
+                            })}
+                            onPress={() => openPlaylist(playlist)}
                         >
-                            <View style={{ flex: 1, marginRight: spacing.md }}>
+                            <PlaylistArtwork />
+                            <View style={{ flex: 1, marginLeft: spacing.md }}>
                                 <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
                                 <Text style={globalStyles.small}>
                                     {playlist.public ? 'Public' : 'Private'}
                                     {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
                                 </Text>
                             </View>
-                            <Pressable
-                                style={({ pressed }) => ({
-                                    ...globalStyles.pillButton,
-                                    paddingHorizontal: spacing.md,
-                                    opacity: pressed ? 0.7 : 1,
-                                })}
-                                onPress={() => openPlaylist(playlist)}
-                            >
-                                <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Tracks</Text>
-                            </Pressable>
-                        </View>
+                        </Pressable>
                     ))}
                 </View>
             )}
@@ -542,6 +531,23 @@ function getInviteActionErrorMessage(error: unknown, action: 'accept' | 'decline
         if (error.errorCode === 'FORBIDDEN') return `You cannot ${action} this invite.`;
     }
     return error instanceof Error ? error.message : `Failed to ${action} invite`;
+}
+
+function PlaylistArtwork() {
+    return (
+        <View
+            style={{
+                width: 48,
+                height: 48,
+                borderRadius: 6,
+                backgroundColor: colors.bg.alternate,
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+        >
+            <MusicNote weight="bold" size={24} color={colors.text.secondary} />
+        </View>
+    );
 }
 
 function formatInviteOwner(invite: InviteWithPlaylist) {
