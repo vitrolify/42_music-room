@@ -37,8 +37,11 @@ export default function PlaylistDetail() {
     const [mutationMessage, setMutationMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const isValidPlaylistId = Number.isInteger(playlistId) && playlistId > 0;
+    const canAddTrack = isValidPlaylistId && trackInfoId.trim().length > 0 && !mutating;
+
     const fetchData = useCallback(async () => {
-        if (!Number.isFinite(playlistId)) {
+        if (!isValidPlaylistId) {
             setError('Invalid playlist id.');
             return;
         }
@@ -55,7 +58,7 @@ export default function PlaylistDetail() {
             const message = getPlaylistTrackLoadErrorMessage(err);
             setError(message);
         }
-    }, [playlistId]);
+    }, [isValidPlaylistId, playlistId]);
 
     useEffect(() => {
         (async () => {
@@ -91,6 +94,10 @@ export default function PlaylistDetail() {
 
     async function handleAddTrack() {
         const trimmedTrackInfoId = trackInfoId.trim();
+        if (!isValidPlaylistId) {
+            Alert.alert('Error', 'Invalid playlist id.');
+            return;
+        }
         if (!trimmedTrackInfoId || mutating) return;
 
         setMutating(true);
@@ -113,6 +120,15 @@ export default function PlaylistDetail() {
 
     async function handleMoveTrack(track: PlaylistTrack, newPosition: number) {
         if (mutating) return;
+        if (!isValidPlaylistId) {
+            Alert.alert('Error', 'Invalid playlist id.');
+            return;
+        }
+        if (newPosition < 1 || newPosition > tracks.length) {
+            Alert.alert('Error', 'Track position is out of range.');
+            return;
+        }
+        if (track.position === newPosition) return;
 
         setMutating(true);
         setMutationMessage('Moving track...');
@@ -167,9 +183,9 @@ export default function PlaylistDetail() {
                     </Pressable>
                     <Pressable
                         onPress={handleRefresh}
-                        disabled={refreshing || mutating}
+                        disabled={refreshing || mutating || !isValidPlaylistId}
                         style={({ pressed }) => ({
-                            opacity: pressed || refreshing || mutating ? 0.55 : 1,
+                            opacity: pressed || refreshing || mutating || !isValidPlaylistId ? 0.55 : 1,
                         })}
                     >
                         <Text style={globalStyles.link}>Refresh</Text>
@@ -209,14 +225,15 @@ export default function PlaylistDetail() {
                             placeholderTextColor={colors.text.secondary}
                             autoCapitalize="none"
                             autoCorrect={false}
+                            editable={!mutating && isValidPlaylistId}
                         />
                         <Pressable
                             style={({ pressed }) => ({
                                 ...globalStyles.primaryPillButton,
-                                opacity: pressed || mutating || !trackInfoId.trim() ? 0.7 : 1,
+                                opacity: pressed || !canAddTrack ? 0.7 : 1,
                             })}
                             onPress={handleAddTrack}
-                            disabled={mutating || !trackInfoId.trim()}
+                            disabled={!canAddTrack}
                         >
                             {mutating ? (
                                 <ActivityIndicator size="small" color={colors.text.primary} />
