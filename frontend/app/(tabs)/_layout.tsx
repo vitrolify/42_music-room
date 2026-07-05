@@ -88,6 +88,12 @@ export default function TabsLayout() {
                     ),
                 }}
             />
+            <Tabs.Screen
+                name="playlist/[id]"
+                options={{
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

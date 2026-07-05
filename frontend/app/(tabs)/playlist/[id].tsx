@@ -19,8 +19,8 @@ import {
     ApiError,
     type Playlist,
     type PlaylistTrack,
-} from '../../src/lib/api';
-import { colors, globalStyles, spacing } from '../../src/styles';
+} from '../../../src/lib/api';
+import { colors, globalStyles, spacing } from '../../../src/styles';
 
 export default function PlaylistDetail() {
     const router = useRouter();
