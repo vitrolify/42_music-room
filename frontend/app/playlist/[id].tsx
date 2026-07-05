@@ -34,6 +34,7 @@ export default function PlaylistDetail() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [mutating, setMutating] = useState(false);
+    const [mutationMessage, setMutationMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
@@ -67,9 +68,22 @@ export default function PlaylistDetail() {
         setRefreshing(false);
     }
 
-    async function refreshAfterMutation() {
+    async function refreshTracksAfterMutation(
+        hasExpectedChange: (nextTracks: PlaylistTrack[]) => boolean,
+        unchangedMessage: string,
+    ) {
         await sleep(500);
-        await fetchData();
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            const nextTracks = await listPlaylistTracks(playlistId);
+            setTracks(nextTracks);
+
+            if (hasExpectedChange(nextTracks)) return;
+
+            await sleep(500);
+        }
+
+        Alert.alert('Still processing', unchangedMessage);
     }
 
     async function handleAddTrack() {
@@ -77,13 +91,19 @@ export default function PlaylistDetail() {
         if (!trimmedTrackInfoId || mutating) return;
 
         setMutating(true);
+        setMutationMessage('Adding track...');
         try {
+            const previousTrackCount = tracks.length;
             await addPlaylistTrack(playlistId, trimmedTrackInfoId);
             setTrackInfoId('');
-            await refreshAfterMutation();
+            await refreshTracksAfterMutation(
+                nextTracks => nextTracks.length > previousTrackCount,
+                'The add request was accepted, but the track has not appeared yet. Refresh and try again if it does not show up.',
+            );
         } catch (err) {
             Alert.alert('Error', getPlaylistTrackErrorMessage(err, 'add track'));
         } finally {
+            setMutationMessage(null);
             setMutating(false);
         }
     }
@@ -92,12 +112,19 @@ export default function PlaylistDetail() {
         if (mutating) return;
 
         setMutating(true);
+        setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, track, newPosition);
-            await refreshAfterMutation();
+            await refreshTracksAfterMutation(
+                nextTracks => nextTracks.some(nextTrack => (
+                    nextTrack.id === track.id && nextTrack.position === newPosition
+                )),
+                'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
+            );
         } catch (err) {
             Alert.alert('Error', getPlaylistTrackErrorMessage(err, 'move track'));
         } finally {
+            setMutationMessage(null);
             setMutating(false);
         }
     }
@@ -126,18 +153,32 @@ export default function PlaylistDetail() {
             }
         >
             <View style={{ marginBottom: spacing.xl }}>
-                <Pressable
-                    onPress={() => router.back()}
-                    style={({ pressed }) => ({
-                        alignSelf: 'flex-start',
-                        marginBottom: spacing.lg,
-                        opacity: pressed ? 0.7 : 1,
-                    })}
-                >
-                    <Text style={globalStyles.link}>Back</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+                    <Pressable
+                        onPress={() => router.back()}
+                        style={({ pressed }) => ({
+                            opacity: pressed ? 0.7 : 1,
+                        })}
+                    >
+                        <Text style={globalStyles.link}>Back</Text>
+                    </Pressable>
+                    <Pressable
+                        onPress={handleRefresh}
+                        disabled={refreshing || mutating}
+                        style={({ pressed }) => ({
+                            opacity: pressed || refreshing || mutating ? 0.55 : 1,
+                        })}
+                    >
+                        <Text style={globalStyles.link}>Refresh</Text>
+                    </Pressable>
+                </View>
                 <Text style={globalStyles.title}>{playlist?.name ?? 'Playlist'}</Text>
                 <Text style={[globalStyles.small, { marginTop: spacing.xs }]}>Tracks</Text>
+                {mutationMessage ? (
+                    <Text style={[globalStyles.small, { color: colors.brand, marginTop: spacing.xs }]}>
+                        {mutationMessage}
+                    </Text>
+                ) : null}
             </View>
 
             {error ? (
