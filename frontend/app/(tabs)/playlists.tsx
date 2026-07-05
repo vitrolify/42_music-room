@@ -12,6 +12,7 @@ import {
     Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import {
     listPlaylists,
@@ -29,6 +30,7 @@ import { colors, spacing, globalStyles } from '../../src/styles';
 import InviteModal from '../../src/components/InviteModal';
 
 export default function Playlists() {
+    const router = useRouter();
     const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
 
@@ -143,6 +145,13 @@ export default function Playlists() {
             const msg = getInviteActionErrorMessage(err, 'decline');
             Alert.alert('Error', msg);
         }
+    }
+
+    function openPlaylist(playlist: Playlist) {
+        router.push({
+            pathname: '/playlist/[id]',
+            params: { id: String(playlist.id) },
+        });
     }
 
     const ownedPlaylists = playlists.filter(p => p.owner_id === userDbId);
@@ -313,6 +322,16 @@ export default function Playlists() {
                                         paddingHorizontal: spacing.md,
                                         opacity: pressed ? 0.7 : 1,
                                     })}
+                                    onPress={() => openPlaylist(playlist)}
+                                >
+                                    <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Tracks</Text>
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => ({
+                                        ...globalStyles.pillButton,
+                                        paddingHorizontal: spacing.md,
+                                        opacity: pressed ? 0.7 : 1,
+                                    })}
                                     onPress={() => setInviteModalPlaylist(playlist)}
                                 >
                                     <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Invite</Text>
@@ -355,13 +374,28 @@ export default function Playlists() {
                                 borderRadius: 8,
                                 padding: spacing.lg,
                                 marginBottom: spacing.sm,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                             }}
                         >
-                            <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
-                            <Text style={globalStyles.small}>
-                                {playlist.public ? 'Public' : 'Private'}
-                                {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
-                            </Text>
+                            <View style={{ flex: 1, marginRight: spacing.md }}>
+                                <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
+                                <Text style={globalStyles.small}>
+                                    {playlist.public ? 'Public' : 'Private'}
+                                    {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
+                                </Text>
+                            </View>
+                            <Pressable
+                                style={({ pressed }) => ({
+                                    ...globalStyles.pillButton,
+                                    paddingHorizontal: spacing.md,
+                                    opacity: pressed ? 0.7 : 1,
+                                })}
+                                onPress={() => openPlaylist(playlist)}
+                            >
+                                <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Tracks</Text>
+                            </Pressable>
                         </View>
                     ))}
                 </View>
