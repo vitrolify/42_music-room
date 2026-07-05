@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MusicNote } from 'phosphor-react-native';
+import { MusicNote, Trash, UserPlus } from 'phosphor-react-native';
 import { useAuth } from '../../src/contexts/AuthContext';
 import {
     listPlaylists,
@@ -324,31 +324,28 @@ export default function Playlists() {
                             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                                 <Pressable
                                     style={({ pressed }) => ({
-                                        ...globalStyles.pillButton,
-                                        paddingHorizontal: spacing.md,
+                                        ...iconButtonStyle,
                                         opacity: pressed ? 0.7 : 1,
                                     })}
-                                    onPress={() => setInviteModalPlaylist(playlist)}
+                                    onPress={event => {
+                                        event.stopPropagation();
+                                        setInviteModalPlaylist(playlist);
+                                    }}
                                 >
-                                    <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Invite</Text>
+                                    <UserPlus weight="bold" size={18} color={colors.text.primary} />
                                 </Pressable>
                                 <Pressable
                                     style={({ pressed }) => ({
-                                        ...globalStyles.pillButton,
+                                        ...iconButtonStyle,
                                         backgroundColor: colors.semantic.error,
-                                        paddingHorizontal: spacing.md,
                                         opacity: pressed ? 0.7 : 1,
                                     })}
-                                    onPress={() => handleDelete(playlist)}
+                                    onPress={event => {
+                                        event.stopPropagation();
+                                        handleDelete(playlist);
+                                    }}
                                 >
-                                    <Text
-                                        style={[
-                                            globalStyles.pillButtonText,
-                                            { fontSize: 11, color: colors.text.primary },
-                                        ]}
-                                    >
-                                        Delete
-                                    </Text>
+                                    <Trash weight="bold" size={18} color={colors.text.primary} />
                                 </Pressable>
                             </View>
                         </Pressable>
@@ -549,6 +546,15 @@ function PlaylistArtwork() {
         </View>
     );
 }
+
+const iconButtonStyle = {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+} as const;
 
 function formatInviteOwner(invite: InviteWithPlaylist) {
     return invite.owner.display_name || invite.owner.email || 'playlist owner';
