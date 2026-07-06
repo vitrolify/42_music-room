@@ -12,6 +12,8 @@ import {
     Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { MusicNote, Trash, UserPlus } from 'phosphor-react-native';
 import { useAuth } from '../../src/contexts/AuthContext';
 import {
     listPlaylists,
@@ -29,6 +31,7 @@ import { colors, spacing, globalStyles } from '../../src/styles';
 import InviteModal from '../../src/components/InviteModal';
 
 export default function Playlists() {
+    const router = useRouter();
     const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
 
@@ -143,6 +146,13 @@ export default function Playlists() {
             const msg = getInviteActionErrorMessage(err, 'decline');
             Alert.alert('Error', msg);
         }
+    }
+
+    function openPlaylist(playlist: Playlist) {
+        router.push({
+            pathname: '/playlist/[id]',
+            params: { id: String(playlist.id) },
+        });
     }
 
     const ownedPlaylists = playlists.filter(p => p.owner_id === userDbId);
@@ -287,9 +297,9 @@ export default function Playlists() {
                 <View style={{ marginBottom: spacing.xxl }}>
                     <Text style={[globalStyles.heading, { marginBottom: spacing.md }]}>My Playlists ({ownedPlaylists.length})</Text>
                     {ownedPlaylists.map(playlist => (
-                        <View
+                        <Pressable
                             key={playlist.id}
-                            style={{
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
@@ -297,46 +307,48 @@ export default function Playlists() {
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                            }}
+                                opacity: pressed ? 0.85 : 1,
+                            })}
+                            onPress={() => openPlaylist(playlist)}
                         >
-                            <View style={{ flex: 1, marginRight: spacing.md }}>
-                                <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
-                                <Text style={globalStyles.small}>
-                                    {playlist.public ? 'Public' : 'Private'}
-                                    {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
-                                </Text>
+                            <PlaylistArtwork />
+                            <View style={{ flex: 1, marginHorizontal: spacing.md }}>
+                                <View>
+                                    <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
+                                    <Text style={globalStyles.small}>
+                                        {playlist.public ? 'Public' : 'Private'}
+                                        {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
+                                    </Text>
+                                </View>
                             </View>
                             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                                 <Pressable
                                     style={({ pressed }) => ({
-                                        ...globalStyles.pillButton,
-                                        paddingHorizontal: spacing.md,
+                                        ...iconButtonStyle,
                                         opacity: pressed ? 0.7 : 1,
                                     })}
-                                    onPress={() => setInviteModalPlaylist(playlist)}
+                                    onPress={event => {
+                                        event.stopPropagation();
+                                        setInviteModalPlaylist(playlist);
+                                    }}
                                 >
-                                    <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>Invite</Text>
+                                    <UserPlus weight="bold" size={18} color={colors.text.primary} />
                                 </Pressable>
                                 <Pressable
                                     style={({ pressed }) => ({
-                                        ...globalStyles.pillButton,
+                                        ...iconButtonStyle,
                                         backgroundColor: colors.semantic.error,
-                                        paddingHorizontal: spacing.md,
                                         opacity: pressed ? 0.7 : 1,
                                     })}
-                                    onPress={() => handleDelete(playlist)}
+                                    onPress={event => {
+                                        event.stopPropagation();
+                                        handleDelete(playlist);
+                                    }}
                                 >
-                                    <Text
-                                        style={[
-                                            globalStyles.pillButtonText,
-                                            { fontSize: 11, color: colors.text.primary },
-                                        ]}
-                                    >
-                                        Delete
-                                    </Text>
+                                    <Trash weight="bold" size={18} color={colors.text.primary} />
                                 </Pressable>
                             </View>
-                        </View>
+                        </Pressable>
                     ))}
                 </View>
             )}
@@ -348,21 +360,29 @@ export default function Playlists() {
                         Shared with Me ({sharedPlaylists.length})
                     </Text>
                     {sharedPlaylists.map(playlist => (
-                        <View
+                        <Pressable
                             key={playlist.id}
-                            style={{
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
                                 marginBottom: spacing.sm,
-                            }}
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                opacity: pressed ? 0.85 : 1,
+                            })}
+                            onPress={() => openPlaylist(playlist)}
                         >
-                            <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
-                            <Text style={globalStyles.small}>
-                                {playlist.public ? 'Public' : 'Private'}
-                                {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
-                            </Text>
-                        </View>
+                            <PlaylistArtwork />
+                            <View style={{ flex: 1, marginLeft: spacing.md }}>
+                                <Text style={globalStyles.bodyBold}>{playlist.name}</Text>
+                                <Text style={globalStyles.small}>
+                                    {playlist.public ? 'Public' : 'Private'}
+                                    {playlist.invited_only_edit ? ' · Invite-only edit' : ''}
+                                </Text>
+                            </View>
+                        </Pressable>
                     ))}
                 </View>
             )}
@@ -509,6 +529,32 @@ function getInviteActionErrorMessage(error: unknown, action: 'accept' | 'decline
     }
     return error instanceof Error ? error.message : `Failed to ${action} invite`;
 }
+
+function PlaylistArtwork() {
+    return (
+        <View
+            style={{
+                width: 48,
+                height: 48,
+                borderRadius: 6,
+                backgroundColor: colors.bg.alternate,
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+        >
+            <MusicNote weight="bold" size={24} color={colors.text.secondary} />
+        </View>
+    );
+}
+
+const iconButtonStyle = {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+} as const;
 
 function formatInviteOwner(invite: InviteWithPlaylist) {
     return invite.owner.display_name || invite.owner.email || 'playlist owner';
