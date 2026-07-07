@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from pydantic import ValidationError
 from sqlalchemy import func, select, update
@@ -8,6 +9,7 @@ from app.models.event_queue import EventQueue
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack
 from app.schemas.event import MoveEventPayload
+from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ async def process_move_track(
     if not payload:
         return
 
+    new_position = 0
     try:
         await _lock_playlist(db, playlist_id)
 
@@ -31,17 +34,6 @@ async def process_move_track(
         await _shift_tracks(db, playlist_id, payload.current_position, new_position)
         target_track.position = new_position
         await db.commit()
-
-        logger.info(
-            {
-                "event": "worker_track_moved",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-                "old_position": payload.current_position,
-                "new_position": new_position,
-                "status": "success",
-            }
-        )
 
     except ValueError as e:
         await db.rollback()
@@ -62,6 +54,32 @@ async def process_move_track(
                 "event_id": event.id,
                 "error": str(e),
             }
+        )
+
+    try:
+        ws_message = _build_track_moved_payload(
+            track_id=payload.playlist_track_id,
+            old_pos=payload.current_position,
+            new_pos=new_position,
+        )
+
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id=playlist_id, message=ws_message
+        )
+
+        logger.info(
+            {
+                "event": "worker_track_moved",
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+                "old_position": payload.current_position,
+                "new_position": new_position,
+                "status": "success",
+            }
+        )
+    except Exception as e:
+        logger.error(
+            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
         )
 
 
@@ -186,3 +204,15 @@ async def _shift_tracks(
         )
 
     await db.execute(stmt)
+
+
+def _build_track_moved_payload(track_id: int, old_pos: int, new_pos: int) -> dict:
+    return {
+        "type": "TRACK_MOVED",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "payload": {
+            "playlist_track_id": track_id,
+            "old_position": old_pos,
+            "new_position": new_pos,
+        },
+    }
