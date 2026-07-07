@@ -64,7 +64,7 @@ async def process_move_track(
         )
 
         await playlist_ws_manager.broadcast_playlist_update(
-            playlist_id=playlist_id, message=ws_message
+            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
         )
 
         logger.info(

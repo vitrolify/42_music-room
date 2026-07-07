@@ -19,7 +19,7 @@ class PlaylistConnectionManager(BaseConnectionManager):
         self.disconnect(websocket, self._get_room_id(playlist_id), user_id)
 
     async def broadcast_playlist_update(
-        self, playlist_id: int, message: dict, user: dict
+        self, playlist_id: int, message: dict, user_id: uuid.UUID
     ):
         """
         Sends a JSON with the update to all users currently editing the playlist
@@ -36,13 +36,13 @@ class PlaylistConnectionManager(BaseConnectionManager):
                     logger.error(
                         {
                             "event": "websocket_messaging",
-                            "user": user.id,
+                            "user": user_id,
                             "room": room_id,
                             "msg": str(e),
                         }
                     )
                     # Disconnect problematic connection
-                    self.disconnect(connection, room_id)
+                    self.disconnect(connection, room_id, user_id)
 
 
 playlist_ws_manager = PlaylistConnectionManager()

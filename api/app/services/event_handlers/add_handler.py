@@ -38,6 +38,7 @@ async def process_add_track_event(
                 "error": str(e),
             }
         )
+        return
 
     try:
         logger.info(
@@ -46,11 +47,13 @@ async def process_add_track_event(
                 "event_id": event.id,
                 "playlist_id": playlist_id,
                 "track_info_id": event.track_info_id,
-                "position": new_track.position,
+                "position": ws_message["payload"]["position"],
                 "status": "success",
             }
         )
-        await playlist_ws_manager.broadcast_playlist_update(playlist_id, ws_message)
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id, ws_message, event.user_id
+        )
     except Exception as e:
         logger.error(
             {
