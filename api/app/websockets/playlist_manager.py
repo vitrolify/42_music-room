@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from app.websockets.base_manager import BaseConnectionManager
 
@@ -9,13 +10,17 @@ class PlaylistConnectionManager(BaseConnectionManager):
     def _get_room_id(self, playlist_id: int) -> str:
         return f"playlist_{playlist_id}"
 
-    async def connect_to_playlist(self, websocket, playlist_id: int):
-        await self.connect(websocket, self._get_room_id(playlist_id))
+    async def connect_to_playlist(
+        self, websocket, playlist_id: int, user_id: uuid.UUID
+    ):
+        await self.connect(websocket, self._get_room_id(playlist_id), user_id)
 
-    def disconnect_from_playlist(self, websocket, playlist_id: int):
-        self.disconnect(websocket, self._get_room_id(playlist_id))
+    def disconnect_from_playlist(self, websocket, playlist_id: int, user_id: uuid.UUID):
+        self.disconnect(websocket, self._get_room_id(playlist_id), user_id)
 
-    async def broadcast_playlist_update(self, playlist_id: int, message: dict):
+    async def broadcast_playlist_update(
+        self, playlist_id: int, message: dict, user: dict
+    ):
         """
         Sends a JSON with the update to all users currently editing the playlist
         """
@@ -31,7 +36,7 @@ class PlaylistConnectionManager(BaseConnectionManager):
                     logger.error(
                         {
                             "event": "websocket_messaging",
-                            "user": "42",
+                            "user": user.id,
                             "room": room_id,
                             "msg": str(e),
                         }

@@ -23,7 +23,7 @@ class JsonFormatter(logging.Formatter):
             log_record["exception"] = self.formatException(record.exc_info)
             log_record["caller"] = f"{record.pathname}:{record.lineno}"
 
-        return json.dumps(log_record)
+        return json.dumps(log_record, default=str)
 
 
 def setup_logging() -> None:

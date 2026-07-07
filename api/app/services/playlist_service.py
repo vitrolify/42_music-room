@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.invite import Invite, InviteStatus
 from app.models.playlist import Playlist
+from app.services import invite_service
 
 
 async def create_playlist(
@@ -58,3 +59,26 @@ async def update_playlist(
 async def delete_playlist(db: AsyncSession, playlist: Playlist) -> None:
     await db.delete(playlist)
     await db.commit()
+
+
+async def user_has_playlist_permission(
+    db: AsyncSession, user_id: uuid.UUID, playlist: Playlist, action: str = "read"
+) -> bool:
+    is_owner = playlist.owner_id == user_id
+    if is_owner:
+        return True
+
+    needs_invite = False
+
+    if not playlist.public:
+        needs_invite = True
+    elif action == "edit" and playlist.invited_only_edit:
+        needs_invite = True
+
+    if needs_invite:
+        has_invite = await invite_service.check_user_has_accepted_invite(
+            db=db, user_id=user_id, playlist_id=playlist.id
+        )
+        return has_invite
+
+    return True

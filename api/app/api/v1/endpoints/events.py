@@ -10,9 +10,8 @@ from app.models.event_queue import EventQueue
 from app.schemas.event import EventCreate, EventRead
 from app.services import (
     event_service,
-    invite_service,
     playlist_service,
-    worker_service,  # Importe o serviço do worker
+    worker_service,
 )
 
 router = APIRouter(tags=["events"], prefix="/playlists/{playlist_id}")
@@ -39,31 +38,17 @@ async def create_playlist_event(
         )
 
     # Check permissions
-    is_owner = playlist.owner_id == user_id
+    is_authorized = await playlist_service.user_has_playlist_permission(
+        db=db, user_id=user_id, playlist=playlist, action="edit"
+    )
 
-    if not playlist.public and not is_owner:
-        has_invite = await invite_service.check_user_has_accepted_invite(
-            db=db, user_id=user_id, playlist_id=playlist_id
+    if not is_authorized:
+        raise BaseVitrolifyException(
+            error_code="FORBIDDEN",
+            message="Você não tem permissão para realizar esta ação na playlist.",
+            status_code=status.HTTP_403_FORBIDDEN,
         )
-        if not has_invite:
-            raise BaseVitrolifyException(
-                error_code="FORBIDDEN",
-                message="Você não tem permissão para acessar esta playlist privada",
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
 
-    if not is_owner and playlist.invited_only_edit:
-        has_invite = await invite_service.check_user_has_accepted_invite(
-            db=db, user_id=user_id, playlist_id=playlist_id
-        )
-        if not has_invite:
-            raise BaseVitrolifyException(
-                error_code="FORBIDDEN",
-                message="Esta playlist exige convite aceito para receber modificações",
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
-
-    # Record Event
     event_record = await event_service.create_event_in_db(
         db=db,
         playlist_id=playlist_id,

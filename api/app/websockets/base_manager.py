@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from fastapi import WebSocket
 
@@ -9,7 +10,7 @@ class BaseConnectionManager:
     def __init__(self):
         self.active_connections: dict[str, list[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, room_id: str):
+    async def connect(self, websocket: WebSocket, room_id: str, user_id: uuid.UUID):
         await websocket.accept()
 
         if room_id not in self.active_connections:
@@ -19,20 +20,20 @@ class BaseConnectionManager:
         logger.info(
             {
                 "event": "playlist_websocket_connection",
-                "user": "42",
+                "user": user_id,
                 "room": room_id,
                 "current_connections": len(self.active_connections[room_id]),
             }
         )
 
-    def disconnect(self, websocket: WebSocket, room_id: str):
+    def disconnect(self, websocket: WebSocket, room_id: str, user_id: uuid.UUID):
         if room_id in self.active_connections:
             try:
                 self.active_connections[room_id].remove(websocket)
                 logger.info(
                     {
                         "event": "playlist_websocket_disconnection",
-                        "user": "42",
+                        "user": user_id,
                         "room": room_id,
                         "current_connections": len(self.active_connections[room_id]),
                     }
