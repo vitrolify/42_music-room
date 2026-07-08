@@ -5,9 +5,9 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
-from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack
 from app.schemas.event import MovePayload
+from app.services.playlist_service import lock_playlist
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -17,13 +17,18 @@ async def process_move_track(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
 
-    payload = MovePayload.model_validate(event.payload)
+    try:
+        payload = MovePayload.model_validate(event.payload)
+    except Exception as e:
+        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+        return
+
     if not _is_valid_new_position(event.id, payload):
         return
 
     new_position = 0
     try:
-        await _lock_playlist(db, playlist_id)
+        await lock_playlist(db, playlist_id)
 
         target_track = await _validate_track(db, playlist_id, payload)
         new_position = await _get_clamped_position(db, event, playlist_id, payload)
@@ -94,13 +99,6 @@ def _is_valid_new_position(event_id: int, payload: MovePayload) -> bool:
         )
         return False
     return True
-
-
-async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
-    """Acquire a row-level lock on the playlist to serialize concurrent moves."""
-    await db.execute(
-        select(Playlist.id).where(Playlist.id == playlist_id).with_for_update()
-    )
 
 
 async def _validate_track(

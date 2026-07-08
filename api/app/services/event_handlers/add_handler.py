@@ -9,6 +9,7 @@ from app.models.event_queue import EventQueue
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 from app.schemas.event import AddPayload
+from app.services.playlist_service import lock_playlist
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -20,10 +21,15 @@ async def process_add_track_event(
     """
     Processes the 'add' event by calculating the next available position in the queue.
     """
-    payload = AddPayload.model_validate(event.payload)
+    try:
+        payload = AddPayload.model_validate(event.payload)
+    except Exception as e:
+        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+        return
+
     try:
         # Find the current highest position in the playlist queue
-        await _lock_playlist(db, playlist_id)
+        await lock_playlist(db, playlist_id)
         next_position = await _get_next_position(db, playlist_id)
         new_track = await _insert_track(db, event, playlist_id, next_position, payload)
         await db.flush()
