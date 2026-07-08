@@ -1,14 +1,13 @@
 import logging
 from datetime import datetime, timezone
 
-from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack
-from app.schemas.event import MoveEventPayload
+from app.schemas.event import MovePayload
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -18,8 +17,8 @@ async def process_move_track(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
 
-    payload = _validate_payload(event)
-    if not payload:
+    payload = MovePayload.model_validate(event.payload)
+    if not _is_valid_new_position(event.id, payload):
         return
 
     new_position = 0
@@ -83,31 +82,18 @@ async def process_move_track(
         )
 
 
-def _validate_payload(event: EventQueue) -> MoveEventPayload | None:
-    try:
-        payload = MoveEventPayload.model_validate(event.payload)
-    except ValidationError as e:
-        logger.error(
-            {
-                "event": "worker_move_failed",
-                "reason": "invalid_payload_schema",
-                "event_id": event.id,
-                "error": e.errors(),
-            }
-        )
-        return None
-
+def _is_valid_new_position(event_id: int, payload: MovePayload) -> bool:
     if payload.new_position <= 0:
         logger.error(
             {
                 "event": "worker_move_aborted",
                 "reason": "invalid_new_position",
-                "event_id": event.id,
+                "event_id": event_id,
                 "requested_position": payload.new_position,
             }
         )
-        return None
-    return payload
+        return False
+    return True
 
 
 async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
@@ -118,7 +104,7 @@ async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
 
 
 async def _validate_track(
-    db: AsyncSession, playlist_id: int, payload: MoveEventPayload
+    db: AsyncSession, playlist_id: int, payload: MovePayload
 ) -> PlaylistTrack:
     """
     Fetch and validate the target track. Returns the track on success, None on failure.
@@ -142,7 +128,7 @@ async def _validate_track(
 
 
 async def _get_clamped_position(
-    db: AsyncSession, event: EventQueue, playlist_id: int, payload: MoveEventPayload
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: MovePayload
 ) -> int:
     """
     Clamp new_position to the total number of tracks in the playlist.

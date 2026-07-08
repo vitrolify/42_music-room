@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.event_queue import EventQueue
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
+from app.schemas.event import AddPayload
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,12 @@ async def process_add_track_event(
     """
     Processes the 'add' event by calculating the next available position in the queue.
     """
+    payload = AddPayload.model_validate(event.payload)
     try:
         # Find the current highest position in the playlist queue
         await _lock_playlist(db, playlist_id)
         next_position = await _get_next_position(db, playlist_id)
-        new_track = await _insert_track(db, event, playlist_id, next_position)
+        new_track = await _insert_track(db, event, playlist_id, next_position, payload)
         await db.flush()
         await db.refresh(new_track, ["user"])
         ws_message = _build_track_added_payload(new_track)
@@ -46,7 +48,7 @@ async def process_add_track_event(
                 "event": "worker_track_added",
                 "event_id": event.id,
                 "playlist_id": playlist_id,
-                "track_info_id": event.track_info_id,
+                "track_info_id": payload.track_info_id,
                 "position": ws_message["payload"]["position"],
                 "status": "success",
             }
@@ -82,12 +84,16 @@ async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:
 
 
 async def _insert_track(
-    db: AsyncSession, event: EventQueue, playlist_id: int, position: int
+    db: AsyncSession,
+    event: EventQueue,
+    playlist_id: int,
+    position: int,
+    payload: AddPayload,
 ) -> PlaylistTrack:
     """Construct and commit a new PlaylistTrack at the given position."""
     new_track = PlaylistTrack(
         playlist_id=playlist_id,
-        track_info_id=event.track_info_id,
+        track_info_id=payload.track_info_id,
         user_id=event.user_id,
         position=position,
         status=TrackPlaybackStatus.queued,

@@ -41,7 +41,6 @@ async def create_playlist_event(
     is_authorized = await playlist_service.user_has_playlist_permission(
         db=db, user_id=user_id, playlist=playlist, action="edit"
     )
-
     if not is_authorized:
         raise BaseVitrolifyException(
             error_code="FORBIDDEN",
@@ -49,13 +48,13 @@ async def create_playlist_event(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
+    event_data_for_jsonb = payload.model_dump(exclude={"event"})
     event_record = await event_service.create_event_in_db(
         db=db,
         playlist_id=playlist_id,
         user_id=user_id,
         event_type=payload.event,
-        track_info_id=payload.track_info_id,
-        payload=payload.payload,
+        payload=event_data_for_jsonb,
     )
 
     background_tasks.add_task(run_worker_task, event_record)
