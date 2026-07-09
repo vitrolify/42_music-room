@@ -17,75 +17,26 @@ logger = logging.getLogger(__name__)
 async def process_move_track(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
-
-    try:
-        payload = MovePayload.model_validate(event.payload)
-    except Exception as e:
-        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+    payload = _parse_move_payload(event)
+    if not payload:
         return
 
     if not _is_valid_new_position(event.id, payload):
         return
 
-    new_position = 0
+    new_position = await _execute_move_transaction(db, event, playlist_id, payload)
+    if new_position is None:
+        return
+
+    await _broadcast_move_success(playlist_id, event, payload, new_position)
+
+
+def _parse_move_payload(event: EventQueue) -> MovePayload | None:
     try:
-        await lock_playlist(db, playlist_id)
-
-        target_track = await _validate_track(db, playlist_id, payload)
-        new_position = await _get_clamped_position(db, event, playlist_id, payload)
-
-        target_track.position = -1
-        await db.flush()
-        await shift_tracks(db, playlist_id, payload.current_position, new_position)
-        target_track.position = new_position
-        await db.commit()
-
-    except ValueError as e:
-        await db.rollback()
-        logger.warning(
-            {
-                "event": "worker_move_aborted",
-                "reason": str(e),
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-            }
-        )
+        return MovePayload.model_validate(event.payload)
     except Exception as e:
-        await db.rollback()
-        logger.error(
-            {
-                "event": "worker_move_failed",
-                "reason": "database_error",
-                "event_id": event.id,
-                "error": str(e),
-            }
-        )
-
-    try:
-        ws_message = _build_track_moved_payload(
-            track_id=payload.playlist_track_id,
-            old_pos=payload.current_position,
-            new_pos=new_position,
-        )
-
-        await playlist_ws_manager.broadcast_playlist_update(
-            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
-        )
-
-        logger.info(
-            {
-                "event": "worker_track_moved",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-                "old_position": payload.current_position,
-                "new_position": new_position,
-                "status": "success",
-            }
-        )
-    except Exception as e:
-        logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
-        )
+        logger.error({"event": "invalid_move_payload", "error": str(e)})
+        return None
 
 
 def _is_valid_new_position(event_id: int, payload: MovePayload) -> bool:
@@ -100,6 +51,49 @@ def _is_valid_new_position(event_id: int, payload: MovePayload) -> bool:
         )
         return False
     return True
+
+
+async def _execute_move_transaction(
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: MovePayload
+) -> int | None:
+    try:
+        await lock_playlist(db, playlist_id)
+
+        target_track = await _validate_track(db, playlist_id, payload)
+        new_position = await _get_clamped_position(db, event, playlist_id, payload)
+
+        target_track.position = -1
+        await db.flush()
+
+        await shift_tracks(db, playlist_id, payload.current_position, new_position)
+
+        target_track.position = new_position
+        await db.commit()
+
+        return new_position
+
+    except ValueError as e:
+        await db.rollback()
+        logger.warning(
+            {
+                "event": "worker_move_aborted",
+                "reason": str(e),
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+            }
+        )
+        return None
+    except Exception as e:
+        await db.rollback()
+        logger.error(
+            {
+                "event": "worker_move_failed",
+                "reason": "database_error",
+                "event_id": event.id,
+                "error": str(e),
+            }
+        )
+        return None
 
 
 async def _validate_track(
@@ -163,3 +157,33 @@ def _build_track_moved_payload(track_id: int, old_pos: int, new_pos: int) -> dic
             "new_position": new_pos,
         },
     }
+
+
+async def _broadcast_move_success(
+    playlist_id: int, event: EventQueue, payload: MovePayload, new_position: int
+) -> None:
+    try:
+        ws_message = _build_track_moved_payload(
+            track_id=payload.playlist_track_id,
+            old_pos=payload.current_position,
+            new_pos=new_position,
+        )
+
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
+        )
+
+        logger.info(
+            {
+                "event": "worker_track_moved",
+                "event_id": event.id,
+                "track_id": payload.playlist_track_id,
+                "old_position": payload.current_position,
+                "new_position": new_position,
+                "status": "success",
+            }
+        )
+    except Exception as e:
+        logger.error(
+            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+        )
