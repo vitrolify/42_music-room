@@ -3,7 +3,12 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue, PlaylistEventType
-from app.services.event_handlers import add_handler, move_handler, skip_handler
+from app.services.event_handlers import (
+    add_handler,
+    move_handler,
+    playback_handler,
+    skip_handler,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +17,8 @@ EVENT_HANDLERS = {
     PlaylistEventType.add: add_handler.process_add_track_event,
     PlaylistEventType.move: move_handler.process_move_track,
     PlaylistEventType.skip: skip_handler.process_skip_track,
+    PlaylistEventType.pause: playback_handler.process_playback_event,
+    PlaylistEventType.play: playback_handler.process_playback_event,
 }
 
 

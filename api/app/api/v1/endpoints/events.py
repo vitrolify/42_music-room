@@ -38,11 +38,15 @@ async def create_playlist_event(
         )
 
     # Check permissions
-    if payload.event == PlaylistEventType.skip:
+    if payload.event in (
+        PlaylistEventType.skip,
+        PlaylistEventType.pause,
+        PlaylistEventType.play,
+    ):
         if playlist.owner_id != user_id:
             raise BaseVitrolifyException(
                 error_code="FORBIDDEN",
-                message="Apenas o criador da playlist pode pular a música.",
+                message="Apenas o criador da playlist pode controlar a reprodução.",
                 status_code=status.HTTP_403_FORBIDDEN,
             )
     is_authorized = await playlist_service.user_has_playlist_permission(

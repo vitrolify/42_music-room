@@ -25,16 +25,27 @@ class TrackAddEvent(AddPayload):
     event: Literal[PlaylistEventType.add]
 
 
-class SkipPayload(BaseModel):
+class PlaybackPayload(BaseModel):
     playlist_track_id: int
 
 
-class TrackSkipEvent(SkipPayload):
+class TrackSkipEvent(PlaybackPayload):
     event: Literal[PlaylistEventType.skip]
 
 
+class TrackPlayEvent(PlaybackPayload):
+    event: Literal[PlaylistEventType.play]
+
+
+class TrackPauseEvent(PlaybackPayload):
+    event: Literal[PlaylistEventType.pause]
+
+
 EventCreate = Annotated[
-    Union[TrackAddEvent, TrackMoveEvent, TrackSkipEvent], Field(discriminator="event")
+    Union[
+        TrackAddEvent, TrackMoveEvent, TrackSkipEvent, TrackPlayEvent, TrackPauseEvent
+    ],
+    Field(discriminator="event"),
 ]
 
 

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
 from app.models.playlist_track import TrackPlaybackStatus
-from app.schemas.event import SkipPayload
+from app.schemas.event import PlaybackPayload
 from app.services.playlist_service import lock_playlist
 from app.services.playlist_track_service import (
     get_playing_track_by_id,
@@ -22,7 +22,7 @@ async def process_skip_track(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
     try:
-        payload = SkipPayload.model_validate(event.payload)
+        payload = PlaybackPayload.model_validate(event.payload)
     except Exception as e:
         logger.error({"event": "invalid_skip_payload", "error": str(e)})
         return
