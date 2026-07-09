@@ -52,7 +52,6 @@ async def process_skip_track(
         ws_message = _build_track_skipped_payload(
             playlist_id=playlist_id,
             new_playing_track_id=new_track.id if new_track else None,
-            track_info_id=new_track.track_info_id if new_track else None,
         )
 
         await db.commit()
@@ -79,7 +78,7 @@ async def process_skip_track(
 
 
 def _build_track_skipped_payload(
-    playlist_id: int, new_playing_track_id: int | None, track_info_id: str | None
+    playlist_id: int, new_playing_track_id: int | None
 ) -> dict:
     return {
         "type": "TRACK_SKIPPED",
@@ -87,6 +86,5 @@ def _build_track_skipped_payload(
         "payload": {
             "playlist_id": playlist_id,
             "new_playing_track_id": new_playing_track_id,
-            "track_info_id": track_info_id,
         },
     }
