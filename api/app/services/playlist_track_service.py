@@ -59,3 +59,41 @@ async def get_track_by_position(
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def shift_tracks(
+    db: AsyncSession,
+    playlist_id: int,
+    old_position: int,
+    new_position: int,
+) -> None:
+    """
+    Shift the positions of tracks between old_position and new_position
+    to make room for the moved track.
+      - Moving up (new < old): tracks in [new, old) shift down by +1.
+      - Moving down (new > old): tracks in (old, new] shift up by -1.
+    Caller must set the moving track's position to -1 and flush before calling
+    this, so it is excluded from the range updates.
+    """
+    if new_position < old_position:
+        stmt = (
+            update(PlaylistTrack)
+            .where(
+                PlaylistTrack.playlist_id == playlist_id,
+                PlaylistTrack.position >= new_position,
+                PlaylistTrack.position < old_position,
+            )
+            .values(position=PlaylistTrack.position + 1)
+        )
+    else:
+        stmt = (
+            update(PlaylistTrack)
+            .where(
+                PlaylistTrack.playlist_id == playlist_id,
+                PlaylistTrack.position > old_position,
+                PlaylistTrack.position <= new_position,
+            )
+            .values(position=PlaylistTrack.position - 1)
+        )
+
+    await db.execute(stmt)

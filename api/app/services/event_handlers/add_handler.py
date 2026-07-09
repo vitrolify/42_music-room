@@ -6,7 +6,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
-from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 from app.schemas.event import AddPayload
 from app.services.playlist_service import lock_playlist
@@ -70,13 +69,6 @@ async def process_add_track_event(
                 "error": str(e),
             }
         )
-
-
-async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
-    """Acquire a row-level lock on the playlist to serialize concurrent moves."""
-    await db.execute(
-        select(Playlist.id).where(Playlist.id == playlist_id).with_for_update()
-    )
 
 
 async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:

@@ -1,13 +1,14 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
 from app.models.playlist_track import PlaylistTrack
 from app.schemas.event import MovePayload
 from app.services.playlist_service import lock_playlist
+from app.services.playlist_track_service import shift_tracks
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ async def process_move_track(
 
         target_track.position = -1
         await db.flush()
-        await _shift_tracks(db, playlist_id, payload.current_position, new_position)
+        await shift_tracks(db, playlist_id, payload.current_position, new_position)
         target_track.position = new_position
         await db.commit()
 
@@ -150,44 +151,6 @@ async def _get_clamped_position(
             raise ValueError("track_already_in_last_position")
         return total_tracks
     return payload.new_position
-
-
-async def _shift_tracks(
-    db: AsyncSession,
-    playlist_id: int,
-    old_position: int,
-    new_position: int,
-) -> None:
-    """
-    Shift the positions of tracks between old_position and new_position
-    to make room for the moved track.
-      - Moving up (new < old): tracks in [new, old) shift down by +1.
-      - Moving down (new > old): tracks in (old, new] shift up by -1.
-    Caller must set the moving track's position to -1 and flush before calling
-    this, so it is excluded from the range updates.
-    """
-    if new_position < old_position:
-        stmt = (
-            update(PlaylistTrack)
-            .where(
-                PlaylistTrack.playlist_id == playlist_id,
-                PlaylistTrack.position >= new_position,
-                PlaylistTrack.position < old_position,
-            )
-            .values(position=PlaylistTrack.position + 1)
-        )
-    else:
-        stmt = (
-            update(PlaylistTrack)
-            .where(
-                PlaylistTrack.playlist_id == playlist_id,
-                PlaylistTrack.position > old_position,
-                PlaylistTrack.position <= new_position,
-            )
-            .values(position=PlaylistTrack.position - 1)
-        )
-
-    await db.execute(stmt)
 
 
 def _build_track_moved_payload(track_id: int, old_pos: int, new_pos: int) -> dict:
