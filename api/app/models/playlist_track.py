@@ -16,9 +16,9 @@ from app.db.base import Base
 
 
 class TrackPlaybackStatus(str, Enum):
-    played = "played"
     queued = "queued"
     playing = "playing"
+    paused = "paused"
 
 
 class PlaylistTrack(Base):

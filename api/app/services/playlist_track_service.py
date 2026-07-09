@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,3 +99,23 @@ async def shift_tracks(
         )
 
     await db.execute(stmt)
+
+
+async def insert_track(
+    db: AsyncSession,
+    user: uuid.UUID | None,
+    playlist_id: int,
+    position: int,
+    track_info_id: str,
+    status: TrackPlaybackStatus,
+) -> PlaylistTrack:
+    """Construct and commit a new PlaylistTrack at the given position."""
+    new_track = PlaylistTrack(
+        playlist_id=playlist_id,
+        track_info_id=track_info_id,
+        user_id=user,
+        position=position,
+        status=status,
+    )
+    db.add(new_track)
+    return new_track
