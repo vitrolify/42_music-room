@@ -10,6 +10,7 @@ from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 from app.schemas.event import AddPayload
 from app.services.playlist_service import lock_playlist
 from app.services.playlist_track_service import get_track_by_position, insert_track
+from app.services.track_info_service import get_or_update_track_info
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,10 @@ async def process_add_track_event(
         return
 
     try:
-        # Find the current highest position in the playlist queue
+        track_info = await get_or_update_track_info(db, payload.track_info_id)
+
         await lock_playlist(db, playlist_id)
+
         track_at_zero = await get_track_by_position(db, playlist_id, 0)
         if not track_at_zero:
             target_position = 0
@@ -37,17 +40,20 @@ async def process_add_track_event(
         else:
             target_position = await _get_next_position(db, playlist_id)
             target_status = TrackPlaybackStatus.queued
+
         new_track = await insert_track(
             db,
             event.user_id,
             playlist_id,
             target_position,
-            payload.track_info_id,
+            track_info.id,
             target_status,
         )
         await db.flush()
-        await db.refresh(new_track, ["user"])
+
+        await db.refresh(new_track, ["user", "track_info"])
         ws_message = _build_track_added_payload(new_track)
+
         await db.commit()
     except Exception as e:
         await db.rollback()
@@ -96,10 +102,6 @@ async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:
 
 
 def _build_track_added_payload(track: PlaylistTrack) -> dict:
-    """
-    Isola a lógica de formatação do JSON para o WebSocket.
-    Recebe o objeto do banco e devolve o dicionário estruturado.
-    """
     return jsonable_encoder(
         {
             "type": "TRACK_ADDED",
@@ -108,7 +110,13 @@ def _build_track_added_payload(track: PlaylistTrack) -> dict:
                 "playlist_track_id": track.id,
                 "position": track.position,
                 "status": track.status,
-                # "track_info": {}
+                "track_info": {
+                    "id": track.track_info.id,
+                    "title": track.track_info.title,
+                    "channel_title": track.track_info.channel_title,
+                    "thumbnail": track.track_info.thumbnail_url,
+                    "duration": track.track_info.duration_seconds,
+                },
                 "added_by": {
                     "user_id": track.user.id if track.user else None,
                     "name": track.user.display_name if track.user else "Anônimo",
