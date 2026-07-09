@@ -21,14 +21,32 @@ logger = logging.getLogger(__name__)
 async def process_skip_track(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
-    try:
-        payload = PlaybackPayload.model_validate(event.payload)
-    except Exception as e:
-        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+
+    payload = _parse_skip_payload(event)
+    if not payload:
         return
 
+    ws_message = await _execute_skip_transaction(db, event, playlist_id, payload)
+    if not ws_message:
+        return
+
+    await _broadcast_skip_success(playlist_id, event, ws_message)
+
+
+def _parse_skip_payload(event: EventQueue) -> PlaybackPayload | None:
+    try:
+        return PlaybackPayload.model_validate(event.payload)
+    except Exception as e:
+        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+        return None
+
+
+async def _execute_skip_transaction(
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: PlaybackPayload
+) -> dict | None:
     try:
         await lock_playlist(db, playlist_id)
+
         current_track = await get_playing_track_by_id(
             db, playlist_id, payload.playlist_track_id
         )
@@ -42,19 +60,21 @@ async def process_skip_track(
                 }
             )
             await db.rollback()
-            return
+            return None
 
         await db.delete(current_track)
         await db.flush()
         await shift_queue_up(db, playlist_id)
         await set_track_zero_to(TrackPlaybackStatus.playing, db, playlist_id)
+
         new_track = await get_track_by_position(db, playlist_id, 0)
         ws_message = _build_track_skipped_payload(
             playlist_id=playlist_id,
             new_playing_track_id=new_track.id if new_track else None,
         )
-
         await db.commit()
+
+        return ws_message
     except Exception as e:
         await db.rollback()
         logger.error(
@@ -65,16 +85,7 @@ async def process_skip_track(
                 "error": str(e),
             }
         )
-        return
-
-    try:
-        await playlist_ws_manager.broadcast_playlist_update(
-            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
-        )
-    except Exception as e:
-        logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
-        )
+        return None
 
 
 def _build_track_skipped_payload(
@@ -88,3 +99,25 @@ def _build_track_skipped_payload(
             "new_playing_track_id": new_playing_track_id,
         },
     }
+
+
+async def _broadcast_skip_success(
+    playlist_id: int, event: EventQueue, ws_message: dict
+) -> None:
+    """Envia o sucesso para o logger e para os clientes via WebSocket."""
+    try:
+        logger.info(
+            {
+                "event": "worker_track_skipped",
+                "event_id": event.id,
+                "playlist_id": playlist_id,
+                "status": "success",
+            }
+        )
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
+        )
+    except Exception as e:
+        logger.error(
+            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+        )
