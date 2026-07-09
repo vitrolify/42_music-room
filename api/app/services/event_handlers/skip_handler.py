@@ -45,6 +45,7 @@ async def process_skip_track(
             return
 
         await db.delete(current_track)
+        await db.flush()
         await shift_queue_up(db, playlist_id)
         await set_track_zero_to(TrackPlaybackStatus.playing, db, playlist_id)
         new_track = await get_track_by_position(db, playlist_id, 0)
