@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.session import AsyncSessionLocal, get_db
-from app.models.event_queue import EventQueue
+from app.models.event_queue import EventQueue, PlaylistEventType
 from app.schemas.event import EventCreate, EventRead
 from app.services import (
     event_service,
@@ -38,6 +38,13 @@ async def create_playlist_event(
         )
 
     # Check permissions
+    if payload.event == PlaylistEventType.skip:
+        if playlist.owner_id != user_id:
+            raise BaseVitrolifyException(
+                error_code="FORBIDDEN",
+                message="Apenas o criador da playlist pode pular a música.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
     is_authorized = await playlist_service.user_has_playlist_permission(
         db=db, user_id=user_id, playlist=playlist, action="edit"
     )
