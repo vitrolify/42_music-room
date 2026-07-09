@@ -19,27 +19,37 @@ logger = logging.getLogger(__name__)
 async def process_add_track_event(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
-    """
-    Processes the 'add' event by calculating the next available position in the queue.
-    """
-    try:
-        payload = AddPayload.model_validate(event.payload)
-    except Exception as e:
-        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+
+    payload = _parse_add_payload(event)
+    if not payload:
         return
 
+    ws_message = await _execute_add_transaction(db, event, playlist_id, payload)
+    if not ws_message:
+        return
+
+    await _broadcast_add_success(playlist_id, event, payload.track_info_id, ws_message)
+
+
+def _parse_add_payload(event: EventQueue) -> AddPayload | None:
+    try:
+        return AddPayload.model_validate(event.payload)
+    except Exception as e:
+        logger.error({"event": "invalid_add_payload", "error": str(e)})
+        return None
+
+
+async def _execute_add_transaction(
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: AddPayload
+) -> dict | None:
     try:
         track_info = await get_or_update_track_info(db, payload.track_info_id)
 
         await lock_playlist(db, playlist_id)
 
-        track_at_zero = await get_track_by_position(db, playlist_id, 0)
-        if not track_at_zero:
-            target_position = 0
-            target_status = TrackPlaybackStatus.paused
-        else:
-            target_position = await _get_next_position(db, playlist_id)
-            target_status = TrackPlaybackStatus.queued
+        target_position, target_status = await _calculate_track_placement(
+            db, playlist_id
+        )
 
         new_track = await insert_track(
             db,
@@ -55,6 +65,8 @@ async def process_add_track_event(
         ws_message = _build_track_added_payload(new_track)
 
         await db.commit()
+        return ws_message
+
     except Exception as e:
         await db.rollback()
         logger.error(
@@ -65,30 +77,19 @@ async def process_add_track_event(
                 "error": str(e),
             }
         )
-        return
+        return None
 
-    try:
-        logger.info(
-            {
-                "event": "worker_track_added",
-                "event_id": event.id,
-                "playlist_id": playlist_id,
-                "track_info_id": payload.track_info_id,
-                "position": ws_message["payload"]["position"],
-                "status": "success",
-            }
-        )
-        await playlist_ws_manager.broadcast_playlist_update(
-            playlist_id, ws_message, event.user_id
-        )
-    except Exception as e:
-        logger.error(
-            {
-                "event": "worker_broadcast_failed",
-                "event_id": event.id,
-                "error": str(e),
-            }
-        )
+
+async def _calculate_track_placement(
+    db: AsyncSession, playlist_id: int
+) -> tuple[int, TrackPlaybackStatus]:
+    track_at_zero = await get_track_by_position(db, playlist_id, 0)
+
+    if not track_at_zero:
+        return 0, TrackPlaybackStatus.paused
+
+    next_position = await _get_next_position(db, playlist_id)
+    return next_position, TrackPlaybackStatus.queued
 
 
 async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:
@@ -124,3 +125,31 @@ def _build_track_added_payload(track: PlaylistTrack) -> dict:
             },
         }
     )
+
+
+async def _broadcast_add_success(
+    playlist_id: int, event: EventQueue, track_info_id: str, ws_message: dict
+) -> None:
+    """Envia o sucesso para o logger e para os usuários conectados."""
+    try:
+        logger.info(
+            {
+                "event": "worker_track_added",
+                "event_id": event.id,
+                "playlist_id": playlist_id,
+                "track_info_id": track_info_id,
+                "position": ws_message["payload"]["position"],
+                "status": "success",
+            }
+        )
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id, ws_message, event.user_id
+        )
+    except Exception as e:
+        logger.error(
+            {
+                "event": "worker_broadcast_failed",
+                "event_id": event.id,
+                "error": str(e),
+            }
+        )
