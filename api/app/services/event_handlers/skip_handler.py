@@ -104,7 +104,6 @@ def _build_track_skipped_payload(
 async def _broadcast_skip_success(
     playlist_id: int, event: EventQueue, ws_message: dict
 ) -> None:
-    """Envia o sucesso para o logger e para os clientes via WebSocket."""
     try:
         logger.info(
             {

@@ -17,10 +17,8 @@ logger = logging.getLogger(__name__)
 async def process_playback_event(
     db: AsyncSession, event: EventQueue, playlist_id: int
 ) -> None:
-    try:
-        payload = PlaybackPayload.model_validate(event.payload)
-    except Exception as e:
-        logger.error({"event": "invalid_playback_payload", "error": str(e)})
+    payload = _parse_playback_payload(event)
+    if not payload:
         return
 
     target_status = (
@@ -29,6 +27,30 @@ async def process_playback_event(
         else TrackPlaybackStatus.paused
     )
 
+    ws_message = await _execute_playback_transaction(
+        db, event, playlist_id, payload, target_status
+    )
+    if not ws_message:
+        return
+
+    await _broadcast_playback_success(playlist_id, event, ws_message)
+
+
+def _parse_playback_payload(event: EventQueue) -> PlaybackPayload | None:
+    try:
+        return PlaybackPayload.model_validate(event.payload)
+    except Exception as e:
+        logger.error({"event": "invalid_playback_payload", "error": str(e)})
+        return None
+
+
+async def _execute_playback_transaction(
+    db: AsyncSession,
+    event: EventQueue,
+    playlist_id: int,
+    payload: PlaybackPayload,
+    target_status: TrackPlaybackStatus,
+) -> dict | None:
     try:
         await lock_playlist(db, playlist_id)
 
@@ -36,13 +58,19 @@ async def process_playback_event(
             db, playlist_id, payload.playlist_track_id
         )
 
-        state_is_valid = _state_is_valid(current_track, target_status, payload, event)
-        if not state_is_valid:
+        if not _state_is_valid(current_track, target_status, payload, event):
             await db.rollback()
-            return
-
+            return None
         current_track.status = target_status
+
+        ws_message = _build_playback_changed_payload(
+            playlist_id=playlist_id,
+            playlist_track_id=current_track.id,
+            new_status=target_status.value,
+        )
         await db.commit()
+
+        return ws_message
     except Exception as e:
         await db.rollback()
         logger.error(
@@ -53,22 +81,7 @@ async def process_playback_event(
                 "error": str(e),
             }
         )
-        return
-
-    try:
-        ws_message = _build_playback_changed_payload(
-            playlist_id=playlist_id,
-            playlist_track_id=current_track.id,
-            new_status=target_status.value,
-        )
-
-        await playlist_ws_manager.broadcast_playlist_update(
-            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
-        )
-    except Exception as e:
-        logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
-        )
+        return None
 
 
 def _state_is_valid(
@@ -115,3 +128,24 @@ def _build_playback_changed_payload(
             "new_status": new_status,
         },
     }
+
+
+async def _broadcast_playback_success(
+    playlist_id: int, event: EventQueue, ws_message: dict
+) -> None:
+    try:
+        logger.info(
+            {
+                "event": f"worker_{event.event.value}_success",
+                "event_id": event.id,
+                "playlist_id": playlist_id,
+                "status": "success",
+            }
+        )
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id=playlist_id, message=ws_message, user_id=event.user_id
+        )
+    except Exception as e:
+        logger.error(
+            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+        )
