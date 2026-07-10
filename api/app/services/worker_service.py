@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.event_queue import EventQueue, PlaylistEventType
 from app.services.event_handlers import (
     add_handler,
+    delete_handler,
     move_handler,
     playback_handler,
     skip_handler,
@@ -19,6 +20,7 @@ EVENT_HANDLERS = {
     PlaylistEventType.skip: skip_handler.process_skip_track,
     PlaylistEventType.pause: playback_handler.process_playback_event,
     PlaylistEventType.play: playback_handler.process_playback_event,
+    PlaylistEventType.delete: delete_handler.process_delete_track,
 }
 
 
