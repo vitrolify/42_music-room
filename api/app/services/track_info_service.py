@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.track_info import TrackInfo
+from app.services.youtube_service import fetch_youtube_video_info
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +34,7 @@ async def get_or_update_track_info(db: AsyncSession, video_id: str) -> TrackInfo
 
     if needs_update:
         try:
-            yt_data = {  # TEMPORARY DATA FILLLER
-                "title": "Título vindo da API",
-                "channel_title": "Canal Oficial",
-                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg",
-                "duration_seconds": 210,
-            }
+            yt_data = await fetch_youtube_video_info(video_id)
 
             if not track_info:
                 track_info = TrackInfo(
@@ -65,8 +61,6 @@ async def get_or_update_track_info(db: AsyncSession, video_id: str) -> TrackInfo
             )
 
             if not track_info:
-                raise ValueError(
-                    f"Não foi possível obter dados para o vídeo {video_id}"
-                )
+                raise ValueError(f"Unable to obtain data for the video {video_id}")
 
     return track_info
