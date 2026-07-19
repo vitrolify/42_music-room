@@ -19,7 +19,7 @@ class PlaylistConnectionManager(BaseConnectionManager):
         self.disconnect(websocket, self._get_room_id(playlist_id), user_id)
 
     async def broadcast_playlist_update(
-        self, playlist_id: int, message: dict, user_id: uuid.UUID
+        self, playlist_id: int, message: dict, user_id: uuid.UUID | None
     ):
         """
         Sends a JSON with the update to all users currently editing the playlist

@@ -6,8 +6,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
-from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
+from app.schemas.event import AddPayload
+from app.services.playlist_service import lock_playlist
+from app.services.playlist_track_service import get_track_by_position, insert_track
 from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
@@ -20,10 +22,29 @@ async def process_add_track_event(
     Processes the 'add' event by calculating the next available position in the queue.
     """
     try:
+        payload = AddPayload.model_validate(event.payload)
+    except Exception as e:
+        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+        return
+
+    try:
         # Find the current highest position in the playlist queue
-        await _lock_playlist(db, playlist_id)
-        next_position = await _get_next_position(db, playlist_id)
-        new_track = await _insert_track(db, event, playlist_id, next_position)
+        await lock_playlist(db, playlist_id)
+        track_at_zero = await get_track_by_position(db, playlist_id, 0)
+        if not track_at_zero:
+            target_position = 0
+            target_status = TrackPlaybackStatus.paused
+        else:
+            target_position = await _get_next_position(db, playlist_id)
+            target_status = TrackPlaybackStatus.queued
+        new_track = await insert_track(
+            db,
+            event.user_id,
+            playlist_id,
+            target_position,
+            payload.track_info_id,
+            target_status,
+        )
         await db.flush()
         await db.refresh(new_track, ["user"])
         ws_message = _build_track_added_payload(new_track)
@@ -46,7 +67,7 @@ async def process_add_track_event(
                 "event": "worker_track_added",
                 "event_id": event.id,
                 "playlist_id": playlist_id,
-                "track_info_id": event.track_info_id,
+                "track_info_id": payload.track_info_id,
                 "position": ws_message["payload"]["position"],
                 "status": "success",
             }
@@ -64,13 +85,6 @@ async def process_add_track_event(
         )
 
 
-async def _lock_playlist(db: AsyncSession, playlist_id: int) -> None:
-    """Acquire a row-level lock on the playlist to serialize concurrent moves."""
-    await db.execute(
-        select(Playlist.id).where(Playlist.id == playlist_id).with_for_update()
-    )
-
-
 async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:
     """Return the next available position (current max + 1) in the playlist."""
     query = select(func.max(PlaylistTrack.position)).where(
@@ -79,21 +93,6 @@ async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:
     result = await db.execute(query)
     current_max = result.scalar() or 0
     return current_max + 1
-
-
-async def _insert_track(
-    db: AsyncSession, event: EventQueue, playlist_id: int, position: int
-) -> PlaylistTrack:
-    """Construct and commit a new PlaylistTrack at the given position."""
-    new_track = PlaylistTrack(
-        playlist_id=playlist_id,
-        track_info_id=event.track_info_id,
-        user_id=event.user_id,
-        position=position,
-        status=TrackPlaybackStatus.queued,
-    )
-    db.add(new_track)
-    return new_track
 
 
 def _build_track_added_payload(track: PlaylistTrack) -> dict:

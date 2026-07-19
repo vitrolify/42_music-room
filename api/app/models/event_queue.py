@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Uuid, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Uuid, func
 from sqlalchemy.dialects.postgresql import ENUM, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,9 +37,6 @@ class EventQueue(Base):
         Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    # ADD TRACK_INFO RELATIONSHIP LATER
-    track_info_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
     event: Mapped[PlaylistEventType] = mapped_column(
         ENUM(PlaylistEventType, name="playlist_event_type", create_type=True),
         nullable=False,
@@ -54,7 +51,6 @@ class EventQueue(Base):
     # --- ORM Relationships ---
     playlist: Mapped["Playlist | None"] = relationship(back_populates="events")
     user: Mapped["User | None"] = relationship(back_populates="events")
-    # ADD TRACK_INFO RELATIONSHIP LATER
 
     __table_args__ = (
         Index("idx_event_queues_playlist_id", "playlist_id"),

@@ -82,3 +82,10 @@ async def user_has_playlist_permission(
         return has_invite
 
     return True
+
+
+async def lock_playlist(db: AsyncSession, playlist_id: int) -> None:
+    """Acquire a row-level lock on the playlist to serialize concurrent moves."""
+    await db.execute(
+        select(Playlist.id).where(Playlist.id == playlist_id).with_for_update()
+    )
