@@ -45,7 +45,7 @@ async def list_playlists(
 async def get_playlist(
     playlist_id: int,
     db: AsyncSession = Depends(get_db),
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    _user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     playlist = await playlist_service.get_playlist_by_id(db=db, playlist_id=playlist_id)
     if playlist is None:

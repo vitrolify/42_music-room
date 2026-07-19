@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 
@@ -11,6 +12,7 @@ async def get_tracks_by_playlist(
 ) -> list[PlaylistTrack]:
     query = (
         select(PlaylistTrack)
+        .options(joinedload(PlaylistTrack.track_info))
         .where(PlaylistTrack.playlist_id == playlist_id)
         .order_by(PlaylistTrack.position.asc())
     )

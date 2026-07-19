@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.track_info import TrackInfo
 
 
 class TrackPlaybackStatus(str, Enum):
@@ -30,7 +31,9 @@ class PlaylistTrack(Base):
     playlist_id: Mapped[int] = mapped_column(
         ForeignKey("playlists.id", ondelete="CASCADE"), nullable=False
     )
-    track_info_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    track_info_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("track_info.id", ondelete="CASCADE"), nullable=False
+    )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -46,6 +49,7 @@ class PlaylistTrack(Base):
     # Relationships
     playlist: Mapped["Playlist"] = relationship(back_populates="tracks")
     user: Mapped["User | None"] = relationship(back_populates="added_tracks")
+    track_info: Mapped["TrackInfo"] = relationship(back_populates="playlist_tracks")
 
     # Optimizations and Constraints
     __table_args__ = (
