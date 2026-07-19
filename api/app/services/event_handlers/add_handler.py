@@ -1,11 +1,14 @@
 import logging
+from datetime import datetime, timezone
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
+from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,10 @@ async def process_add_track_event(
         # Find the current highest position in the playlist queue
         await _lock_playlist(db, playlist_id)
         next_position = await _get_next_position(db, playlist_id)
-        await _insert_track(db, event, playlist_id, next_position)
+        new_track = await _insert_track(db, event, playlist_id, next_position)
+        await db.flush()
+        await db.refresh(new_track, ["user"])
+        ws_message = _build_track_added_payload(new_track)
         await db.commit()
     except Exception as e:
         await db.rollback()
@@ -28,6 +34,30 @@ async def process_add_track_event(
             {
                 "event": "worker_add_failed",
                 "reason": "database_error",
+                "event_id": event.id,
+                "error": str(e),
+            }
+        )
+        return
+
+    try:
+        logger.info(
+            {
+                "event": "worker_track_added",
+                "event_id": event.id,
+                "playlist_id": playlist_id,
+                "track_info_id": event.track_info_id,
+                "position": ws_message["payload"]["position"],
+                "status": "success",
+            }
+        )
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id, ws_message, event.user_id
+        )
+    except Exception as e:
+        logger.error(
+            {
+                "event": "worker_broadcast_failed",
                 "event_id": event.id,
                 "error": str(e),
             }
@@ -53,7 +83,7 @@ async def _get_next_position(db: AsyncSession, playlist_id: int) -> int:
 
 async def _insert_track(
     db: AsyncSession, event: EventQueue, playlist_id: int, position: int
-) -> None:
+) -> PlaylistTrack:
     """Construct and commit a new PlaylistTrack at the given position."""
     new_track = PlaylistTrack(
         playlist_id=playlist_id,
@@ -63,13 +93,27 @@ async def _insert_track(
         status=TrackPlaybackStatus.queued,
     )
     db.add(new_track)
-    logger.info(
+    return new_track
+
+
+def _build_track_added_payload(track: PlaylistTrack) -> dict:
+    """
+    Isola a lógica de formatação do JSON para o WebSocket.
+    Recebe o objeto do banco e devolve o dicionário estruturado.
+    """
+    return jsonable_encoder(
         {
-            "event": "worker_track_added",
-            "event_id": event.id,
-            "playlist_id": playlist_id,
-            "track_info_id": event.track_info_id,
-            "position": position,
-            "status": "success",
+            "type": "TRACK_ADDED",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "payload": {
+                "playlist_track_id": track.id,
+                "position": track.position,
+                "status": track.status,
+                # "track_info": {}
+                "added_by": {
+                    "user_id": track.user.id if track.user else None,
+                    "name": track.user.display_name if track.user else "Anônimo",
+                },
+            },
         }
     )
