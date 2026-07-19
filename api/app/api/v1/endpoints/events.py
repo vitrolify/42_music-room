@@ -42,6 +42,7 @@ async def create_playlist_event(
         PlaylistEventType.skip,
         PlaylistEventType.pause,
         PlaylistEventType.play,
+        PlaylistEventType.delete,
     ):
         if playlist.owner_id != user_id:
             raise BaseVitrolifyException(

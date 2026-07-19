@@ -64,9 +64,18 @@ class TrackPauseEvent(PlaybackPayload):
     event: Literal[PlaylistEventType.pause]
 
 
+class TrackDeleteEvent(PlaybackPayload):
+    event: Literal[PlaylistEventType.delete]
+
+
 EventCreate = Annotated[
     Union[
-        TrackAddEvent, TrackMoveEvent, TrackSkipEvent, TrackPlayEvent, TrackPauseEvent
+        TrackAddEvent,
+        TrackMoveEvent,
+        TrackSkipEvent,
+        TrackPlayEvent,
+        TrackPauseEvent,
+        TrackDeleteEvent,
     ],
     Field(discriminator="event"),
 ]

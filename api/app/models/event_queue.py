@@ -23,6 +23,7 @@ class PlaylistEventType(str, Enum):
     add = "add"
     skip = "skip"
     move = "move"
+    delete = "delete"
 
 
 class EventQueue(Base):

@@ -32,10 +32,15 @@ async def get_playing_track_by_id(
     return result.scalar_one_or_none()
 
 
-async def shift_queue_up(db: AsyncSession, playlist_id: int) -> None:
+async def shift_queue_up(
+    db: AsyncSession, playlist_id: int, from_position: int = 0
+) -> None:
     stmt = (
         update(PlaylistTrack)
-        .where(PlaylistTrack.playlist_id == playlist_id, PlaylistTrack.position > 0)
+        .where(
+            PlaylistTrack.playlist_id == playlist_id,
+            PlaylistTrack.position > from_position,
+        )
         .values(position=PlaylistTrack.position - 1)
     )
     await db.execute(stmt)
@@ -55,9 +60,6 @@ async def set_track_zero_to(
 async def get_track_by_position(
     db: AsyncSession, playlist_id: int, position: int
 ) -> PlaylistTrack | None:
-    """
-    Busca uma música na fila em uma posição específica de forma genérica.
-    """
     stmt = select(PlaylistTrack).where(
         PlaylistTrack.playlist_id == playlist_id, PlaylistTrack.position == position
     )
@@ -121,3 +123,15 @@ async def insert_track(
     )
     db.add(new_track)
     return new_track
+
+
+async def get_track_by_id(
+    db: AsyncSession, playlist_id: int, id: int
+) -> PlaylistTrack | None:
+    stmt = select(PlaylistTrack).where(
+        PlaylistTrack.id == id,
+        PlaylistTrack.playlist_id == playlist_id,
+    )
+    result = await db.execute(stmt)
+    track = result.scalars().first()
+    return track
