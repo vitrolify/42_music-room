@@ -297,12 +297,12 @@ export default function PlaylistDetail() {
                         </View>
                     ) : (
                         <View style={{ gap: spacing.sm }}>
-                            {tracks.map((track, index) => (
+                            {tracks.map(track => (
                                 <TrackRow
                                     key={track.id}
                                     track={track}
-                                    isFirst={index === 0}
-                                    isLast={index === tracks.length - 1}
+                                    isFirst={track.position === 0}
+                                    isLast={track.position === tracks.length - 1}
                                     disabled={mutating}
                                     onMove={handleMoveTrack}
                                     onAction={async action => {
@@ -323,7 +323,21 @@ export default function PlaylistDetail() {
                                             if (action === 'pause') await pausePlaylistTrack(playlistId, track);
                                             if (action === 'skip') await skipPlaylistTrack(playlistId, track);
                                             if (action === 'delete') await deletePlaylistTrack(playlistId, track);
-                                            await refreshTracksAfterMutation(() => true, 'The request is still processing.');
+                                            await refreshTracksAfterMutation(
+                                                nextTracks => {
+                                                    if (action === 'delete') {
+                                                        return !nextTracks.some(nextTrack => nextTrack.id === track.id);
+                                                    }
+                                                    if (action === 'skip') {
+                                                        return nextTracks[0]?.id !== track.id;
+                                                    }
+                                                    const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
+                                                    return action === 'play'
+                                                        ? updatedTrack?.status === 'playing'
+                                                        : updatedTrack?.status === 'paused';
+                                                },
+                                                `The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
+                                            );
                                         } catch (err) {
                                             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
                                         } finally { setMutationMessage(null); setMutating(false); }
