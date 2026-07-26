@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Union
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import status
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.models.event_queue import PlaylistEventType
@@ -13,8 +13,8 @@ from app.models.event_queue import PlaylistEventType
 
 class MovePayload(BaseModel):
     playlist_track_id: int
-    current_position: int
-    new_position: int
+    current_position: PositiveInt
+    new_position: PositiveInt
 
 
 class TrackMoveEvent(MovePayload):
