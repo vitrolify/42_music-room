@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   sendEmailVerification as firebaseSendEmailVerification,
   reload,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -72,6 +73,10 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
 
   await reload(auth.currentUser);
   return mapUser(auth.currentUser);
+}
+
+export async function sendPasswordResetEmail(email: string) {
+  await firebaseSendPasswordResetEmail(auth, email);
 }
 
 export async function signOutUser() {

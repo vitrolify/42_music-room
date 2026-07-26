@@ -20,6 +20,12 @@ export default function LoginScreen() {
             </Text>
             <EmailSignIn />
             <Link
+                href="/(auth)/forgot-password"
+                style={[globalStyles.link, { marginTop: spacing.md }]}
+            >
+                Forgot password?
+            </Link>
+            <Link
                 href="/(auth)/signup"
                 style={[globalStyles.link, { marginTop: spacing.lg }]}
             >

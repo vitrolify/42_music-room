@@ -91,6 +91,10 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
 	return mapUser(auth().currentUser);
 }
 
+export async function sendPasswordResetEmail(email: string) {
+	await auth().sendPasswordResetEmail(email);
+}
+
 export async function getAuthToken(): Promise<string | null> {
 	return auth().currentUser?.getIdToken() ?? null;
 }

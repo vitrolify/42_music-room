@@ -7,6 +7,7 @@ import {
     signOutUser,
     sendEmailVerification,
     refreshAuthUser,
+    sendPasswordResetEmail,
     type AuthUser,
 } from '../lib/firebase';
 import { AuthType } from '../types/auth.types';
@@ -22,6 +23,7 @@ type AuthContextType = {
     emailSignUp: (email: string, password: string) => Promise<void>;
     resendVerificationEmail: () => Promise<void>;
     refreshUser: () => Promise<void>;
+    sendPasswordReset: (email: string) => Promise<void>;
     emailVerified: boolean;
     logout: () => Promise<void>;
 };
@@ -68,6 +70,10 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(refreshedUser);
     }
 
+    async function sendPasswordReset(email: string) {
+        return sendPasswordResetEmail(email);
+    }
+
     const logout = async () => {
         try {
             await signOutUser();
@@ -91,6 +97,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             emailSignUp,
             resendVerificationEmail,
             refreshUser,
+            sendPasswordReset,
             logout,
         }}>
             {children}
