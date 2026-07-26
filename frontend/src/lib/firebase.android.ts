@@ -76,6 +76,19 @@ export async function signInWithEmail(email: string, password: string) {
 
 export async function signUpWithEmail(email: string, password: string) {
 	await auth().createUserWithEmailAndPassword(email, password);
+	await auth().currentUser?.sendEmailVerification();
+}
+
+export async function sendEmailVerification() {
+	await auth().currentUser?.sendEmailVerification();
+}
+
+export async function refreshAuthUser(): Promise<AuthUser | null> {
+	const currentUser = auth().currentUser;
+	if (!currentUser) return null;
+
+	await currentUser.reload();
+	return mapUser(auth().currentUser);
 }
 
 export async function getAuthToken(): Promise<string | null> {

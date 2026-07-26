@@ -32,7 +32,7 @@ def get_current_user(authorization: str = Header(default="")) -> dict:
     token = authorization.removeprefix("Bearer ")
 
     try:
-        return get_firebase_token_verifier().verify(token)
+        claims = get_firebase_token_verifier().verify(token)
     except Exception as exc:
         logger.error("Token verification failed: %s", exc)
         raise BaseVitrolifyException(
@@ -40,6 +40,15 @@ def get_current_user(authorization: str = Header(default="")) -> dict:
             message=f"Token verification failed: {exc}",
             status_code=status.HTTP_401_UNAUTHORIZED,
         ) from exc
+
+    if claims.get("email_verified") is not True:
+        raise BaseVitrolifyException(
+            error_code="AUTH_EMAIL_NOT_VERIFIED",
+            message="Email address must be verified before using the application",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    return claims
 
 
 async def get_current_user_id(
@@ -89,6 +98,12 @@ async def get_current_user_id_ws(
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
             reason=f"Token verification failed: {exc}",
+        )
+
+    if claims.get("email_verified") is not True:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Email address must be verified before opening this connection",
         )
 
     firebase_uid = claims.get("sub")

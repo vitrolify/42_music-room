@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signInWithEmailAndPassword,
+  sendEmailVerification as firebaseSendEmailVerification,
+  reload,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -57,7 +59,19 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signUpWithEmail(email: string, password: string) {
-  await createUserWithEmailAndPassword(auth, email, password);
+  const credentials = await createUserWithEmailAndPassword(auth, email, password);
+  await firebaseSendEmailVerification(credentials.user);
+}
+
+export async function sendEmailVerification() {
+  if (auth.currentUser) await firebaseSendEmailVerification(auth.currentUser);
+}
+
+export async function refreshAuthUser(): Promise<AuthUser | null> {
+  if (!auth.currentUser) return null;
+
+  await reload(auth.currentUser);
+  return mapUser(auth.currentUser);
 }
 
 export async function signOutUser() {
