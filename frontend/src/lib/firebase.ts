@@ -30,6 +30,10 @@ export async function sendPasswordResetEmail(email: string) {
 	throw new Error('Platform-specific Firebase auth module was not resolved.');
 }
 
+export async function linkGoogleAccount() {
+	throw new Error('Platform-specific Firebase auth module was not resolved.');
+}
+
 export async function signOutUser() {
 	throw new Error('Platform-specific Firebase auth module was not resolved.');
 }

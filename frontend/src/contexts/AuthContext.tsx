@@ -8,6 +8,7 @@ import {
     sendEmailVerification,
     refreshAuthUser,
     sendPasswordResetEmail,
+    linkGoogleAccount,
     type AuthUser,
 } from '../lib/firebase';
 import { AuthType } from '../types/auth.types';
@@ -24,6 +25,7 @@ type AuthContextType = {
     resendVerificationEmail: () => Promise<void>;
     refreshUser: () => Promise<void>;
     sendPasswordReset: (email: string) => Promise<void>;
+    linkGoogle: () => Promise<void>;
     emailVerified: boolean;
     logout: () => Promise<void>;
 };
@@ -74,6 +76,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return sendPasswordResetEmail(email);
     }
 
+    async function linkGoogle() {
+        await linkGoogleAccount();
+        await refreshUser();
+    }
+
     const logout = async () => {
         try {
             await signOutUser();
@@ -98,6 +105,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             resendVerificationEmail,
             refreshUser,
             sendPasswordReset,
+            linkGoogle,
             logout,
         }}>
             {children}

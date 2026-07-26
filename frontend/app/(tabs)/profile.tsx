@@ -29,7 +29,7 @@ function getAvatarSource(avatar: string) {
 }
 
 export default function Profile() {
-    const { user, initializing, logout, sendPasswordReset } = useAuth();
+    const { user, initializing, logout, sendPasswordReset, linkGoogle } = useAuth();
     const insets = useSafeAreaInsets();
 
     const [loading, setLoading] = useState(true);
@@ -37,6 +37,9 @@ export default function Profile() {
     const [passwordResetSending, setPasswordResetSending] = useState(false);
     const [passwordResetMessage, setPasswordResetMessage] = useState<string | null>(null);
     const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
+    const [linkingGoogle, setLinkingGoogle] = useState(false);
+    const [googleLinkMessage, setGoogleLinkMessage] = useState<string | null>(null);
+    const [googleLinkError, setGoogleLinkError] = useState<string | null>(null);
     const [displayName, setDisplayName] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState('vinil');
     const [initialValues, setInitialValues] = useState({ displayName: '', avatar: 'vinil' });
@@ -100,6 +103,31 @@ export default function Profile() {
             setPasswordResetError(err instanceof Error ? err.message : 'Unable to send a password reset link.');
         } finally {
             setPasswordResetSending(false);
+        }
+    }
+
+    async function handleLinkGoogle() {
+        if (linkingGoogle || user?.providerIds.includes('google.com')) return;
+
+        setLinkingGoogle(true);
+        setGoogleLinkMessage(null);
+        setGoogleLinkError(null);
+        try {
+            await linkGoogle();
+            setGoogleLinkMessage('Google account linked successfully.');
+        } catch (err: any) {
+            const code = err?.code;
+            if (code === 'auth/credential-already-in-use' || code === 'auth/provider-already-linked') {
+                setGoogleLinkError('This Google account is already linked to another account.');
+            } else if (code === 'auth/popup-closed-by-user' || code === 'SIGN_IN_CANCELLED') {
+                setGoogleLinkError('Google linking was cancelled.');
+            } else if (code === 'auth/network-request-failed') {
+                setGoogleLinkError('Network error. Check your connection and try again.');
+            } else {
+                setGoogleLinkError('Unable to link Google right now.');
+            }
+        } finally {
+            setLinkingGoogle(false);
         }
     }
 
@@ -231,6 +259,34 @@ export default function Profile() {
             {passwordResetError ? (
                 <Text style={[globalStyles.errorText, { marginTop: spacing.md }]}>
                     {passwordResetError}
+                </Text>
+            ) : null}
+
+            <Pressable
+                style={({ pressed }) => ({
+                    ...globalStyles.pillButton,
+                    marginTop: spacing.lg,
+                    opacity: pressed || linkingGoogle ? 0.55 : 1,
+                })}
+                onPress={handleLinkGoogle}
+                disabled={linkingGoogle || user?.providerIds.includes('google.com')}
+            >
+                {linkingGoogle ? (
+                    <ActivityIndicator size="small" color={colors.text.primary} />
+                ) : (
+                    <Text style={globalStyles.pillButtonText}>
+                        {user?.providerIds.includes('google.com') ? 'Google linked' : 'Link Google'}
+                    </Text>
+                )}
+            </Pressable>
+            {googleLinkMessage ? (
+                <Text style={[globalStyles.small, { color: colors.brand, marginTop: spacing.md, textAlign: 'center' }]}>
+                    {googleLinkMessage}
+                </Text>
+            ) : null}
+            {googleLinkError ? (
+                <Text style={[globalStyles.errorText, { marginTop: spacing.md }]}>
+                    {googleLinkError}
                 </Text>
             ) : null}
 

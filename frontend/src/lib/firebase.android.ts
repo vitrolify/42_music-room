@@ -96,6 +96,23 @@ export async function sendPasswordResetEmail(email: string) {
 	await auth().sendPasswordResetEmail(email);
 }
 
+export async function linkGoogleAccount() {
+	const currentUser = auth().currentUser;
+	if (!currentUser) throw new Error('No authenticated user.');
+
+	await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+	const signInResult = (await GoogleSignin.signIn()) as {
+		data?: {
+			idToken?: string | null;
+		};
+	};
+	const idToken = signInResult.data?.idToken;
+	if (!idToken) throw new Error('No ID token found');
+
+	const googleCredential = GoogleAuthProvider.credential(idToken);
+	await currentUser.linkWithCredential(googleCredential);
+}
+
 export async function getAuthToken(): Promise<string | null> {
 	return auth().currentUser?.getIdToken() ?? null;
 }

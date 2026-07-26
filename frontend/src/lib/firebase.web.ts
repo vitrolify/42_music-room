@@ -9,6 +9,7 @@ import {
   sendEmailVerification as firebaseSendEmailVerification,
   reload,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  linkWithPopup,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -78,6 +79,14 @@ export async function refreshAuthUser(): Promise<AuthUser | null> {
 
 export async function sendPasswordResetEmail(email: string) {
   await firebaseSendPasswordResetEmail(auth, email);
+}
+
+export async function linkGoogleAccount() {
+  if (!auth.currentUser) throw new Error('No authenticated user.');
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  await linkWithPopup(auth.currentUser, provider);
 }
 
 export async function signOutUser() {
