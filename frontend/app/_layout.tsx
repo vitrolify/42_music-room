@@ -25,7 +25,9 @@ function RootNavigator() {
         const inAuthGroup = segments[0] === '(auth)';
         const inVerificationScreen = segments.join('/') === '(auth)/verify-email';
 
-        if (!isLoggedIn && !inAuthGroup) {
+        if (!isLoggedIn && inVerificationScreen) {
+            router.replace('/(auth)');
+        } else if (!isLoggedIn && !inAuthGroup) {
             router.replace('/(auth)');
         } else if (isLoggedIn && !emailVerified && !inVerificationScreen) {
             router.replace('/(auth)/verify-email');
