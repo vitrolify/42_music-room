@@ -1,13 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.session import AsyncSessionLocal, get_db
 from app.models.event_queue import EventQueue, PlaylistEventType
-from app.schemas.event import EventCreate, EventRead
+from app.schemas.event import EVENT_EXAMPLES, EventCreate, EventRead
 from app.services import (
     event_service,
     playlist_service,
@@ -24,8 +24,8 @@ router = APIRouter(tags=["events"], prefix="/playlists/{playlist_id}")
 )
 async def create_playlist_event(
     playlist_id: int,
-    payload: EventCreate,
     background_tasks: BackgroundTasks,
+    payload: EventCreate = Body(..., openapi_examples=EVENT_EXAMPLES),
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):

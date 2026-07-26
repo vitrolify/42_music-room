@@ -1,10 +1,11 @@
 import re
 import uuid  # Add this import at the top
 from datetime import datetime
-from typing import Annotated, Literal, Union
+from typing import Annotated, Dict, Literal, Union
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import status
+from fastapi.openapi.models import Example
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator
 
 from app.api.error_handlers import BaseVitrolifyException
@@ -98,3 +99,54 @@ class EventRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+EVENT_EXAMPLES: Dict[str, Example] = {
+    "add_track": {
+        "summary": "Add Track",
+        "description": "Add a new video/track using a YouTube URL or video ID.",
+        "value": {
+            "event": "add",
+            "track_info_id": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        },
+    },
+    "move_track": {
+        "summary": "Move Track",
+        "description": "Reorder a track to a new position in the queue.",
+        "value": {
+            "event": "move",
+            "playlist_track_id": 42,
+            "current_position": 1,
+            "new_position": 3,
+        },
+    },
+    "skip_track": {
+        "summary": "Skip Track",
+        "description": "Skip track playback.",
+        "value": {
+            "event": "skip",
+            "playlist_track_id": 42,
+        },
+    },
+    "play_track": {
+        "summary": "Play Track",
+        "value": {
+            "event": "play",
+            "playlist_track_id": 42,
+        },
+    },
+    "pause_track": {
+        "summary": "Pause Track",
+        "value": {
+            "event": "pause",
+            "playlist_track_id": 42,
+        },
+    },
+    "delete_track": {
+        "summary": "Delete Track",
+        "value": {
+            "event": "delete",
+            "playlist_track_id": 42,
+        },
+    },
+}
