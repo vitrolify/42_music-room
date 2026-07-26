@@ -39,6 +39,7 @@ function mapUser(user: User | null): AuthUser | null {
     displayName: user.displayName ?? '',
     photoURL: user.photoURL ?? '',
     emailVerified: user.emailVerified,
+    providerIds: user.providerData.map((provider) => provider.providerId),
   };
 }
 

@@ -29,11 +29,14 @@ function getAvatarSource(avatar: string) {
 }
 
 export default function Profile() {
-    const { user, initializing, logout } = useAuth();
+    const { user, initializing, logout, sendPasswordReset } = useAuth();
     const insets = useSafeAreaInsets();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [passwordResetSending, setPasswordResetSending] = useState(false);
+    const [passwordResetMessage, setPasswordResetMessage] = useState<string | null>(null);
+    const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
     const [displayName, setDisplayName] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState('vinil');
     const [initialValues, setInitialValues] = useState({ displayName: '', avatar: 'vinil' });
@@ -81,6 +84,22 @@ export default function Profile() {
             Alert.alert('Error', message);
         } finally {
             setSaving(false);
+        }
+    }
+
+    async function handlePasswordReset() {
+        if (!user?.email || !user.providerIds.includes('password')) return;
+
+        setPasswordResetSending(true);
+        setPasswordResetMessage(null);
+        setPasswordResetError(null);
+        try {
+            await sendPasswordReset(user.email);
+            setPasswordResetMessage(`Password reset email sent to ${user.email}. Check your inbox and spam folder.`);
+        } catch (err) {
+            setPasswordResetError(err instanceof Error ? err.message : 'Unable to send a password reset link.');
+        } finally {
+            setPasswordResetSending(false);
         }
     }
 
@@ -186,6 +205,34 @@ export default function Profile() {
                     <Text style={globalStyles.pillButtonText}>Save</Text>
                 )}
             </Pressable>
+
+            {user?.email && user.providerIds.includes('password') ? (
+                <Pressable
+                    style={({ pressed }) => ({
+                        ...globalStyles.pillButton,
+                        marginTop: spacing.lg,
+                        opacity: pressed || passwordResetSending ? 0.55 : 1,
+                    })}
+                    onPress={handlePasswordReset}
+                    disabled={passwordResetSending}
+                >
+                    {passwordResetSending ? (
+                        <ActivityIndicator size="small" color={colors.text.primary} />
+                    ) : (
+                        <Text style={globalStyles.pillButtonText}>Reset password</Text>
+                    )}
+                </Pressable>
+            ) : null}
+            {passwordResetMessage ? (
+                <Text style={[globalStyles.small, { color: colors.semantic.info, marginTop: spacing.md, textAlign: 'center' }]}>
+                    {passwordResetMessage}
+                </Text>
+            ) : null}
+            {passwordResetError ? (
+                <Text style={[globalStyles.errorText, { marginTop: spacing.md }]}>
+                    {passwordResetError}
+                </Text>
+            ) : null}
 
             <Pressable
                 style={({ pressed }) => ({
