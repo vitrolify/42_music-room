@@ -2,6 +2,7 @@ import re
 import uuid  # Add this import at the top
 from datetime import datetime
 from typing import Annotated, Literal, Union
+from urllib.parse import parse_qs, urlparse
 
 from fastapi import status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -31,11 +32,18 @@ class AddPayload(BaseModel):
         if len(value) == 11 and re.match(r"^[a-zA-Z0-9_-]{11}$", value):
             return value
 
-        pattern = r"youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})"
-        match = re.search(pattern, value)
+        parsed = urlparse(value)
+        host = parsed.netloc.lower().removeprefix("www.")
+        candidate = None
+        if host in {"youtube.com", "m.youtube.com"}:
+            candidate = parse_qs(parsed.query).get("v", [None])[0]
+            if parsed.path.startswith(("/shorts/", "/embed/")):
+                candidate = parsed.path.split("/")[2]
+        elif host == "youtu.be":
+            candidate = parsed.path.strip("/").split("/")[0]
 
-        if match:
-            return match.group(1)
+        if candidate and re.fullmatch(r"[a-zA-Z0-9_-]{11}", candidate):
+            return candidate
 
         raise BaseVitrolifyException(
             error_code="INVALID_URL",

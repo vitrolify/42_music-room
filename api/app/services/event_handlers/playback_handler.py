@@ -66,7 +66,7 @@ async def _execute_playback_transaction(
         ws_message = _build_playback_changed_payload(
             playlist_id=playlist_id,
             playlist_track_id=current_track.id,
-            new_status=target_status.value,
+            new_status=target_status,
         )
         await db.commit()
 
@@ -125,7 +125,7 @@ def _build_playback_changed_payload(
         "payload": {
             "playlist_id": playlist_id,
             "playing_track_id": playlist_track_id,
-            "new_status": new_status,
+            "new_status": new_status.value,
         },
     }
 

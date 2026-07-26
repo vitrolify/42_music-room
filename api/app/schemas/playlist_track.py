@@ -29,7 +29,7 @@ class PlaylistTrackRead(BaseModel):
     playlist_id: int
     track_info_id: str
     user_id: uuid.UUID | None = None
-    status: str
+    status: TrackPlaybackStatus
     position: int
 
     # ---> ADICIONE ESTA LINHA <---
