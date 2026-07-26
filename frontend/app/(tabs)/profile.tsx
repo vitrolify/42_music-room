@@ -224,7 +224,7 @@ export default function Profile() {
                 </Pressable>
             ) : null}
             {passwordResetMessage ? (
-                <Text style={[globalStyles.small, { color: colors.semantic.info, marginTop: spacing.md, textAlign: 'center' }]}>
+                <Text style={[globalStyles.small, { color: colors.brand, marginTop: spacing.md, textAlign: 'center' }]}>
                     {passwordResetMessage}
                 </Text>
             ) : null}

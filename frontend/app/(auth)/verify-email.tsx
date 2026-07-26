@@ -47,7 +47,7 @@ export default function VerifyEmailScreen() {
             <Text style={[globalStyles.secondaryText, { textAlign: 'center', marginBottom: spacing.lg }]}>
                 We sent a verification link to {user?.email || 'your email address'}. Verify it before continuing.
             </Text>
-            {message ? <Text style={[globalStyles.small, { color: colors.semantic.info, textAlign: 'center', marginBottom: spacing.md }]}>{message}</Text> : null}
+            {message ? <Text style={[globalStyles.small, { color: colors.brand, textAlign: 'center', marginBottom: spacing.md }]}>{message}</Text> : null}
             {error ? <Text style={globalStyles.errorText}>{error}</Text> : null}
             <Pressable
                 style={({ pressed }) => ({ ...globalStyles.primaryPillButton, width: '100%', opacity: pressed || processing ? 0.7 : 1 })}
