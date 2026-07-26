@@ -19,6 +19,7 @@ function mapUser(user: FirebaseAuthTypes.User | null): AuthUser | null {
 		displayName: user.displayName ?? '',
 		photoURL: user.photoURL ?? '',
 		emailVerified: user.emailVerified,
+		providerIds: user.providerData.map(provider => provider.providerId),
 	};
 }
 
@@ -76,6 +77,40 @@ export async function signInWithEmail(email: string, password: string) {
 
 export async function signUpWithEmail(email: string, password: string) {
 	await auth().createUserWithEmailAndPassword(email, password);
+	await auth().currentUser?.sendEmailVerification();
+}
+
+export async function sendEmailVerification() {
+	await auth().currentUser?.sendEmailVerification();
+}
+
+export async function refreshAuthUser(): Promise<AuthUser | null> {
+	const currentUser = auth().currentUser;
+	if (!currentUser) return null;
+
+	await currentUser.reload();
+	return mapUser(auth().currentUser);
+}
+
+export async function sendPasswordResetEmail(email: string) {
+	await auth().sendPasswordResetEmail(email);
+}
+
+export async function linkGoogleAccount() {
+	const currentUser = auth().currentUser;
+	if (!currentUser) throw new Error('No authenticated user.');
+
+	await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+	const signInResult = (await GoogleSignin.signIn()) as {
+		data?: {
+			idToken?: string | null;
+		};
+	};
+	const idToken = signInResult.data?.idToken;
+	if (!idToken) throw new Error('No ID token found');
+
+	const googleCredential = GoogleAuthProvider.credential(idToken);
+	await currentUser.linkWithCredential(googleCredential);
 }
 
 export async function getAuthToken(): Promise<string | null> {

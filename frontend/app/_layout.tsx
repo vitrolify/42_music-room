@@ -15,7 +15,7 @@ import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-    const { isLoggedIn, initializing } = useAuth();
+    const { isLoggedIn, emailVerified, initializing } = useAuth();
     const router = useRouter();
     const segments = useSegments();
 
@@ -23,13 +23,18 @@ function RootNavigator() {
         if (initializing) return;
 
         const inAuthGroup = segments[0] === '(auth)';
+        const inVerificationScreen = segments.join('/') === '(auth)/verify-email';
 
-        if (!isLoggedIn && !inAuthGroup) {
+        if (!isLoggedIn && inVerificationScreen) {
             router.replace('/(auth)');
-        } else if (isLoggedIn && inAuthGroup) {
+        } else if (!isLoggedIn && !inAuthGroup) {
+            router.replace('/(auth)');
+        } else if (isLoggedIn && !emailVerified && !inVerificationScreen) {
+            router.replace('/(auth)/verify-email');
+        } else if (isLoggedIn && emailVerified && inAuthGroup) {
             router.replace('/(tabs)');
         }
-    }, [initializing, isLoggedIn, segments, router]);
+    }, [emailVerified, initializing, isLoggedIn, segments, router]);
 
     return (
         <Stack

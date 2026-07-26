@@ -5,6 +5,10 @@ import {
     signInWithEmail,
     signUpWithEmail,
     signOutUser,
+    sendEmailVerification,
+    refreshAuthUser,
+    sendPasswordResetEmail,
+    linkGoogleAccount,
     type AuthUser,
 } from '../lib/firebase';
 import { AuthType } from '../types/auth.types';
@@ -18,6 +22,11 @@ type AuthContextType = {
     googleSignIn: () => Promise<void>; // alias for login
     emailSignIn: (email: string, password: string) => Promise<void>;
     emailSignUp: (email: string, password: string) => Promise<void>;
+    resendVerificationEmail: () => Promise<void>;
+    refreshUser: () => Promise<void>;
+    sendPasswordReset: (email: string) => Promise<void>;
+    linkGoogle: () => Promise<void>;
+    emailVerified: boolean;
     logout: () => Promise<void>;
 };
 
@@ -54,6 +63,24 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return signUpWithEmail(email, password);
     }
 
+    async function resendVerificationEmail() {
+        return sendEmailVerification();
+    }
+
+    async function refreshUser() {
+        const refreshedUser = await refreshAuthUser();
+        setUser(refreshedUser);
+    }
+
+    async function sendPasswordReset(email: string) {
+        return sendPasswordResetEmail(email);
+    }
+
+    async function linkGoogle() {
+        await linkGoogleAccount();
+        await refreshUser();
+    }
+
     const logout = async () => {
         try {
             await signOutUser();
@@ -65,7 +92,22 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
     return (
-        <AuthContext.Provider value={{ user, setUser, isLoggedIn: !!user, initializing, login: googleSignIn, googleSignIn, emailSignIn, emailSignUp, logout }}>
+        <AuthContext.Provider value={{
+            user,
+            setUser,
+            isLoggedIn: !!user,
+            emailVerified: !!user?.emailVerified,
+            initializing,
+            login: googleSignIn,
+            googleSignIn,
+            emailSignIn,
+            emailSignUp,
+            resendVerificationEmail,
+            refreshUser,
+            sendPasswordReset,
+            linkGoogle,
+            logout,
+        }}>
             {children}
         </AuthContext.Provider>
     );

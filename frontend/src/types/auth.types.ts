@@ -4,4 +4,5 @@ export interface AuthType {
     displayName: string;
     photoURL: string;
     emailVerified: boolean;
+    providerIds: string[];
 }

@@ -6,6 +6,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signInWithEmailAndPassword,
+  sendEmailVerification as firebaseSendEmailVerification,
+  reload,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  linkWithPopup,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -36,6 +40,7 @@ function mapUser(user: User | null): AuthUser | null {
     displayName: user.displayName ?? '',
     photoURL: user.photoURL ?? '',
     emailVerified: user.emailVerified,
+    providerIds: user.providerData.map((provider) => provider.providerId),
   };
 }
 
@@ -57,7 +62,31 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signUpWithEmail(email: string, password: string) {
-  await createUserWithEmailAndPassword(auth, email, password);
+  const credentials = await createUserWithEmailAndPassword(auth, email, password);
+  await firebaseSendEmailVerification(credentials.user);
+}
+
+export async function sendEmailVerification() {
+  if (auth.currentUser) await firebaseSendEmailVerification(auth.currentUser);
+}
+
+export async function refreshAuthUser(): Promise<AuthUser | null> {
+  if (!auth.currentUser) return null;
+
+  await reload(auth.currentUser);
+  return mapUser(auth.currentUser);
+}
+
+export async function sendPasswordResetEmail(email: string) {
+  await firebaseSendPasswordResetEmail(auth, email);
+}
+
+export async function linkGoogleAccount() {
+  if (!auth.currentUser) throw new Error('No authenticated user.');
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  await linkWithPopup(auth.currentUser, provider);
 }
 
 export async function signOutUser() {
