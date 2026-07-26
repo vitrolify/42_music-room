@@ -18,7 +18,7 @@ function getApiBaseUrl(): string {
     return 'http://localhost/api/v1';
 }
 
-const API_BASE = getApiBaseUrl();
+export const API_BASE = getApiBaseUrl();
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -36,7 +36,7 @@ export class ApiError extends Error {
     }
 }
 
-async function getFirebaseToken(): Promise<string | null> {
+export async function getFirebaseToken(): Promise<string | null> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
             const token = await Firebase.getAuthToken();
@@ -47,6 +47,14 @@ async function getFirebaseToken(): Promise<string | null> {
     }
 
     return null;
+}
+
+export function getPlaylistWebSocketUrl(playlistId: number, token: string): string {
+    const apiUrl = new URL(API_BASE);
+    apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + `/ws/playlists/${playlistId}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}`;
+    return apiUrl.toString();
 }
 
 export async function request<T>(

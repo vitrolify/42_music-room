@@ -115,8 +115,8 @@ def _build_track_added_payload(track: PlaylistTrack) -> dict:
                     "id": track.track_info.id,
                     "title": track.track_info.title,
                     "channel_title": track.track_info.channel_title,
-                    "thumbnail": track.track_info.thumbnail_url,
-                    "duration": track.track_info.duration_seconds,
+                    "thumbnail_url": track.track_info.thumbnail_url,
+                    "duration_seconds": track.track_info.duration_seconds,
                 },
                 "added_by": {
                     "user_id": track.user.id if track.user else None,

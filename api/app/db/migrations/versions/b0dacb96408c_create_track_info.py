@@ -31,6 +31,29 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_track_info'))
     )
     op.create_index(op.f('ix_track_info_id'), 'track_info', ['id'], unique=False)
+
+    # Older installations stored the YouTube id directly on playlist_track and
+    # allowed it to be NULL.  Populate the new relation before tightening the
+    # column, including deterministic ids for old rows without an id.
+    bind = op.get_bind()
+    bind.execute(sa.text("""
+        INSERT INTO track_info (id, title, created_at, updated_at)
+        SELECT DISTINCT track_info_id, track_info_id, now(), now()
+        FROM playlist_track
+        WHERE track_info_id IS NOT NULL
+        ON CONFLICT (id) DO NOTHING
+    """))
+    bind.execute(sa.text("""
+        INSERT INTO track_info (id, title, created_at, updated_at)
+        SELECT 'legacy-' || id::text, 'Legacy track ' || id::text, now(), now()
+        FROM playlist_track
+        WHERE track_info_id IS NULL
+    """))
+    bind.execute(sa.text("""
+        UPDATE playlist_track
+        SET track_info_id = 'legacy-' || id::text
+        WHERE track_info_id IS NULL
+    """))
     op.alter_column('playlist_track', 'track_info_id',
                existing_type=sa.VARCHAR(length=255),
                type_=sa.String(length=32),

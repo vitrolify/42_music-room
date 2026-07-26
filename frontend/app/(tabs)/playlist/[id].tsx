@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -8,6 +8,7 @@ import {
     Text,
     TextInput,
     View,
+    Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,12 @@ import {
     getPlaylist,
     listPlaylistTracks,
     movePlaylistTrack,
+    playPlaylistTrack,
+    pausePlaylistTrack,
+    skipPlaylistTrack,
+    deletePlaylistTrack,
+    getFirebaseToken,
+    getPlaylistWebSocketUrl,
     ApiError,
     type Playlist,
     type PlaylistTrack,
@@ -36,6 +43,10 @@ export default function PlaylistDetail() {
     const [mutating, setMutating] = useState(false);
     const [mutationMessage, setMutationMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'offline'>('connecting');
+    const socketRef = useRef<WebSocket | null>(null);
+    const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const reconnectAttempt = useRef(0);
 
     const isValidPlaylistId = Number.isInteger(playlistId) && playlistId > 0;
     const canAddTrack = isValidPlaylistId && trackInfoId.trim().length > 0 && !mutating;
@@ -67,6 +78,42 @@ export default function PlaylistDetail() {
             setLoading(false);
         })();
     }, [fetchData]);
+
+    useEffect(() => {
+        let active = true;
+        async function connect() {
+            if (!isValidPlaylistId) return;
+            const token = await getFirebaseToken();
+            if (!active || !token) { setConnectionState('offline'); return; }
+            setConnectionState('connecting');
+            const socket = new WebSocket(getPlaylistWebSocketUrl(playlistId, token));
+            socketRef.current = socket;
+            socket.onopen = () => { reconnectAttempt.current = 0; setConnectionState('connected'); void fetchData(); };
+            socket.onmessage = message => {
+                try {
+                    const event = JSON.parse(message.data) as { type?: string };
+                    if (['TRACK_ADDED', 'TRACK_MOVED', 'TRACK_DELETED', 'TRACK_PLAYING', 'TRACK_PAUSED', 'TRACK_SKIPPED'].includes(event.type ?? '')) {
+                        void fetchData();
+                    }
+                } catch { /* Ignore malformed broadcasts. */ }
+            };
+            socket.onerror = () => setConnectionState('offline');
+            socket.onclose = () => {
+                if (!active) return;
+                setConnectionState('offline');
+                const delay = Math.min(1000 * 2 ** reconnectAttempt.current, 10000);
+                reconnectAttempt.current += 1;
+                reconnectTimer.current = setTimeout(() => void connect(), delay);
+            };
+        }
+        void connect();
+        return () => {
+            active = false;
+            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+            socketRef.current?.close();
+            socketRef.current = null;
+        };
+    }, [fetchData, isValidPlaylistId, playlistId]);
 
     async function handleRefresh() {
         setRefreshing(true);
@@ -221,7 +268,7 @@ export default function PlaylistDetail() {
                             style={globalStyles.input}
                             value={trackInfoId}
                             onChangeText={setTrackInfoId}
-                            placeholder="Track info id"
+                            placeholder="YouTube ID or URL"
                             placeholderTextColor={colors.text.secondary}
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -250,14 +297,51 @@ export default function PlaylistDetail() {
                         </View>
                     ) : (
                         <View style={{ gap: spacing.sm }}>
-                            {tracks.map((track, index) => (
+                            {tracks.map(track => (
                                 <TrackRow
                                     key={track.id}
                                     track={track}
-                                    isFirst={index === 0}
-                                    isLast={index === tracks.length - 1}
+                                    isFirst={track.position === 0}
+                                    isLast={track.position === tracks.length - 1}
                                     disabled={mutating}
                                     onMove={handleMoveTrack}
+                                    onAction={async action => {
+                                        if (action === 'delete' && track.position === 0) return;
+                                        if (action === 'delete') {
+                                            const confirmed = await new Promise<boolean>(resolve => {
+                                                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
+                                                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                                                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+                                                ]);
+                                            });
+                                            if (!confirmed) return;
+                                        }
+                                        setMutating(true);
+                                        setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
+                                        try {
+                                            if (action === 'play') await playPlaylistTrack(playlistId, track);
+                                            if (action === 'pause') await pausePlaylistTrack(playlistId, track);
+                                            if (action === 'skip') await skipPlaylistTrack(playlistId, track);
+                                            if (action === 'delete') await deletePlaylistTrack(playlistId, track);
+                                            await refreshTracksAfterMutation(
+                                                nextTracks => {
+                                                    if (action === 'delete') {
+                                                        return !nextTracks.some(nextTrack => nextTrack.id === track.id);
+                                                    }
+                                                    if (action === 'skip') {
+                                                        return nextTracks[0]?.id !== track.id;
+                                                    }
+                                                    const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
+                                                    return action === 'play'
+                                                        ? updatedTrack?.status === 'playing'
+                                                        : updatedTrack?.status === 'paused';
+                                                },
+                                                `The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
+                                            );
+                                        } catch (err) {
+                                            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
+                                        } finally { setMutationMessage(null); setMutating(false); }
+                                    }}
                                 />
                             ))}
                         </View>
@@ -274,16 +358,20 @@ type TrackRowProps = {
     isLast: boolean;
     disabled: boolean;
     onMove: (track: PlaylistTrack, newPosition: number) => void;
+    onAction: (action: 'play' | 'pause' | 'skip' | 'delete') => void;
 };
 
-function TrackRow({ track, isFirst, isLast, disabled, onMove }: TrackRowProps) {
+function TrackRow({ track, isFirst, isLast, disabled, onMove, onAction }: TrackRowProps) {
     return (
         <View style={cardStyle}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
                     <Text style={globalStyles.bodyBold} numberOfLines={1}>
-                        {track.position}. {track.track_info_id ?? 'Unknown track'}
+                        {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
                     </Text>
+                    {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
+                    {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36, marginTop: spacing.xs }} /> : null}
+                    {track.track_info.duration_seconds != null ? <Text style={globalStyles.small}>Duration: {formatDuration(track.track_info.duration_seconds)}</Text> : null}
                     <Text style={globalStyles.small}>Status: {track.status}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -298,6 +386,12 @@ function TrackRow({ track, isFirst, isLast, disabled, onMove }: TrackRowProps) {
                         onPress={() => onMove(track, track.position + 1)}
                     />
                 </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                {isFirst && track.status !== 'playing' ? <MoveButton label="Play" disabled={disabled} onPress={() => onAction('play')} /> : null}
+                {isFirst && track.status === 'playing' ? <MoveButton label="Pause" disabled={disabled} onPress={() => onAction('pause')} /> : null}
+                {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
+                {!isFirst && track.status === 'queued' ? <MoveButton label="Delete" disabled={disabled} onPress={() => onAction('delete')} /> : null}
             </View>
         </View>
     );
@@ -333,6 +427,11 @@ const cardStyle = {
 
 function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function formatDuration(seconds: number) {
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 function getPlaylistTrackLoadErrorMessage(error: unknown) {
