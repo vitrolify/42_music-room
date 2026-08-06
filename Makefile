@@ -8,7 +8,12 @@ fclean:
 	cd infra/docker/compose && docker compose --env-file ../../../.env down -v --rmi all
 
 test:
-	cd infra/docker/compose && docker compose --env-file ../../../.env --profile test run --rm k6
+	@echo "Starting isolated test environment in the background..."
+	cd infra/docker/compose && docker compose -f docker-compose.test.yml up -d api-test
+	@echo "Running k6 load test..."
+	-cd infra/docker/compose && docker compose -f docker-compose.test.yml run --rm k6
+	@echo "Cleaning up test environment..."
+	cd infra/docker/compose && docker compose -f docker-compose.test.yml down -v --remove-orphans
 
 re: fclean up
 

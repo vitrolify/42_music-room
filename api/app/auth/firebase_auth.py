@@ -1,5 +1,4 @@
-"""Verificador de tokens do Firebase (T012)."""
-
+import os
 from threading import Lock
 
 import firebase_admin
@@ -32,5 +31,21 @@ class FirebaseTokenVerifier:
         return auth.verify_id_token(token, app=_get_app())
 
 
+class MockFirebaseVerifier:
+    """A dummy verifier that bypasses Firebase for load testing."""
+
+    def verify(self, token: str) -> dict:
+        # Returns simulated claims based on the k6 token (e.g., "test-user-1")
+        return {
+            "sub": f"firebase_uid_{token}",
+            "email": f"{token}@loadtest.local",
+            "name": f"Simulated User {token}",
+            "email_verified": True,
+        }
+
+
 def get_firebase_token_verifier() -> FirebaseTokenVerifier:
+    if os.getenv("LOAD_TEST_MODE") == "True":
+        return MockFirebaseVerifier()
+
     return FirebaseTokenVerifier()

@@ -1,0 +1,72 @@
+# infra/docker/compose/docker-compose.test.yml
+services:
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vitrolify-test-net
+
+  migrations-test:
+    build:
+      context: ../../../api
+      dockerfile: Dockerfile
+    working_dir: /api
+    environment:
+      # Perfectly overrides the default database_url from config.py
+      DATABASE_URL: postgresql+asyncpg://test_user:test_password@db-test:5432/test_db
+    depends_on:
+      db-test:
+        condition: service_healthy
+    volumes:
+      - ../../../api:/api
+    command: ["alembic", "upgrade", "head"]
+    networks:
+      - vitrolify-test-net
+
+  api-test:
+    build:
+      context: ../../../api
+      dockerfile: Dockerfile
+    working_dir: /api
+    environment:
+      LOG_LEVEL: warning
+      # Perfectly overrides the default database_url from config.py
+      DATABASE_URL: postgresql+asyncpg://test_user:test_password@db-test:5432/test_db
+      LOAD_TEST_MODE: "True"
+    depends_on:
+      db-test:
+        condition: service_healthy
+      migrations-test:
+        condition: service_completed_successfully
+    volumes:
+      - ../../../api/app:/api/app
+      - ../../../api/alembic.ini:/api/alembic.ini:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - vitrolify-test-net
+
+  k6:
+    image: grafana/k6:0.52.0
+    depends_on:
+      api-test:
+        condition: service_started
+    volumes:
+      - ../../k6:/scripts:ro
+    environment:
+      K6_API_BASE_URL: http://api-test:8000 
+    entrypoint: ["k6"]
+    command: ["run", "/scripts/playlist_creation.js"]
+    networks:
+      - vitrolify-test-net
+
+networks:
+  vitrolify-test-net:
+    driver: bridge # Removed internal: true to fix uvloop DNS resolution
