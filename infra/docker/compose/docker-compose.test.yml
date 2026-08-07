@@ -20,7 +20,6 @@ services:
       dockerfile: Dockerfile
     working_dir: /api
     environment:
-      # Perfectly overrides the default database_url from config.py
       DATABASE_URL: postgresql+asyncpg://test_user:test_password@db-test:5432/test_db
     depends_on:
       db-test:
@@ -38,7 +37,6 @@ services:
     working_dir: /api
     environment:
       LOG_LEVEL: warning
-      # Perfectly overrides the default database_url from config.py
       DATABASE_URL: postgresql+asyncpg://test_user:test_password@db-test:5432/test_db
       LOAD_TEST_MODE: "True"
     depends_on:
@@ -63,7 +61,7 @@ services:
     environment:
       K6_API_BASE_URL: http://api-test:8000 
     entrypoint: ["k6"]
-    command: ["run", "/scripts/playlist_creation.js"]
+    command: ["run", "/scripts/playlist_test.js"]
     networks:
       - vitrolify-test-net
 
