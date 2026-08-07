@@ -11,15 +11,18 @@ const deleteCounter = new Counter("event_delete");
 
 const PLAYLIST_COUNT = __ENV.PLAYLIST_COUNT
   ? parseInt(__ENV.PLAYLIST_COUNT)
-  : 3;
+  : 100;
 const PARTICIPANTS_PER_PLAYLIST = __ENV.PARTICIPANTS
   ? parseInt(__ENV.PARTICIPANTS)
   : 4;
 const USERS_PER_PLAYLIST = PARTICIPANTS_PER_PLAYLIST + 1;
 
 export const options = {
-  vus: PLAYLIST_COUNT * USERS_PER_PLAYLIST,
-  duration: "45s",
+  stages: [
+    { duration: "5s", target: PLAYLIST_COUNT * USERS_PER_PLAYLIST },
+    { duration: "45s", target: PLAYLIST_COUNT * USERS_PER_PLAYLIST },
+    { duration: "10s", target: 0 },
+  ],
   thresholds: {
     http_req_failed: ["rate<0.05"],
     ws_session_duration: ["p(95)>20000"],
@@ -133,73 +136,85 @@ export default function (data) {
 
     // --- ACTION LOOP (TRIGGERING EVENTS) ---
     socket.on("open", () => {
-      socket.setInterval(function () {
-        const stateCount = playlistState.length;
-        let eventPayload = null;
+      const scheduleNextAction = () => {
+        const randomDelay =
+          Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
 
-        if (isHost) {
-          if (stateCount > 0) {
-            const action = Math.random() > 0.5 ? "skip" : "delete";
-            const randomTrack =
-              playlistState[Math.floor(Math.random() * stateCount)];
-            const playingTrack = playlistState[0];
+        socket.setTimeout(function () {
+          const stateCount = playlistState.length;
+          let eventPayload = null;
 
-            if (action === "skip" && playingTrack) {
+          if (isHost) {
+            if (stateCount > 0) {
+              const action = Math.random() > 0.5 ? "skip" : "delete";
+              const randomTrack =
+                playlistState[Math.floor(Math.random() * stateCount)];
+              const playingTrack = playlistState[0];
+
+              if (action === "skip" && playingTrack) {
+                eventPayload = {
+                  event: "skip",
+                  playlist_track_id: playingTrack.id,
+                };
+              } else if (action === "delete") {
+                eventPayload = {
+                  event: "delete",
+                  playlist_track_id: randomTrack.id,
+                };
+              }
+            } else {
               eventPayload = {
-                event: "skip",
-                playlist_track_id: playingTrack.id,
-              };
-            } else if (action === "delete") {
-              eventPayload = {
-                event: "delete",
-                playlist_track_id: randomTrack.id,
+                event: "add",
+                track_info_id: getRandomVideo(),
               };
             }
           } else {
-            eventPayload = {
-              event: "add",
-              track_info_id: getRandomVideo(),
-            };
+            if (stateCount > 1 && Math.random() > 0.6) {
+              const trackIndex =
+                Math.floor(Math.random() * (stateCount - 1)) + 1;
+              const randomTrack = playlistState[trackIndex];
+              const newPos = Math.floor(Math.random() * (stateCount - 1)) + 1;
+              eventPayload = {
+                event: "move",
+                playlist_track_id: randomTrack.id,
+                current_position: randomTrack.position,
+                new_position: newPos,
+              };
+            } else {
+              eventPayload = {
+                event: "add",
+                track_info_id: getRandomVideo(),
+              };
+            }
           }
-        } else {
-          if (stateCount > 1 && Math.random() > 0.6) {
-            const randomTrack =
-              playlistState[Math.floor(Math.random() * stateCount)];
-            const newPos = Math.floor(Math.random() * stateCount);
-            eventPayload = {
-              event: "move",
-              playlist_track_id: randomTrack.id,
-              current_position: randomTrack.position,
-              new_position: newPos,
-            };
-          } else {
-            eventPayload = {
-              event: "add",
-              track_info_id: getRandomVideo(),
-            };
-          }
-        }
 
-        if (eventPayload) {
-          const res = http.post(
-            `${BASE_URL}/api/v1/playlists/${playlistId}/events`,
-            JSON.stringify(eventPayload),
-            { headers },
-          );
+          if (eventPayload) {
+            const res = http.post(
+              `${BASE_URL}/api/v1/playlists/${playlistId}/events`,
+              JSON.stringify(eventPayload),
+              { headers },
+            );
 
-          if (res.status === 200 || res.status === 201 || res.status === 202) {
-            if (eventPayload.event === "add") addCounter.add(1);
-            if (eventPayload.event === "move") moveCounter.add(1);
-            if (eventPayload.event === "skip") skipCounter.add(1);
-            if (eventPayload.event === "delete") deleteCounter.add(1);
+            if (
+              res.status === 200 ||
+              res.status === 201 ||
+              res.status === 202
+            ) {
+              if (eventPayload.event === "add") addCounter.add(1);
+              if (eventPayload.event === "move") moveCounter.add(1);
+              if (eventPayload.event === "skip") skipCounter.add(1);
+              if (eventPayload.event === "delete") deleteCounter.add(1);
+            }
           }
-        }
-      }, 3000);
+          scheduleNextAction();
+        }, randomDelay);
+      };
+      scheduleNextAction();
     });
 
     socket.on("error", (e) => {
       if (e.error() != "websocket: close sent") {
-        console.error(`VU ${__VU} WS Error: ${e.error()}`);
+        /*console.error(`VU ${__VU} WS Error: ${e.error()}`);*/
       }
     });
 
