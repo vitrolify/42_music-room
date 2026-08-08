@@ -10,6 +10,7 @@ import {
     Alert,
     Modal,
     RefreshControl,
+    useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -33,6 +34,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Friends() {
     const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
+    const { width } = useWindowDimensions();
+    const isCompact = width < 560;
 
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [incoming, setIncoming] = useState<FriendRequestIncoming[]>([]);
@@ -146,13 +149,21 @@ export default function Friends() {
                                 borderRadius: 8,
                                 padding: spacing.lg,
                                 marginBottom: spacing.sm,
-                                flexDirection: 'row',
-                                alignItems: 'center',
+                                flexDirection: isCompact ? 'column' : 'row',
+                                alignItems: isCompact ? 'stretch' : 'center',
                                 justifyContent: 'space-between',
                             }}
                         >
-                            <UserRow user={request.requester} />
-                            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                            <UserRow user={request.requester} column={isCompact} />
+                            <View
+                                style={{
+                                    flexDirection: 'row',
+                                    gap: spacing.sm,
+                                    flexShrink: 0,
+                                    alignSelf: isCompact ? 'flex-end' : 'auto',
+                                    marginTop: isCompact ? spacing.md : 0,
+                                }}
+                            >
                                 <Pressable
                                     style={({ pressed }) => ({
                                         ...globalStyles.pillButton,
@@ -273,12 +284,20 @@ export default function Friends() {
     );
 }
 
-function UserRow({ user }: { user: FriendUser }) {
+function UserRow({ user, column = false }: { user: FriendUser; column?: boolean }) {
     const primary = user.display_name || user.email || 'Friend';
     const secondary = user.display_name && user.email ? user.email : null;
 
     return (
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: spacing.md }}>
+        <View
+            style={{
+                flex: column ? undefined : 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                width: column ? '100%' : undefined,
+                marginRight: column ? 0 : spacing.md,
+            }}
+        >
             <Image
                 source={getAvatarSource(user.avatar)}
                 style={{
@@ -347,6 +366,9 @@ function AddFriendModal({
             >
                 <View
                     style={{
+                        width: '100%',
+                        maxWidth: 600,
+                        alignSelf: 'center',
                         backgroundColor: colors.bg.elevated,
                         borderRadius: 12,
                         padding: spacing.xl,
