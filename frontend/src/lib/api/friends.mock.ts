@@ -66,7 +66,7 @@ export async function getOutgoingRequestsMock(): Promise<FriendRequestOutgoing[]
 
 export async function sendFriendRequestByEmailMock(email: string): Promise<FriendRequest> {
     await delay();
-const target = MOCK_USERS.find(
+    const target = MOCK_USERS.find(
         u => u.email?.toLowerCase() === email.trim().toLowerCase()
     );
 
