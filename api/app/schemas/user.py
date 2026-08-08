@@ -28,3 +28,11 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PublicUserRead(BaseModel):
+    id: UUID
+    display_name: str | None = None
+    avatar: Avatar
+
+    model_config = {"from_attributes": True}

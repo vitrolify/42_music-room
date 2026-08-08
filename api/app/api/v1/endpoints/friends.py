@@ -128,6 +128,26 @@ async def list_friends(
     return await friend_service.get_friends_for_user(db, user_id=user_id)
 
 
+@router.delete(
+    "/friends/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_friend(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    removed = await friend_service.delete_friendship(
+        db, user_id=current_user_id, friend_id=user_id
+    )
+    if not removed:
+        raise BaseVitrolifyException(
+            error_code="FRIEND_NOT_FOUND",
+            message="Amizade nao encontrada",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+
 @router.patch(
     "/friends/requests/{request_id}/accept",
     response_model=FriendRequestRead,

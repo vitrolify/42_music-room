@@ -97,3 +97,14 @@ async def get_friends_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Use
         .where(FriendRequest.status == FriendRequestStatus.ACCEPTED)
     )
     return list(result.scalars().all())
+
+
+async def delete_friendship(
+    db: AsyncSession, user_id: uuid.UUID, friend_id: uuid.UUID
+) -> bool:
+    friendship = await get_friendship(db, user_id, friend_id)
+    if friendship is None or friendship.status != FriendRequestStatus.ACCEPTED:
+        return False
+    await db.delete(friendship)
+    await db.commit()
+    return True

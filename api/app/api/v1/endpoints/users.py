@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, Request
+import uuid
+
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
+from app.api.error_handlers import BaseVitrolifyException
+from app.auth.dependencies import get_current_user, get_current_user_id
 from app.db.session import get_db
-from app.schemas.user import UserResponse, UserUpdate
+from app.schemas.user import PublicUserRead, UserResponse, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -41,3 +44,20 @@ async def update_my_profile(
     request.state.user_id = user.id
     updated = await service.update(user, data)
     return UserResponse.model_validate(updated)
+
+
+@router.get("/{user_id}", response_model=PublicUserRead)
+async def get_public_profile(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+) -> PublicUserRead:
+    service = UserService(db)
+    user = await service.get_by_id(user_id)
+    if user is None:
+        raise BaseVitrolifyException(
+            error_code="USER_NOT_FOUND",
+            message="Usuario nao encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    return PublicUserRead.model_validate(user)
