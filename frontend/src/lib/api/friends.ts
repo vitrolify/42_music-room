@@ -22,6 +22,10 @@ export async function sendFriendRequestByEmail(email: string): Promise<FriendReq
     return request<FriendRequest>('POST', '/friends/requests/by-email', { email });
 }
 
+export async function sendFriendRequestToUser(userId: string): Promise<FriendRequest> {
+    return request<FriendRequest>('POST', `/friends/requests/${userId}`);
+}
+
 export async function acceptFriendRequest(requestId: number): Promise<FriendRequest> {
     return request<FriendRequest>('PATCH', `/friends/requests/${requestId}/accept`);
 }

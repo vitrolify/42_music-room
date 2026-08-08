@@ -34,6 +34,10 @@ class PublicUserRead(BaseModel):
     id: UUID
     display_name: str | None = None
     avatar: Avatar
+    is_self: bool = False
     is_friend: bool = False
+    outgoing_request_pending: bool = False
+    incoming_request_pending: bool = False
+    request_id: int | None = None
 
     model_config = {"from_attributes": True}

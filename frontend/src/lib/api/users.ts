@@ -14,7 +14,11 @@ export type PublicProfile = {
     id: string;
     display_name: string | null;
     avatar: string;
+    is_self: boolean;
     is_friend: boolean;
+    outgoing_request_pending: boolean;
+    incoming_request_pending: boolean;
+    request_id: number | null;
 };
 
 export async function getMyProfile(): Promise<UserProfile> {

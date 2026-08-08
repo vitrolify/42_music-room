@@ -63,15 +63,30 @@ async def get_public_profile(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
+    is_self = user_id == current_user_id
     friendship = await friend_service.get_friendship(
         db, user_id=current_user_id, other_id=user_id
     )
+    is_friend = (
+        friendship is not None
+        and friendship.status == FriendRequestStatus.ACCEPTED
+    )
+    pending = (
+        friendship is not None
+        and friendship.status == FriendRequestStatus.PENDING
+    )
+
     return PublicUserRead(
         id=user.id,
         display_name=user.display_name,
         avatar=user.avatar,
-        is_friend=(
-            friendship is not None
-            and friendship.status == FriendRequestStatus.ACCEPTED
+        is_self=is_self,
+        is_friend=is_friend,
+        outgoing_request_pending=(
+            pending and friendship.requester_id == current_user_id
         ),
+        incoming_request_pending=(
+            pending and friendship.addressee_id == current_user_id
+        ),
+        request_id=friendship.id if pending else None,
     )

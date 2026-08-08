@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.session import get_db
-from app.models.friend import FriendRequestStatus
+from app.models.friend import FriendRequest, FriendRequestStatus
 from app.schemas.friend import (
     FriendRequestByEmailCreate,
     FriendRequestIncomingRead,
@@ -18,6 +18,50 @@ from app.services import friend_service
 from app.services.user_service import UserService
 
 router = APIRouter(tags=["friends"])
+
+
+async def _create_friend_request(
+    db: AsyncSession,
+    requester_id: uuid.UUID,
+    addressee_id: uuid.UUID,
+) -> FriendRequest:
+    if addressee_id == requester_id:
+        raise BaseVitrolifyException(
+            error_code="FRIEND_SELF",
+            message="Voce nao pode se adicionar",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    existing = await friend_service.get_friendship(db, requester_id, addressee_id)
+    if existing is not None:
+        if existing.status == FriendRequestStatus.ACCEPTED:
+            raise BaseVitrolifyException(
+                error_code="FRIEND_ALREADY_FRIENDS",
+                message="Voce ja e amigo deste usuario",
+                status_code=status.HTTP_409_CONFLICT,
+            )
+        if existing.status == FriendRequestStatus.PENDING:
+            if existing.addressee_id == requester_id:
+                raise BaseVitrolifyException(
+                    error_code="FRIEND_INCOMING_PENDING",
+                    message="Este usuario ja te enviou um pedido",
+                    status_code=status.HTTP_409_CONFLICT,
+                )
+            raise BaseVitrolifyException(
+                error_code="FRIEND_DUPLICATE",
+                message="Pedido de amizade ja enviado",
+                status_code=status.HTTP_409_CONFLICT,
+            )
+        if existing.requester_id == requester_id:
+            return await friend_service.update_friend_request_status(
+                db=db,
+                friend_request=existing,
+                status=FriendRequestStatus.PENDING,
+            )
+
+    return await friend_service.create_friend_request_in_db(
+        db=db, requester_id=requester_id, addressee_id=addressee_id
+    )
 
 
 @router.post(
@@ -38,42 +82,35 @@ async def create_friend_request_by_email(
             message="Usuario nao encontrado",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    if addressee.id == user_id:
+
+    return await _create_friend_request(
+        db, requester_id=user_id, addressee_id=addressee.id
+    )
+
+
+@router.post(
+    "/friends/requests/{user_id}",
+    response_model=FriendRequestRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_friend_request_by_user_id(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    user_service = UserService(db)
+    addressee = await user_service.get_by_id(user_id)
+    if addressee is None:
         raise BaseVitrolifyException(
-            error_code="FRIEND_SELF",
-            message="Voce nao pode se adicionar",
-            status_code=status.HTTP_400_BAD_REQUEST,
+            error_code="USER_NOT_FOUND",
+            message="Usuario nao encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    existing = await friend_service.get_friendship(db, user_id, addressee.id)
-    if existing is not None:
-        if existing.status == FriendRequestStatus.ACCEPTED:
-            raise BaseVitrolifyException(
-                error_code="FRIEND_ALREADY_FRIENDS",
-                message="Voce ja e amigo deste usuario",
-                status_code=status.HTTP_409_CONFLICT,
-            )
-        if existing.status == FriendRequestStatus.PENDING:
-            if existing.addressee_id == user_id:
-                raise BaseVitrolifyException(
-                    error_code="FRIEND_INCOMING_PENDING",
-                    message="Este usuario ja te enviou um pedido",
-                    status_code=status.HTTP_409_CONFLICT,
-                )
-            raise BaseVitrolifyException(
-                error_code="FRIEND_DUPLICATE",
-                message="Pedido de amizade ja enviado",
-                status_code=status.HTTP_409_CONFLICT,
-            )
-        if existing.requester_id == user_id:
-            return await friend_service.update_friend_request_status(
-                db=db,
-                friend_request=existing,
-                status=FriendRequestStatus.PENDING,
-            )
-
-    return await friend_service.create_friend_request_in_db(
-        db=db, requester_id=user_id, addressee_id=addressee.id
+    return await _create_friend_request(
+        db,
+        requester_id=current_user_id,
+        addressee_id=addressee.id,
     )
 
 
