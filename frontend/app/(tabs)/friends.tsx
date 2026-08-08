@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -13,6 +13,7 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import {
     getFriends,
@@ -34,8 +35,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Friends() {
     const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
+    const router = useRouter();
     const { width } = useWindowDimensions();
     const isCompact = width < 560;
+    const loadedOnce = useRef(false);
 
     const [friends, setFriends] = useState<FriendUser[]>([]);
     const [incoming, setIncoming] = useState<FriendRequestIncoming[]>([]);
@@ -59,14 +62,19 @@ export default function Friends() {
         }
     }, []);
 
-    useEffect(() => {
-        if (initializing || !user) return;
-        (async () => {
-            setLoading(true);
-            await fetchData();
-            setLoading(false);
-        })();
-    }, [fetchData, initializing, user]);
+    useFocusEffect(
+        useCallback(() => {
+            if (initializing || !user) return;
+            (async () => {
+                if (!loadedOnce.current) {
+                    loadedOnce.current = true;
+                    setLoading(true);
+                }
+                await fetchData();
+                setLoading(false);
+            })();
+        }, [fetchData, initializing, user]),
+    );
 
     async function handleRefresh() {
         setRefreshing(true);
@@ -90,6 +98,13 @@ export default function Friends() {
         } catch (err) {
             Alert.alert('Error', getFriendErrorMessage(err, 'decline'));
         }
+    }
+
+    function openProfile(userId: string, isFriend: boolean) {
+        router.push({
+            pathname: '/user/[id]',
+            params: { id: userId, isFriend: isFriend ? '1' : '0' },
+        });
     }
 
     if (loading) {
@@ -142,9 +157,10 @@ export default function Friends() {
                         Friend requests ({incoming.length})
                     </Text>
                     {incoming.map(request => (
-                        <View
+                        <Pressable
                             key={request.id}
-                            style={{
+                            onPress={() => openProfile(request.requester.id, false)}
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
@@ -152,7 +168,8 @@ export default function Friends() {
                                 flexDirection: isCompact ? 'column' : 'row',
                                 alignItems: isCompact ? 'stretch' : 'center',
                                 justifyContent: 'space-between',
-                            }}
+                                opacity: pressed ? 0.9 : 1,
+                            })}
                         >
                             <UserRow user={request.requester} column={isCompact} />
                             <View
@@ -191,7 +208,7 @@ export default function Friends() {
                                     <Text style={globalStyles.pillButtonText}>Decline</Text>
                                 </Pressable>
                             </View>
-                        </View>
+                        </Pressable>
                     ))}
                 </View>
             )}
@@ -202,9 +219,10 @@ export default function Friends() {
                         Sent requests ({outgoing.length})
                     </Text>
                     {outgoing.map(request => (
-                        <View
+                        <Pressable
                             key={request.id}
-                            style={{
+                            onPress={() => openProfile(request.addressee.id, false)}
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
@@ -212,12 +230,12 @@ export default function Friends() {
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                opacity: 0.6,
-                            }}
+                                opacity: pressed ? 0.7 : 0.6,
+                            })}
                         >
                             <UserRow user={request.addressee} />
                             <Text style={[globalStyles.small, { flexShrink: 0 }]}>Pending</Text>
-                        </View>
+                        </Pressable>
                     ))}
                 </View>
             )}
@@ -228,19 +246,21 @@ export default function Friends() {
                 </Text>
                 {friends.length > 0 ? (
                     friends.map(friend => (
-                        <View
+                        <Pressable
                             key={friend.id}
-                            style={{
+                            onPress={() => openProfile(friend.id, true)}
+                            style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
                                 padding: spacing.lg,
                                 marginBottom: spacing.sm,
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                            }}
+                                opacity: pressed ? 0.9 : 1,
+                            })}
                         >
                             <UserRow user={friend} />
-                        </View>
+                        </Pressable>
                     ))
                 ) : (
                     <View
