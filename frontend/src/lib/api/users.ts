@@ -10,8 +10,18 @@ export type UserProfile = {
     updated_at: string;
 };
 
+export type PublicProfile = {
+    id: string;
+    display_name: string | null;
+    avatar: string;
+};
+
 export async function getMyProfile(): Promise<UserProfile> {
     return request<UserProfile>('GET', '/users/me');
+}
+
+export async function getPublicProfile(userId: string): Promise<PublicProfile> {
+    return request<PublicProfile>('GET', `/users/${userId}`);
 }
 
 export async function updateMyProfile(data: {

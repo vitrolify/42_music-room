@@ -30,6 +30,10 @@ export async function declineFriendRequest(requestId: number): Promise<FriendReq
     return request<FriendRequest>('PATCH', `/friends/requests/${requestId}/decline`);
 }
 
+export async function deleteFriend(friendId: string): Promise<void> {
+    return request<void>('DELETE', `/friends/${friendId}`);
+}
+
 export type {
     FriendStatus,
     FriendRequest,
