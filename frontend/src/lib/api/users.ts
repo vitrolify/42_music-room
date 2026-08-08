@@ -14,6 +14,7 @@ export type PublicProfile = {
     id: string;
     display_name: string | null;
     avatar: string;
+    is_friend: boolean;
 };
 
 export async function getMyProfile(): Promise<UserProfile> {

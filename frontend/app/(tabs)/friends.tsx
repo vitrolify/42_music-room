@@ -100,10 +100,10 @@ export default function Friends() {
         }
     }
 
-    function openProfile(userId: string, isFriend: boolean) {
+    function openProfile(userId: string) {
         router.push({
             pathname: '/user/[id]',
-            params: { id: userId, isFriend: isFriend ? '1' : '0' },
+            params: { id: userId },
         });
     }
 
@@ -159,7 +159,7 @@ export default function Friends() {
                     {incoming.map(request => (
                         <Pressable
                             key={request.id}
-                            onPress={() => openProfile(request.requester.id, false)}
+                            onPress={() => openProfile(request.requester.id)}
                             style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
@@ -221,7 +221,7 @@ export default function Friends() {
                     {outgoing.map(request => (
                         <Pressable
                             key={request.id}
-                            onPress={() => openProfile(request.addressee.id, false)}
+                            onPress={() => openProfile(request.addressee.id)}
                             style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,
@@ -248,7 +248,7 @@ export default function Friends() {
                     friends.map(friend => (
                         <Pressable
                             key={friend.id}
-                            onPress={() => openProfile(friend.id, true)}
+                            onPress={() => openProfile(friend.id)}
                             style={({ pressed }) => ({
                                 backgroundColor: colors.bg.card,
                                 borderRadius: 8,

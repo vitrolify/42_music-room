@@ -22,7 +22,7 @@ import { colors, spacing, globalStyles } from '../../../src/styles';
 export default function UserProfile() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { id, isFriend } = useLocalSearchParams<{ id: string; isFriend?: string }>();
+    const { id } = useLocalSearchParams<{ id: string }>();
     const [profile, setProfile] = useState<PublicProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [removing, setRemoving] = useState(false);
@@ -100,7 +100,7 @@ export default function UserProfile() {
                     <Text style={globalStyles.title}>
                         {profile.display_name || profile.id}
                     </Text>
-                    {isFriend === '1' && (
+                    {profile.is_friend && (
                         <Pressable
                             style={({ pressed }) => ({
                                 ...globalStyles.pillButton,

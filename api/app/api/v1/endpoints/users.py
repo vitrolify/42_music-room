@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user, get_current_user_id
 from app.db.session import get_db
+from app.models.friend import FriendRequestStatus
 from app.schemas.user import PublicUserRead, UserResponse, UserUpdate
+from app.services import friend_service
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -60,4 +62,16 @@ async def get_public_profile(
             message="Usuario nao encontrado",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    return PublicUserRead.model_validate(user)
+
+    friendship = await friend_service.get_friendship(
+        db, user_id=current_user_id, other_id=user_id
+    )
+    return PublicUserRead(
+        id=user.id,
+        display_name=user.display_name,
+        avatar=user.avatar,
+        is_friend=(
+            friendship is not None
+            and friendship.status == FriendRequestStatus.ACCEPTED
+        ),
+    )

@@ -34,5 +34,6 @@ class PublicUserRead(BaseModel):
     id: UUID
     display_name: str | None = None
     avatar: Avatar
+    is_friend: bool = False
 
     model_config = {"from_attributes": True}
