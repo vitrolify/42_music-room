@@ -12,21 +12,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { getMyProfile, updateMyProfile } from '../../src/lib/api';
+import { getAvatarSource } from '../../src/lib/avatars';
 import { colors, spacing, globalStyles } from '../../src/styles';
 
 const AVATAR_OPTIONS = ['vinil', 'tape', 'globe', 'et', 'cat', 'owl'] as const;
-
-function getAvatarSource(avatar: string) {
-    switch (avatar) {
-        case 'vinil': return require('../../assets/avatars/avatar_vinil.png');
-        case 'tape':  return require('../../assets/avatars/avatar_tape.png');
-        case 'globe': return require('../../assets/avatars/avatar_globe.png');
-        case 'et':    return require('../../assets/avatars/avatar_et.png');
-        case 'cat':   return require('../../assets/avatars/avatar_cat.png');
-        case 'owl':   return require('../../assets/avatars/avatar_owl.png');
-        default:      return require('../../assets/avatars/avatar_vinil.png');
-    }
-}
 
 export default function Profile() {
     const { user, initializing, logout, sendPasswordReset, linkGoogle } = useAuth();
