@@ -6,10 +6,10 @@ import {
     Pressable,
     ScrollView,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { showAlert } from '../../../src/lib/alerts';
 import {
     getPublicProfile,
     deleteFriend,
@@ -35,7 +35,7 @@ export default function UserProfile() {
                 const p = await getPublicProfile(id);
                 setProfile(p);
             } catch (err) {
-                Alert.alert('Error', getProfileErrorMessage(err));
+                showAlert('Error', getProfileErrorMessage(err));
             } finally {
                 setLoading(false);
             }
@@ -43,7 +43,7 @@ export default function UserProfile() {
     }, [id]);
 
     function confirmRemove() {
-        Alert.alert(
+        showAlert(
             'Remove friend?',
             `This will remove ${profile?.display_name ?? 'this user'} from your friends.`,
             [
@@ -60,7 +60,7 @@ export default function UserProfile() {
             await deleteFriend(id);
             router.back();
         } catch (err) {
-            Alert.alert('Error', getProfileErrorMessage(err));
+            showAlert('Error', getProfileErrorMessage(err));
         } finally {
             setRemoving(false);
         }

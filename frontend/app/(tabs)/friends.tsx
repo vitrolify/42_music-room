@@ -7,7 +7,6 @@ import {
     Image,
     ScrollView,
     ActivityIndicator,
-    Alert,
     Modal,
     RefreshControl,
     useWindowDimensions,
@@ -15,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { showAlert } from '../../src/lib/alerts';
 import {
     getFriends,
     getIncomingRequests,
@@ -87,7 +87,7 @@ export default function Friends() {
             await acceptFriendRequest(requestId);
             await fetchData();
         } catch (err) {
-            Alert.alert('Error', getFriendErrorMessage(err, 'accept'));
+            showAlert('Error', getFriendErrorMessage(err, 'accept'));
         }
     }
 
@@ -96,7 +96,7 @@ export default function Friends() {
             await declineFriendRequest(requestId);
             await fetchData();
         } catch (err) {
-            Alert.alert('Error', getFriendErrorMessage(err, 'decline'));
+            showAlert('Error', getFriendErrorMessage(err, 'decline'));
         }
     }
 
@@ -299,6 +299,9 @@ export default function Friends() {
                 visible={addModalVisible}
                 onClose={() => setAddModalVisible(false)}
                 onAdded={fetchData}
+                friends={friends}
+                incoming={incoming}
+                outgoing={outgoing}
             />
         </ScrollView>
     );
@@ -345,10 +348,16 @@ function AddFriendModal({
     visible,
     onClose,
     onAdded,
+    friends,
+    incoming,
+    outgoing,
 }: {
     visible: boolean;
     onClose: () => void;
     onAdded: () => Promise<void>;
+    friends: FriendUser[];
+    incoming: FriendRequestIncoming[];
+    outgoing: FriendRequestOutgoing[];
 }) {
     const [email, setEmail] = useState('');
     const [sending, setSending] = useState(false);
@@ -357,7 +366,40 @@ function AddFriendModal({
         const normalizedEmail = email.trim().toLowerCase();
         if (!normalizedEmail) return;
         if (!EMAIL_RE.test(normalizedEmail)) {
-            Alert.alert('Invalid email', 'Enter a valid email address.');
+            showAlert('Invalid email', 'Enter a valid email address.');
+            return;
+        }
+
+        const existingFriend = friends.find(
+            friend => (friend.email ?? '').toLowerCase() === normalizedEmail
+        );
+        if (existingFriend) {
+            const name = existingFriend.display_name || existingFriend.email;
+            showAlert('Already friends', `${name} is already your friend.`);
+            return;
+        }
+
+        const incomingRequest = incoming.find(
+            request => (request.requester.email ?? '').toLowerCase() === normalizedEmail
+        );
+        if (incomingRequest) {
+            showAlert(
+                'Request pending',
+                'This user has already sent you a friend request.',
+                [
+                    { text: 'Not now', style: 'cancel' },
+                    { text: 'Accept', onPress: () => handleAcceptIncoming(incomingRequest) },
+                ],
+            );
+            return;
+        }
+
+        const outgoingRequest = outgoing.find(
+            request => (request.addressee.email ?? '').toLowerCase() === normalizedEmail
+        );
+        if (outgoingRequest) {
+            const name = outgoingRequest.addressee.display_name || outgoingRequest.addressee.email;
+            showAlert('Request already sent', `You already sent a request to ${name}.`);
             return;
         }
 
@@ -368,9 +410,20 @@ function AddFriendModal({
             await onAdded();
             onClose();
         } catch (err) {
-            Alert.alert('Error', getFriendErrorMessage(err, 'send'));
+            showAlert('Error', getFriendErrorMessage(err, 'send'));
         } finally {
             setSending(false);
+        }
+    }
+
+    async function handleAcceptIncoming(request: FriendRequestIncoming) {
+        try {
+            await acceptFriendRequest(request.id);
+            setEmail('');
+            await onAdded();
+            onClose();
+        } catch (err) {
+            showAlert('Error', getFriendErrorMessage(err, 'accept'));
         }
     }
 
