@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { House, MagnifyingGlass, Playlist, UserCircle } from 'phosphor-react-native';
+import { House, MagnifyingGlass, Playlist, UsersThree, UserCircle } from 'phosphor-react-native';
 import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
@@ -80,6 +80,15 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
+                name="friends"
+                options={{
+                    title: 'Friends',
+                    tabBarIcon: ({ focused, color, size }) => (
+                        <UsersThree weight={focused ? 'fill' : 'bold'} size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="profile"
                 options={{
                     title: 'Profile',
@@ -90,6 +99,12 @@ export default function TabsLayout() {
             />
             <Tabs.Screen
                 name="playlist/[id]"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="user/[id]"
                 options={{
                     href: null,
                 }}

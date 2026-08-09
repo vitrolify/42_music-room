@@ -1,9 +1,15 @@
-from fastapi import APIRouter, Depends, Request
+import uuid
+
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
+from app.api.error_handlers import BaseVitrolifyException
+from app.auth.dependencies import get_current_user, get_current_user_id
 from app.db.session import get_db
-from app.schemas.user import UserResponse, UserUpdate
+from app.models.friend import FriendRequestStatus
+from app.models.user import Visibility
+from app.schemas.user import PublicUserRead, UserResponse, UserUpdate
+from app.services import friend_service
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -41,3 +47,55 @@ async def update_my_profile(
     request.state.user_id = user.id
     updated = await service.update(user, data)
     return UserResponse.model_validate(updated)
+
+
+@router.get("/{user_id}", response_model=PublicUserRead)
+async def get_public_profile(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+) -> PublicUserRead:
+    service = UserService(db)
+    user = await service.get_by_id(user_id)
+    if user is None:
+        raise BaseVitrolifyException(
+            error_code="USER_NOT_FOUND",
+            message="Usuario nao encontrado",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    is_self = user_id == current_user_id
+    friendship = await friend_service.get_friendship(
+        db, user_id=current_user_id, other_id=user_id
+    )
+    is_friend = (
+        friendship is not None
+        and friendship.status == FriendRequestStatus.ACCEPTED
+    )
+    pending = (
+        friendship is not None
+        and friendship.status == FriendRequestStatus.PENDING
+    )
+
+    details_visible = (
+        is_self or is_friend or user.profile_visibility == Visibility.PUBLIC
+    )
+
+    return PublicUserRead(
+        id=user.id,
+        display_name=user.display_name,
+        avatar=user.avatar,
+        email=user.email,
+        mini_bio=user.mini_bio if details_visible else None,
+        favorite_artists=user.favorite_artists if details_visible else None,
+        favorite_genre=user.favorite_genre if details_visible else None,
+        is_self=is_self,
+        is_friend=is_friend,
+        outgoing_request_pending=(
+            pending and friendship.requester_id == current_user_id
+        ),
+        incoming_request_pending=(
+            pending and friendship.addressee_id == current_user_id
+        ),
+        request_id=friendship.id if pending else None,
+    )

@@ -12,21 +12,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { getMyProfile, updateMyProfile } from '../../src/lib/api';
-import { colors, spacing, globalStyles } from '../../src/styles';
+import { getAvatarSource } from '../../src/lib/avatars';
+import { colors, fonts, fontSizes, spacing, borderRadius, globalStyles } from '../../src/styles';
 
 const AVATAR_OPTIONS = ['vinil', 'tape', 'globe', 'et', 'cat', 'owl'] as const;
+type ProfileVisibility = 'public' | 'friends_only';
 
-function getAvatarSource(avatar: string) {
-    switch (avatar) {
-        case 'vinil': return require('../../assets/avatars/avatar_vinil.png');
-        case 'tape':  return require('../../assets/avatars/avatar_tape.png');
-        case 'globe': return require('../../assets/avatars/avatar_globe.png');
-        case 'et':    return require('../../assets/avatars/avatar_et.png');
-        case 'cat':   return require('../../assets/avatars/avatar_cat.png');
-        case 'owl':   return require('../../assets/avatars/avatar_owl.png');
-        default:      return require('../../assets/avatars/avatar_vinil.png');
-    }
-}
+const VISIBILITY_OPTIONS: { value: ProfileVisibility; label: string }[] = [
+    { value: 'public', label: 'Public' },
+    { value: 'friends_only', label: 'Friends only' },
+];
 
 export default function Profile() {
     const { user, initializing, logout, sendPasswordReset, linkGoogle } = useAuth();
@@ -42,11 +37,26 @@ export default function Profile() {
     const [googleLinkError, setGoogleLinkError] = useState<string | null>(null);
     const [displayName, setDisplayName] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState('vinil');
-    const [initialValues, setInitialValues] = useState({ displayName: '', avatar: 'vinil' });
+    const [miniBio, setMiniBio] = useState('');
+    const [favoriteArtists, setFavoriteArtists] = useState('');
+    const [favoriteGenre, setFavoriteGenre] = useState('');
+    const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('public');
+    const [initialValues, setInitialValues] = useState({
+        displayName: '',
+        avatar: 'vinil',
+        miniBio: '',
+        favoriteArtists: '',
+        favoriteGenre: '',
+        profileVisibility: 'public' as ProfileVisibility,
+    });
 
     const hasChanges =
         displayName !== initialValues.displayName ||
-        selectedAvatar !== initialValues.avatar;
+        selectedAvatar !== initialValues.avatar ||
+        miniBio !== initialValues.miniBio ||
+        favoriteArtists !== initialValues.favoriteArtists ||
+        favoriteGenre !== initialValues.favoriteGenre ||
+        profileVisibility !== initialValues.profileVisibility;
 
     useEffect(() => {
         if (initializing || !user) return;
@@ -55,9 +65,17 @@ export default function Profile() {
                 const profile = await getMyProfile();
                 setDisplayName(profile.display_name ?? '');
                 setSelectedAvatar(profile.avatar);
+                setMiniBio(profile.mini_bio ?? '');
+                setFavoriteArtists(profile.favorite_artists ?? '');
+                setFavoriteGenre(profile.favorite_genre ?? '');
+                setProfileVisibility(profile.profile_visibility);
                 setInitialValues({
                     displayName: profile.display_name ?? '',
                     avatar: profile.avatar,
+                    miniBio: profile.mini_bio ?? '',
+                    favoriteArtists: profile.favorite_artists ?? '',
+                    favoriteGenre: profile.favorite_genre ?? '',
+                    profileVisibility: profile.profile_visibility,
                 });
             } catch (err) {
                 console.warn('Failed to fetch profile:', err);
@@ -74,12 +92,24 @@ export default function Profile() {
             const updated = await updateMyProfile({
                 display_name: displayName || null,
                 avatar: selectedAvatar,
+                mini_bio: miniBio || null,
+                favorite_artists: favoriteArtists || null,
+                favorite_genre: favoriteGenre || null,
+                profile_visibility: profileVisibility,
             });
             setDisplayName(updated.display_name ?? '');
             setSelectedAvatar(updated.avatar);
+            setMiniBio(updated.mini_bio ?? '');
+            setFavoriteArtists(updated.favorite_artists ?? '');
+            setFavoriteGenre(updated.favorite_genre ?? '');
+            setProfileVisibility(updated.profile_visibility);
             setInitialValues({
                 displayName: updated.display_name ?? '',
                 avatar: updated.avatar,
+                miniBio: updated.mini_bio ?? '',
+                favoriteArtists: updated.favorite_artists ?? '',
+                favoriteGenre: updated.favorite_genre ?? '',
+                profileVisibility: updated.profile_visibility,
             });
             Alert.alert('Saved', 'Your profile has been updated.');
         } catch (err) {
@@ -215,6 +245,87 @@ export default function Profile() {
                             />
                         </Pressable>
                     ))}
+                </View>
+            </View>
+
+            <View style={{ width: '100%', marginTop: spacing.xxl }}>
+                <Text style={[globalStyles.heading, { marginBottom: spacing.md }]}>
+                    Profile details
+                </Text>
+
+                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                    Mini bio
+                </Text>
+                <TextInput
+                    style={[globalStyles.input, { height: 96, textAlignVertical: 'top', borderRadius: borderRadius.card * 4}]}
+                    value={miniBio}
+                    onChangeText={setMiniBio}
+                    placeholder="Tell people a little about yourself"
+                    placeholderTextColor={colors.text.secondary}
+                    multiline
+                />
+
+                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                    Favorite artists / bands
+                </Text>
+                <TextInput
+                    style={globalStyles.input}
+                    value={favoriteArtists}
+                    onChangeText={setFavoriteArtists}
+                    placeholder="e.g. Reginaldo Rossi, Slipknot"
+                    placeholderTextColor={colors.text.secondary}
+                />
+
+                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                    Favorite genre
+                </Text>
+                <TextInput
+                    style={globalStyles.input}
+                    value={favoriteGenre}
+                    onChangeText={setFavoriteGenre}
+                    placeholder="e.g. Jazz, Sertanejo Universitário"
+                    placeholderTextColor={colors.text.secondary}
+                />
+
+                <Text style={[globalStyles.caption, { marginBottom: spacing.md }]}>
+                    Who can see these details
+                </Text>
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        backgroundColor: colors.bg.card,
+                        borderRadius: borderRadius.pill,
+                        padding: spacing.xs,
+                    }}
+                >
+                    {VISIBILITY_OPTIONS.map((option) => {
+                        const active = profileVisibility === option.value;
+                        return (
+                            <Pressable
+                                key={option.value}
+                                onPress={() => setProfileVisibility(option.value)}
+                                style={{
+                                    flex: 1,
+                                    borderRadius: borderRadius.pill,
+                                    paddingVertical: spacing.sm,
+                                    alignItems: 'center',
+                                    backgroundColor: active ? colors.brand : 'transparent',
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        fontFamily: fonts.bodyBold,
+                                        fontSize: fontSizes.button,
+                                        color: colors.text.primary,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 1.4,
+                                    }}
+                                >
+                                    {option.label}
+                                </Text>
+                            </Pressable>
+                        );
+                    })}
                 </View>
             </View>
 
