@@ -84,7 +84,6 @@ async def _verify_playlist_access(
 @router.get(
     "/playlists/{playlist_id}/ws",
     summary="WebSocket: Real-time Playlist Updates",
-    tags=["WebSockets"],
     description="""
     **Protocol:** `WS` / `WSS`
     
