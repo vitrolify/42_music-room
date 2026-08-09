@@ -78,3 +78,20 @@ async def _verify_playlist_access(
             code=status.WS_1008_POLICY_VIOLATION,
             reason="Você não tem permissão para acessar esta playlist privada",
         )
+
+
+# 2. Document-only HTTP GET route (shown in Swagger UI)
+@router.get(
+    "/playlists/{playlist_id}/ws",
+    summary="WebSocket: Real-time Playlist Updates",
+    tags=["WebSockets"],
+    description="""
+    **Protocol:** `WS` / `WSS`
+    
+    Establishes a WebSocket connection for live playlist events.
+    """,
+    include_in_schema=True,
+)
+def ws_docs_placeholder(playlist_id: int):
+    """Placeholder route purely to render WebSocket specifications in Swagger UI."""
+    pass
