@@ -88,17 +88,18 @@ export default function (data) {
   // Local state for this specific VU
   let playlistState = [];
 
-  // Helper to keep local state sorted by position
-  const sortState = () => {
-    playlistState.sort((a, b) => a.position - b.position);
-  };
-
   const wsUrl = `${WS_BASE_URL}/ws/playlists/${playlistId}`;
 
   const wsParams = {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  };
+
+  const reindexState = () => {
+    playlistState.forEach((track, index) => {
+      track.position = index;
+    });
   };
 
   const wsRes = ws.connect(wsUrl, wsParams, function (socket) {
@@ -108,26 +109,29 @@ export default function (data) {
         const data = JSON.parse(msg);
 
         if (data.type === "TRACK_ADDED") {
-          playlistState.push({
+          playlistState.splice(data.payload.position, 0, {
             id: data.payload.playlist_track_id,
             position: data.payload.position,
             status: data.payload.status,
           });
-          sortState();
+          reindexState();
         } else if (data.type === "TRACK_MOVED") {
-          const track = playlistState.find(
+          const oldIndex = playlistState.findIndex(
             (t) => t.id === data.payload.playlist_track_id,
           );
-          if (track) {
-            track.position = data.payload.new_position;
-            sortState();
+          if (oldIndex !== -1) {
+            const [movedTrack] = playlistState.splice(oldIndex, 1);
+            playlistState.splice(data.payload.new_position, 0, movedTrack);
+            reindexState();
           }
         } else if (data.type === "TRACK_DELETED") {
           playlistState = playlistState.filter(
             (t) => t.id !== data.payload.playlist_track_id,
           );
+          reindexState();
         } else if (data.type === "TRACK_SKIPPED") {
           if (playlistState.length > 0) playlistState.shift();
+          reindexState();
         }
       } catch (e) {
         // Ignore parse errors
