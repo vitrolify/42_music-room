@@ -7,6 +7,7 @@ from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user, get_current_user_id
 from app.db.session import get_db
 from app.models.friend import FriendRequestStatus
+from app.models.user import Visibility
 from app.schemas.user import PublicUserRead, UserResponse, UserUpdate
 from app.services import friend_service
 from app.services.user_service import UserService
@@ -76,10 +77,18 @@ async def get_public_profile(
         and friendship.status == FriendRequestStatus.PENDING
     )
 
+    details_visible = (
+        is_self or is_friend or user.profile_visibility == Visibility.PUBLIC
+    )
+
     return PublicUserRead(
         id=user.id,
         display_name=user.display_name,
         avatar=user.avatar,
+        email=user.email,
+        mini_bio=user.mini_bio if details_visible else None,
+        favorite_artists=user.favorite_artists if details_visible else None,
+        favorite_genre=user.favorite_genre if details_visible else None,
         is_self=is_self,
         is_friend=is_friend,
         outgoing_request_pending=(
