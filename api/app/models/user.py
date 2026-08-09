@@ -27,6 +27,11 @@ class Avatar(str, enum.Enum):
     OWL = "owl"
 
 
+class Visibility(str, enum.Enum):
+    PUBLIC = "public"
+    FRIENDS_ONLY = "friends_only"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -62,6 +67,33 @@ class User(Base):
         nullable=False,
         default=Avatar.VINIL,
         server_default=Avatar.VINIL.value,
+    )
+
+    mini_bio: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    favorite_artists: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    favorite_genre: Mapped[str | None] = mapped_column(
+        String(200),
+        nullable=True,
+    )
+
+    profile_visibility: Mapped[Visibility] = mapped_column(
+        SAEnum(
+            Visibility,
+            name="visibility_enum",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=False,
+        default=Visibility.PUBLIC,
+        server_default=Visibility.PUBLIC.value,
     )
 
     created_at: Mapped[datetime] = mapped_column(
