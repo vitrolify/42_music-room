@@ -131,6 +131,39 @@ export default function UserProfile() {
                     <Text style={globalStyles.title}>
                         {profile.display_name || profile.id}
                     </Text>
+                    {profile.email ? (
+                        <Text style={[globalStyles.secondaryText, { marginBottom: spacing.lg }]}>
+                            {profile.email}
+                        </Text>
+                    ) : null}
+
+                    <View style={{ width: '100%' }}>
+                        {profile.mini_bio ? (
+                            <View style={{ marginBottom: spacing.lg }}>
+                                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                                    Mini bio
+                                </Text>
+                                <Text style={globalStyles.body}>{profile.mini_bio}</Text>
+                            </View>
+                        ) : null}
+                        {profile.favorite_artists ? (
+                            <View style={{ marginBottom: spacing.lg }}>
+                                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                                    Favorite artists / bands
+                                </Text>
+                                <Text style={globalStyles.body}>{profile.favorite_artists}</Text>
+                            </View>
+                        ) : null}
+                        {profile.favorite_genre ? (
+                            <View style={{ marginBottom: spacing.lg }}>
+                                <Text style={[globalStyles.caption, { marginBottom: spacing.sm }]}>
+                                    Favorite genre
+                                </Text>
+                                <Text style={globalStyles.body}>{profile.favorite_genre}</Text>
+                            </View>
+                        ) : null}
+                    </View>
+
                     {!profile.is_self && <ActionButton profile={profile} acting={acting} />}
                 </>
             ) : (
