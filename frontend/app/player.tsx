@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, PanResponder, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -125,31 +125,69 @@ type ProgressBarProps = {
 
 function ProgressBar({ currentTime, duration, onSeek }: ProgressBarProps) {
     const widthRef = useRef(0);
-    const ratio = duration > 0 ? Math.min(Math.max(currentTime / duration, 0), 1) : 0;
+    const leftRef = useRef(0);
+    const barRef = useRef<any>(null);
+    const draggingRef = useRef(false);
+    const [draftTime, setDraftTime] = useState<number | null>(null);
+    const shownTime = draftTime ?? currentTime;
+    const ratio = duration > 0 ? Math.min(Math.max(shownTime / duration, 0), 1) : 0;
+    useEffect(() => {
+        if (!draggingRef.current) setDraftTime(null);
+    }, [currentTime, duration]);
+
     const seekFromX = (x: number) => {
-        if (widthRef.current <= 0 || duration <= 0) return;
-        onSeek((Math.min(Math.max(x, 0), widthRef.current) / widthRef.current) * duration);
+        if (!Number.isFinite(x) || widthRef.current <= 0 || duration <= 0) return;
+        const seconds = Math.round((Math.min(Math.max(x, 0), widthRef.current) / widthRef.current) * duration);
+        setDraftTime(seconds);
+        return seconds;
+    };
+    const eventX = (event: { nativeEvent: { locationX?: number; pageX?: number; clientX?: number } }) => {
+        const { locationX, pageX, clientX } = event.nativeEvent;
+        if (typeof locationX === 'number' && Number.isFinite(locationX) && locationX > 0) return locationX;
+        const rect = barRef.current?.getBoundingClientRect?.();
+        if (rect && typeof clientX === 'number' && Number.isFinite(clientX)) return clientX - rect.left;
+        if (typeof pageX === 'number' && Number.isFinite(pageX)) return pageX - leftRef.current;
+        return 0;
     };
     const responder = useRef(PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: event => seekFromX(event.nativeEvent.locationX),
-        onPanResponderMove: event => seekFromX(event.nativeEvent.locationX),
-        onPanResponderRelease: event => seekFromX(event.nativeEvent.locationX),
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderGrant: event => {
+            draggingRef.current = true;
+            seekFromX(eventX(event));
+        },
+        onPanResponderMove: event => seekFromX(eventX(event)),
+        onPanResponderRelease: event => {
+            const seconds = seekFromX(eventX(event));
+            draggingRef.current = false;
+            setDraftTime(null);
+            if (seconds !== undefined) onSeek(seconds);
+        },
     })).current;
 
     return (
         <View style={{ marginTop: spacing.lg }}>
-            <View
+            <Pressable
+                ref={barRef}
                 {...responder.panHandlers}
-                onLayout={event => { widthRef.current = event.nativeEvent.layout.width; }}
+                onPress={event => {
+                    const seconds = seekFromX(eventX(event));
+                    if (seconds !== undefined) onSeek(seconds);
+                    setDraftTime(null);
+                }}
+                onLayout={event => {
+                    widthRef.current = event.nativeEvent.layout.width;
+                    event.currentTarget?.measureInWindow?.(x => { leftRef.current = x; });
+                }}
                 style={{ height: 20, justifyContent: 'center' }}
             >
                 <View style={{ height: 5, borderRadius: 5, backgroundColor: colors.bg.elevated }}>
                     <View style={{ width: `${ratio * 100}%`, height: 5, borderRadius: 5, backgroundColor: colors.brand }} />
                 </View>
                 <View style={{ position: 'absolute', left: `${ratio * 100}%`, marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.brand }} />
-            </View>
+            </Pressable>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs }}>
                 <Text style={globalStyles.small}>{formatTime(currentTime)}</Text>
                 <Text style={globalStyles.small}>{duration > 0 ? formatTime(duration) : '--:--'}</Text>
