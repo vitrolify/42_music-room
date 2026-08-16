@@ -8,6 +8,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
     ref,
 ) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
+    const progressRef = useRef<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
     const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(origin)}`;
 
@@ -36,7 +37,16 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                 const state = stateFromCode(stateCode);
                 if (state) onStateChange?.(state);
                 if (message.event === 'infoDelivery' && typeof message.info === 'object') {
-                    onProgress?.({ currentTime: message.info.currentTime ?? 0, duration: message.info.duration ?? 0 });
+                    const nextProgress = {
+                        currentTime: typeof message.info.currentTime === 'number'
+                            ? message.info.currentTime
+                            : progressRef.current.currentTime,
+                        duration: typeof message.info.duration === 'number' && message.info.duration > 0
+                            ? message.info.duration
+                            : progressRef.current.duration,
+                    };
+                    progressRef.current = nextProgress;
+                    onProgress?.(nextProgress);
                 }
             }
             if (message.event === 'onError') onError?.(youtubeErrorMessage(typeof message.info === 'number' ? message.info : undefined));
