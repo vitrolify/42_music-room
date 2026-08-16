@@ -1,15 +1,43 @@
-import { createElement } from 'react';
+import { createElement, forwardRef, useEffect, useImperativeHandle, useRef, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { colors } from '../styles';
-import type { YouTubePlayerProps } from './YouTubePlayer.native';
+import type { YouTubePlayerHandle, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
 
-export default function YouTubePlayer({ videoId, onError }: YouTubePlayerProps) {
+const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
+    { videoId, onReady, onStateChange, onError },
+    ref,
+) {
+    const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
     const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(origin)}`;
+
+    useImperativeHandle(ref, () => ({
+        loadVideo: nextVideoId => sendCommand(iframeRef, 'loadVideoById', [nextVideoId]),
+        play: () => sendCommand(iframeRef, 'playVideo'),
+        pause: () => sendCommand(iframeRef, 'pauseVideo'),
+    }), []);
+
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== 'https://www.youtube.com' && event.origin !== 'https://www.youtube-nocookie.com') return;
+            if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
+            let message: { event?: string; info?: number };
+            try { message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; } catch { return; }
+            if (message.event === 'onReady') onReady?.();
+            if (message.event === 'onStateChange' && message.info !== undefined) {
+                const state = stateFromCode(message.info);
+                if (state) onStateChange?.(state);
+            }
+            if (message.event === 'onError') onError?.(youtubeErrorMessage(message.info));
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [onError, onReady, onStateChange]);
 
     return (
         <View style={styles.container}>
             {createElement('iframe', {
+                ref: iframeRef,
                 src: embedUrl,
                 title: 'YouTube video player',
                 allow: 'autoplay; encrypted-media; picture-in-picture',
@@ -20,7 +48,7 @@ export default function YouTubePlayer({ videoId, onError }: YouTubePlayerProps) 
             })}
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -37,3 +65,20 @@ const styles = StyleSheet.create({
         backgroundColor: colors.bg.card,
     },
 });
+
+export default YouTubePlayer;
+
+function sendCommand(iframeRef: RefObject<HTMLIFrameElement | null>, func: string, args: unknown[] = []) {
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), 'https://www.youtube.com');
+}
+
+function stateFromCode(code: number): YouTubePlayerState | null {
+    return ({ '-1': 'unstarted', '0': 'ended', '1': 'playing', '2': 'paused', '3': 'buffering', '5': 'cued' } as Record<string, YouTubePlayerState>)[String(code)] ?? null;
+}
+
+function youtubeErrorMessage(code?: number) {
+    if (code === 100) return 'This video was not found or is private.';
+    if (code === 101 || code === 150) return 'This video does not allow embedded playback.';
+    if (code === 153) return 'YouTube could not verify the player origin.';
+    return 'YouTube could not play this video.';
+}

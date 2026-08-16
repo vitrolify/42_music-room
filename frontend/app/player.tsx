@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YouTubePlayer from '../src/components/YouTubePlayer';
+import type { YouTubePlayerHandle, YouTubePlayerState } from '../src/components/YouTubePlayer.types';
 import { colors, globalStyles, spacing } from '../src/styles';
 
 export default function PlayerScreen() {
@@ -11,6 +12,9 @@ export default function PlayerScreen() {
     const [input, setInput] = useState('');
     const [videoId, setVideoId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const playerRef = useRef<YouTubePlayerHandle>(null);
+    const [playerState, setPlayerState] = useState<YouTubePlayerState>('unstarted');
+    const [playerReady, setPlayerReady] = useState(false);
 
     function loadVideo() {
         const nextVideoId = extractYouTubeVideoId(input);
@@ -21,6 +25,8 @@ export default function PlayerScreen() {
         }
 
         setError(null);
+        setPlayerReady(false);
+        setPlayerState('unstarted');
         setVideoId(nextVideoId);
     }
 
@@ -65,7 +71,30 @@ export default function PlayerScreen() {
 
             {videoId ? (
                 <View style={{ marginTop: spacing.xl }}>
-                    <YouTubePlayer videoId={videoId} onError={handlePlayerError} />
+                    <YouTubePlayer
+                        ref={playerRef}
+                        videoId={videoId}
+                        onReady={() => setPlayerReady(true)}
+                        onStateChange={setPlayerState}
+                        onError={handlePlayerError}
+                    />
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                        <Pressable
+                            style={({ pressed }) => ({ ...globalStyles.primaryPillButton, opacity: !playerReady || pressed ? 0.55 : 1 })}
+                            onPress={() => playerRef.current?.play()}
+                            disabled={!playerReady}
+                        >
+                            <Text style={globalStyles.primaryPillButtonText}>Play</Text>
+                        </Pressable>
+                        <Pressable
+                            style={({ pressed }) => ({ ...globalStyles.pillButton, opacity: !playerReady || pressed ? 0.55 : 1 })}
+                            onPress={() => playerRef.current?.pause()}
+                            disabled={!playerReady}
+                        >
+                            <Text style={globalStyles.pillButtonText}>Pause</Text>
+                        </Pressable>
+                    </View>
+                    <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Player state: {playerState}</Text>
                     <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Video ID: {videoId}</Text>
                 </View>
             ) : (
