@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, PanResponder, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YouTubePlayer from '../src/components/YouTubePlayer';
@@ -127,13 +127,14 @@ function ProgressBar({ currentTime, duration, onSeek }: ProgressBarProps) {
     const widthRef = useRef(0);
     const leftRef = useRef(0);
     const barRef = useRef<any>(null);
-    const draggingRef = useRef(false);
     const [draftTime, setDraftTime] = useState<number | null>(null);
     const shownTime = draftTime ?? currentTime;
     const ratio = duration > 0 ? Math.min(Math.max(shownTime / duration, 0), 1) : 0;
     useEffect(() => {
-        if (!draggingRef.current) setDraftTime(null);
-    }, [currentTime, duration]);
+        if (draftTime !== null && Math.abs(currentTime - draftTime) < 2) {
+            setDraftTime(null);
+        }
+    }, [currentTime, draftTime]);
 
     const seekFromX = (x: number) => {
         if (!Number.isFinite(x) || widthRef.current <= 0 || duration <= 0) return;
@@ -143,45 +144,26 @@ function ProgressBar({ currentTime, duration, onSeek }: ProgressBarProps) {
     };
     const eventX = (event: { nativeEvent: { locationX?: number; pageX?: number; clientX?: number } }) => {
         const { locationX, pageX, clientX } = event.nativeEvent;
-        if (typeof locationX === 'number' && Number.isFinite(locationX) && locationX > 0) return locationX;
         const rect = barRef.current?.getBoundingClientRect?.();
         if (rect && typeof clientX === 'number' && Number.isFinite(clientX)) return clientX - rect.left;
+        if (typeof locationX === 'number' && Number.isFinite(locationX)) return locationX;
         if (typeof pageX === 'number' && Number.isFinite(pageX)) return pageX - leftRef.current;
         return 0;
     };
-    const responder = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderGrant: event => {
-            draggingRef.current = true;
-            seekFromX(eventX(event));
-        },
-        onPanResponderMove: event => seekFromX(eventX(event)),
-        onPanResponderRelease: event => {
-            const seconds = seekFromX(eventX(event));
-            draggingRef.current = false;
-            setDraftTime(null);
-            if (seconds !== undefined) onSeek(seconds);
-        },
-    })).current;
 
     return (
         <View style={{ marginTop: spacing.lg }}>
             <Pressable
                 ref={barRef}
-                {...responder.panHandlers}
                 onPress={event => {
                     const seconds = seekFromX(eventX(event));
                     if (seconds !== undefined) onSeek(seconds);
-                    setDraftTime(null);
                 }}
                 onLayout={event => {
                     widthRef.current = event.nativeEvent.layout.width;
                     event.currentTarget?.measureInWindow?.(x => { leftRef.current = x; });
                 }}
-                style={{ height: 20, justifyContent: 'center' }}
+                style={{ height: 28, justifyContent: 'center' }}
             >
                 <View style={{ height: 5, borderRadius: 5, backgroundColor: colors.bg.elevated }}>
                     <View style={{ width: `${ratio * 100}%`, height: 5, borderRadius: 5, backgroundColor: colors.brand }} />

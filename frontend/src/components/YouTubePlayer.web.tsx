@@ -1,109 +1,136 @@
-import { createElement, forwardRef, useEffect, useImperativeHandle, useRef, type RefObject } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { colors } from '../styles';
-import type { YouTubePlayerHandle, YouTubePlayerProgress, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
+import type { YouTubePlayerHandle, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
 
-const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
-    { videoId, onReady, onStateChange, onProgress, onError },
-    ref,
-) {
-    const iframeRef = useRef<HTMLIFrameElement | null>(null);
-    const progressRef = useRef<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-    const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(origin)}`;
+type YouTubeApiPlayer = {
+    playVideo: () => void;
+    pauseVideo: () => void;
+    cueVideoById: (videoId: string) => void;
+    seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+    getCurrentTime: () => number;
+    getDuration: () => number;
+    destroy: () => void;
+};
+
+type YouTubeApi = {
+    Player: new (element: HTMLElement, options: Record<string, unknown>) => YouTubeApiPlayer;
+};
+
+let apiPromise: Promise<YouTubeApi> | null = null;
+
+const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(props, ref) {
+    const hostRef = useRef<HTMLElement | null>(null);
+    const playerRef = useRef<YouTubeApiPlayer | null>(null);
+    const readyRef = useRef(false);
+    const videoIdRef = useRef(props.videoId);
+    const propsRef = useRef(props);
+    const queuedCommandsRef = useRef<Array<() => void>>([]);
+
+    propsRef.current = props;
+    videoIdRef.current = props.videoId;
+
+    const runWhenReady = (command: (player: YouTubeApiPlayer) => void) => {
+        if (playerRef.current && readyRef.current) {
+            command(playerRef.current);
+            return;
+        }
+        queuedCommandsRef.current.push(() => {
+            if (playerRef.current) command(playerRef.current);
+        });
+    };
 
     useImperativeHandle(ref, () => ({
-        loadVideo: nextVideoId => sendCommand(iframeRef, 'loadVideoById', [nextVideoId]),
-        play: () => sendCommand(iframeRef, 'playVideo'),
-        pause: () => sendCommand(iframeRef, 'pauseVideo'),
-        seekTo: seconds => sendCommand(iframeRef, 'seekTo', [seconds, true]),
+        loadVideo: videoId => runWhenReady(player => player.cueVideoById(videoId)),
+        play: () => runWhenReady(player => player.playVideo()),
+        pause: () => runWhenReady(player => player.pauseVideo()),
+        seekTo: seconds => runWhenReady(player => player.seekTo(seconds, true)),
     }), []);
 
     useEffect(() => {
-        const progressTimer = setInterval(() => {
-            sendCommand(iframeRef, 'getCurrentTime');
-            sendCommand(iframeRef, 'getDuration');
-        }, 500);
-        const handleMessage = (event: MessageEvent) => {
-            if (event.origin !== 'https://www.youtube.com' && event.origin !== 'https://www.youtube-nocookie.com') return;
-            if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
-            let message: { event?: string; info?: number | YouTubePlayerProgress };
-            try { message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; } catch { return; }
-            if (message.event === 'onReady') onReady?.();
-            if ((message.event === 'onStateChange' || message.event === 'infoDelivery') && message.info !== undefined) {
-                const stateCode = typeof message.info === 'number'
-                    ? message.info
-                    : (message.info as unknown as { playerState?: number }).playerState;
-                const state = stateFromCode(stateCode);
-                if (state) onStateChange?.(state);
-                if (message.event === 'infoDelivery' && typeof message.info === 'object') {
-                    const nextProgress = {
-                        currentTime: typeof message.info.currentTime === 'number'
-                            ? message.info.currentTime
-                            : progressRef.current.currentTime,
-                        duration: typeof message.info.duration === 'number' && message.info.duration > 0
-                            ? message.info.duration
-                            : progressRef.current.duration,
-                    };
-                    progressRef.current = nextProgress;
-                    onProgress?.(nextProgress);
-                }
-            }
-            if (message.event === 'onError') onError?.(youtubeErrorMessage(typeof message.info === 'number' ? message.info : undefined));
-        };
-        window.addEventListener('message', handleMessage);
-        return () => { clearInterval(progressTimer); window.removeEventListener('message', handleMessage); };
-    }, [onError, onReady, onProgress, onStateChange]);
+        if (readyRef.current) playerRef.current?.cueVideoById(props.videoId);
+    }, [props.videoId]);
 
-    return (
-        <View style={styles.container}>
-            {createElement('iframe', {
-                ref: iframeRef,
-                src: embedUrl,
-                onLoad: () => {
-                    sendMessage(iframeRef, { event: 'listening', id: 'vitrolify-player', channel: 'vitrolify' });
-                    sendMessage(iframeRef, { event: 'command', func: 'addEventListener', args: ['onReady'], id: 'vitrolify-player', channel: 'vitrolify' });
-                    sendMessage(iframeRef, { event: 'command', func: 'addEventListener', args: ['onStateChange'], id: 'vitrolify-player', channel: 'vitrolify' });
-                    sendMessage(iframeRef, { event: 'command', func: 'addEventListener', args: ['onError'], id: 'vitrolify-player', channel: 'vitrolify' });
+    useEffect(() => {
+        let disposed = false;
+        let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+        void loadYouTubeApi().then(YT => {
+            if (disposed || !hostRef.current) return;
+            playerRef.current = new YT.Player(hostRef.current, {
+                width: '100%',
+                height: '100%',
+                videoId: videoIdRef.current,
+                playerVars: {
+                    enablejsapi: 1,
+                    playsinline: 1,
+                    rel: 0,
+                    origin: window.location.origin,
                 },
-                title: 'YouTube video player',
-                allow: 'autoplay; encrypted-media; picture-in-picture',
-                allowFullScreen: true,
-                referrerPolicy: 'strict-origin-when-cross-origin',
-                onError: () => onError?.('Unable to load the YouTube player.'),
-                style: styles.iframe,
-            })}
-        </View>
-    );
-});
+                events: {
+                    onReady: () => {
+                        if (disposed || !playerRef.current) return;
+                        readyRef.current = true;
+                        propsRef.current.onReady?.();
+                        queuedCommandsRef.current.splice(0).forEach(command => command());
+                        emitProgress(playerRef.current, propsRef.current.onProgress);
+                        progressTimer = setInterval(() => {
+                            if (playerRef.current) emitProgress(playerRef.current, propsRef.current.onProgress);
+                        }, 500);
+                    },
+                    onStateChange: (event: { data: number }) => {
+                        const state = stateFromCode(event.data);
+                        if (state) propsRef.current.onStateChange?.(state);
+                        if (playerRef.current) emitProgress(playerRef.current, propsRef.current.onProgress);
+                    },
+                    onError: (event: { data: number }) => propsRef.current.onError?.(youtubeErrorMessage(event.data)),
+                },
+            });
+        }).catch(() => propsRef.current.onError?.('Unable to load the YouTube player.'));
 
-const styles = StyleSheet.create({
-    container: {
-        width: '100%',
-        aspectRatio: 16 / 9,
-        overflow: 'hidden',
-        borderRadius: 8,
-        backgroundColor: colors.bg.card,
-    },
-    iframe: {
-        width: '100%',
-        height: '100%',
-        borderWidth: 0,
-        backgroundColor: colors.bg.card,
-    },
+        return () => {
+            disposed = true;
+            if (progressTimer) clearInterval(progressTimer);
+            readyRef.current = false;
+            queuedCommandsRef.current = [];
+            playerRef.current?.destroy();
+            playerRef.current = null;
+        };
+    }, []);
+
+    return <View ref={hostRef as never} style={styles.container} />;
 });
 
 export default YouTubePlayer;
 
-function sendCommand(iframeRef: RefObject<HTMLIFrameElement | null>, func: string, args: unknown[] = []) {
-    sendMessage(iframeRef, { event: 'command', func, args, id: 'vitrolify-player', channel: 'vitrolify' });
+function loadYouTubeApi(): Promise<YouTubeApi> {
+    if (apiPromise) return apiPromise;
+    apiPromise = new Promise((resolve, reject) => {
+        const globalWindow = window as typeof window & { YT?: YouTubeApi; onYouTubeIframeAPIReady?: () => void };
+        if (globalWindow.YT?.Player) {
+            resolve(globalWindow.YT);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        script.onerror = () => reject(new Error('Unable to load YouTube API'));
+        const previousReady = globalWindow.onYouTubeIframeAPIReady;
+        globalWindow.onYouTubeIframeAPIReady = () => {
+            previousReady?.();
+            if (globalWindow.YT?.Player) resolve(globalWindow.YT);
+            else reject(new Error('YouTube API unavailable'));
+        };
+        document.head.appendChild(script);
+    });
+    return apiPromise;
 }
 
-function sendMessage(iframeRef: RefObject<HTMLIFrameElement | null>, message: Record<string, unknown>) {
-    iframeRef.current?.contentWindow?.postMessage(JSON.stringify(message), 'https://www.youtube.com');
+function emitProgress(player: YouTubeApiPlayer, onProgress: YouTubePlayerProps['onProgress']) {
+    onProgress?.({ currentTime: player.getCurrentTime() || 0, duration: player.getDuration() || 0 });
 }
 
-function stateFromCode(code: number | undefined): YouTubePlayerState | null {
+function stateFromCode(code: number): YouTubePlayerState | null {
     return ({ '-1': 'unstarted', '0': 'ended', '1': 'playing', '2': 'paused', '3': 'buffering', '5': 'cued' } as Record<string, YouTubePlayerState>)[String(code)] ?? null;
 }
 
@@ -113,3 +140,13 @@ function youtubeErrorMessage(code?: number) {
     if (code === 153) return 'YouTube could not verify the player origin.';
     return 'YouTube could not play this video.';
 }
+
+const styles = StyleSheet.create({
+    container: {
+        width: '100%',
+        aspectRatio: 16 / 9,
+        overflow: 'hidden',
+        borderRadius: 8,
+        backgroundColor: colors.bg.card,
+    },
+});
