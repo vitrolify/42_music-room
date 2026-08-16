@@ -24,8 +24,11 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
             let message: { event?: string; info?: number };
             try { message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; } catch { return; }
             if (message.event === 'onReady') onReady?.();
-            if (message.event === 'onStateChange' && message.info !== undefined) {
-                const state = stateFromCode(message.info);
+            if ((message.event === 'onStateChange' || message.event === 'infoDelivery') && message.info !== undefined) {
+                const stateCode = typeof message.info === 'number'
+                    ? message.info
+                    : (message.info as unknown as { playerState?: number }).playerState;
+                const state = stateFromCode(stateCode);
                 if (state) onStateChange?.(state);
             }
             if (message.event === 'onError') onError?.(youtubeErrorMessage(message.info));
@@ -39,6 +42,12 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
             {createElement('iframe', {
                 ref: iframeRef,
                 src: embedUrl,
+                onLoad: () => {
+                    sendMessage(iframeRef, { event: 'listening', id: 'vitrolify-player', channel: 'vitrolify' });
+                    sendMessage(iframeRef, { event: 'command', func: 'addEventListener', args: ['onReady'], id: 'vitrolify-player', channel: 'vitrolify' });
+                    sendMessage(iframeRef, { event: 'command', func: 'addEventListener', args: ['onStateChange'], id: 'vitrolify-player', channel: 'vitrolify' });
+                    sendMessage(iframeRef, { event: 'command', func: 'addEventListener', args: ['onError'], id: 'vitrolify-player', channel: 'vitrolify' });
+                },
                 title: 'YouTube video player',
                 allow: 'autoplay; encrypted-media; picture-in-picture',
                 allowFullScreen: true,
@@ -69,10 +78,14 @@ const styles = StyleSheet.create({
 export default YouTubePlayer;
 
 function sendCommand(iframeRef: RefObject<HTMLIFrameElement | null>, func: string, args: unknown[] = []) {
-    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), 'https://www.youtube.com');
+    sendMessage(iframeRef, { event: 'command', func, args, id: 'vitrolify-player', channel: 'vitrolify' });
 }
 
-function stateFromCode(code: number): YouTubePlayerState | null {
+function sendMessage(iframeRef: RefObject<HTMLIFrameElement | null>, message: Record<string, unknown>) {
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify(message), 'https://www.youtube.com');
+}
+
+function stateFromCode(code: number | undefined): YouTubePlayerState | null {
     return ({ '-1': 'unstarted', '0': 'ended', '1': 'playing', '2': 'paused', '3': 'buffering', '5': 'cued' } as Record<string, YouTubePlayerState>)[String(code)] ?? null;
 }
 

@@ -29,17 +29,22 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
           videoId: window.__ytVideoId,
           playerVars: { playsinline: 1, enablejsapi: 1, rel: 0, origin: 'https://vitrolify.app' },
           events: {
-            onReady: function() { window.__send({ type: 'ready' }); },
+            onReady: function() { window.__send({ type: 'ready' }); window.__ytFlush(); },
             onStateChange: function(event) { window.__send({ type: 'state', value: event.data }); },
             onError: function(event) { window.__send({ type: 'error', value: event.data }); }
           }
         });
       };
+      window.__ytPending = [];
       window.__ytCommand = function(command, value) {
-        if (!window.__ytPlayer) return;
+        if (!window.__ytPlayer) { window.__ytPending.push([command, value]); return; }
         if (command === 'play') window.__ytPlayer.playVideo();
         if (command === 'pause') window.__ytPlayer.pauseVideo();
-        if (command === 'load' && value) window.__ytPlayer.loadVideoById(value);
+        if (command === 'load' && value) window.__ytPlayer.cueVideoById(value);
+      };
+      window.__ytFlush = function() {
+        var pending = window.__ytPending.splice(0);
+        pending.forEach(function(item) { window.__ytCommand(item[0], item[1]); });
       };
     }());
   </script></body>
@@ -63,7 +68,10 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                 style={styles.webView}
                 originWhitelist={['https://*']}
                 allowsInlineMediaPlayback
-                mediaPlaybackRequiresUserAction
+                // The external app button triggers playVideo() through injected JS.
+                // Requiring a gesture inside the WebView prevents Android from
+                // honoring that command for an unstarted YouTube player.
+                mediaPlaybackRequiresUserAction={false}
                 javaScriptEnabled
                 domStorageEnabled
                 startInLoadingState
