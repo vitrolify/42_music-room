@@ -1,8 +1,17 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, type RefObject } from 'react';
+import { forwardRef, useRef, type RefObject } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors, fonts, spacing } from '../styles';
-import type { YouTubePlayerHandle, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
+import {
+    playerContainerStyles,
+    PROGRESS_UPDATE_INTERVAL_MS,
+    readProgress,
+    stateFromYouTubeCode,
+    useYouTubePlayerHandle,
+    youtubeErrorMessage,
+    type PlayerCommand,
+} from './YouTubePlayer.shared';
+import type { YouTubePlayerHandle, YouTubePlayerProps } from './YouTubePlayer.types';
 
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
     { videoId, onReady, onStateChange, onProgress, onError },
@@ -53,24 +62,15 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
       };
       window.__ytProgressTimer = setInterval(function() {
         if (window.__ytPlayer && window.__ytPlayer.getPlayerState() === 1) window.__ytProgress();
-      }, 500);
+      }, ${PROGRESS_UPDATE_INTERVAL_MS});
     }());
   </script></body>
 </html>`;
 
-    useImperativeHandle(ref, () => ({
-        loadVideo: nextVideoId => sendCommand(webViewRef, 'load', nextVideoId),
-        play: () => sendCommand(webViewRef, 'play'),
-        pause: () => sendCommand(webViewRef, 'pause'),
-        seekTo: seconds => sendCommand(webViewRef, 'seek', String(seconds)),
-    }), []);
-
-    useEffect(() => {
-        sendCommand(webViewRef, 'load', videoId);
-    }, [videoId]);
+    useYouTubePlayerHandle(ref, videoId, command => sendCommand(webViewRef, command));
 
     return (
-        <View style={styles.container}>
+        <View style={playerContainerStyles.container}>
             <WebView
                 ref={webViewRef}
                 source={{ html, baseUrl: 'https://vitrolify.app/' }}
@@ -97,10 +97,10 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                         const message = JSON.parse(event.nativeEvent.data) as { type?: string; value?: number; currentTime?: number; duration?: number };
                         if (message.type === 'ready') onReady?.();
                         if (message.type === 'state' && message.value !== undefined) {
-                            const state = stateFromCode(message.value);
+                            const state = stateFromYouTubeCode(message.value);
                             if (state) onStateChange?.(state);
                         }
-                        if (message.type === 'progress') onProgress?.({ currentTime: message.currentTime ?? 0, duration: message.duration ?? 0 });
+                        if (message.type === 'progress') onProgress?.(readProgress(message));
                         if (message.type === 'error') onError?.(youtubeErrorMessage(message.value));
                     } catch {
                         onError?.('The YouTube player sent an invalid event.');
@@ -113,30 +113,13 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
 
 export default YouTubePlayer;
 
-function sendCommand(webViewRef: RefObject<WebView | null>, command: string, value?: string) {
-    const serializedValue = value ? JSON.stringify(value) : 'undefined';
-    webViewRef.current?.injectJavaScript(`window.__ytCommand(${JSON.stringify(command)}, ${serializedValue}); true;`);
-}
-
-function stateFromCode(code: number): YouTubePlayerState | null {
-    return ({ '-1': 'unstarted', '0': 'ended', '1': 'playing', '2': 'paused', '3': 'buffering', '5': 'cued' } as Record<string, YouTubePlayerState>)[String(code)] ?? null;
-}
-
-function youtubeErrorMessage(code?: number) {
-    if (code === 100) return 'This video was not found or is private.';
-    if (code === 101 || code === 150) return 'This video does not allow embedded playback.';
-    if (code === 153) return 'YouTube could not verify the player origin.';
-    return 'YouTube could not play this video.';
+function sendCommand(webViewRef: RefObject<WebView | null>, command: PlayerCommand) {
+    const value = command.type === 'load' ? command.videoId : command.type === 'seek' ? String(command.seconds) : undefined;
+    const serializedValue = value === undefined ? 'undefined' : JSON.stringify(value);
+    webViewRef.current?.injectJavaScript(`window.__ytCommand(${JSON.stringify(command.type)}, ${serializedValue}); true;`);
 }
 
 const styles = StyleSheet.create({
-    container: {
-        width: '100%',
-        aspectRatio: 16 / 9,
-        overflow: 'hidden',
-        borderRadius: 8,
-        backgroundColor: colors.bg.card,
-    },
     webView: {
         flex: 1,
         backgroundColor: colors.bg.card,

@@ -1,7 +1,15 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { colors } from '../styles';
-import type { YouTubePlayerHandle, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
+import { forwardRef, useEffect, useRef } from 'react';
+import { View } from 'react-native';
+import {
+    playerContainerStyles,
+    PROGRESS_UPDATE_INTERVAL_MS,
+    readProgress,
+    stateFromYouTubeCode,
+    useYouTubePlayerHandle,
+    youtubeErrorMessage,
+    type PlayerCommand,
+} from './YouTubePlayer.shared';
+import type { YouTubePlayerHandle, YouTubePlayerProps } from './YouTubePlayer.types';
 
 type YouTubeApiPlayer = {
     playVideo: () => void;
@@ -40,16 +48,9 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
         });
     };
 
-    useImperativeHandle(ref, () => ({
-        loadVideo: videoId => runWhenReady(player => player.cueVideoById(videoId)),
-        play: () => runWhenReady(player => player.playVideo()),
-        pause: () => runWhenReady(player => player.pauseVideo()),
-        seekTo: seconds => runWhenReady(player => player.seekTo(seconds, true)),
-    }), []);
-
-    useEffect(() => {
-        if (readyRef.current) playerRef.current?.cueVideoById(props.videoId);
-    }, [props.videoId]);
+    useYouTubePlayerHandle(ref, props.videoId, command => {
+        runWhenReady(player => runPlayerCommand(player, command));
+    });
 
     useEffect(() => {
         let disposed = false;
@@ -76,10 +77,10 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                         emitProgress(playerRef.current, propsRef.current.onProgress);
                         progressTimer = setInterval(() => {
                             if (playerRef.current) emitProgress(playerRef.current, propsRef.current.onProgress);
-                        }, 500);
+                        }, PROGRESS_UPDATE_INTERVAL_MS);
                     },
                     onStateChange: (event: { data: number }) => {
-                        const state = stateFromCode(event.data);
+                        const state = stateFromYouTubeCode(event.data);
                         if (state) propsRef.current.onStateChange?.(state);
                         if (playerRef.current) emitProgress(playerRef.current, propsRef.current.onProgress);
                     },
@@ -98,7 +99,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
         };
     }, []);
 
-    return <View ref={hostRef as never} style={styles.container} />;
+    return <View ref={hostRef as never} style={playerContainerStyles.container} />;
 });
 
 export default YouTubePlayer;
@@ -127,26 +128,12 @@ function loadYouTubeApi(): Promise<YouTubeApi> {
 }
 
 function emitProgress(player: YouTubeApiPlayer, onProgress: YouTubePlayerProps['onProgress']) {
-    onProgress?.({ currentTime: player.getCurrentTime() || 0, duration: player.getDuration() || 0 });
+    onProgress?.(readProgress({ currentTime: player.getCurrentTime(), duration: player.getDuration() }));
 }
 
-function stateFromCode(code: number): YouTubePlayerState | null {
-    return ({ '-1': 'unstarted', '0': 'ended', '1': 'playing', '2': 'paused', '3': 'buffering', '5': 'cued' } as Record<string, YouTubePlayerState>)[String(code)] ?? null;
+function runPlayerCommand(player: YouTubeApiPlayer, command: PlayerCommand) {
+    if (command.type === 'load') player.cueVideoById(command.videoId);
+    if (command.type === 'play') player.playVideo();
+    if (command.type === 'pause') player.pauseVideo();
+    if (command.type === 'seek') player.seekTo(command.seconds, true);
 }
-
-function youtubeErrorMessage(code?: number) {
-    if (code === 100) return 'This video was not found or is private.';
-    if (code === 101 || code === 150) return 'This video does not allow embedded playback.';
-    if (code === 153) return 'YouTube could not verify the player origin.';
-    return 'YouTube could not play this video.';
-}
-
-const styles = StyleSheet.create({
-    container: {
-        width: '100%',
-        aspectRatio: 16 / 9,
-        overflow: 'hidden',
-        borderRadius: 8,
-        backgroundColor: colors.bg.card,
-    },
-});
