@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, PanResponder, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YouTubePlayer from '../src/components/YouTubePlayer';
-import type { YouTubePlayerHandle, YouTubePlayerState } from '../src/components/YouTubePlayer.types';
+import type { YouTubePlayerHandle, YouTubePlayerProgress, YouTubePlayerState } from '../src/components/YouTubePlayer.types';
 import { colors, globalStyles, spacing } from '../src/styles';
 
 export default function PlayerScreen() {
@@ -15,6 +15,7 @@ export default function PlayerScreen() {
     const playerRef = useRef<YouTubePlayerHandle>(null);
     const [playerState, setPlayerState] = useState<YouTubePlayerState>('unstarted');
     const [playerReady, setPlayerReady] = useState(false);
+    const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
 
     function loadVideo() {
         const nextVideoId = extractYouTubeVideoId(input);
@@ -27,6 +28,7 @@ export default function PlayerScreen() {
         setError(null);
         setPlayerReady(false);
         setPlayerState('unstarted');
+        setProgress({ currentTime: 0, duration: 0 });
         setVideoId(nextVideoId);
     }
 
@@ -76,6 +78,7 @@ export default function PlayerScreen() {
                         videoId={videoId}
                         onReady={() => setPlayerReady(true)}
                         onStateChange={setPlayerState}
+                        onProgress={setProgress}
                         onError={handlePlayerError}
                     />
                     <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
@@ -95,6 +98,11 @@ export default function PlayerScreen() {
                         </Pressable>
                     </View>
                     <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Player state: {playerState}</Text>
+                    <ProgressBar
+                        currentTime={progress.currentTime}
+                        duration={progress.duration}
+                        onSeek={seconds => playerRef.current?.seekTo(seconds)}
+                    />
                     <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Video ID: {videoId}</Text>
                 </View>
             ) : (
@@ -107,6 +115,53 @@ export default function PlayerScreen() {
             )}
         </ScrollView>
     );
+}
+
+type ProgressBarProps = {
+    currentTime: number;
+    duration: number;
+    onSeek: (seconds: number) => void;
+};
+
+function ProgressBar({ currentTime, duration, onSeek }: ProgressBarProps) {
+    const widthRef = useRef(0);
+    const ratio = duration > 0 ? Math.min(Math.max(currentTime / duration, 0), 1) : 0;
+    const seekFromX = (x: number) => {
+        if (widthRef.current <= 0 || duration <= 0) return;
+        onSeek((Math.min(Math.max(x, 0), widthRef.current) / widthRef.current) * duration);
+    };
+    const responder = useRef(PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: event => seekFromX(event.nativeEvent.locationX),
+        onPanResponderMove: event => seekFromX(event.nativeEvent.locationX),
+        onPanResponderRelease: event => seekFromX(event.nativeEvent.locationX),
+    })).current;
+
+    return (
+        <View style={{ marginTop: spacing.lg }}>
+            <View
+                {...responder.panHandlers}
+                onLayout={event => { widthRef.current = event.nativeEvent.layout.width; }}
+                style={{ height: 20, justifyContent: 'center' }}
+            >
+                <View style={{ height: 5, borderRadius: 5, backgroundColor: colors.bg.elevated }}>
+                    <View style={{ width: `${ratio * 100}%`, height: 5, borderRadius: 5, backgroundColor: colors.brand }} />
+                </View>
+                <View style={{ position: 'absolute', left: `${ratio * 100}%`, marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.brand }} />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs }}>
+                <Text style={globalStyles.small}>{formatTime(currentTime)}</Text>
+                <Text style={globalStyles.small}>{duration > 0 ? formatTime(duration) : '--:--'}</Text>
+            </View>
+        </View>
+    );
+}
+
+function formatTime(seconds: number) {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    return `${minutes}:${String(safeSeconds % 60).padStart(2, '0')}`;
 }
 
 function extractYouTubeVideoId(value: string): string | null {

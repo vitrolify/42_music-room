@@ -1,10 +1,10 @@
 import { createElement, forwardRef, useEffect, useImperativeHandle, useRef, type RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { colors } from '../styles';
-import type { YouTubePlayerHandle, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
+import type { YouTubePlayerHandle, YouTubePlayerProgress, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
 
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
-    { videoId, onReady, onStateChange, onError },
+    { videoId, onReady, onStateChange, onProgress, onError },
     ref,
 ) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -15,13 +15,18 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
         loadVideo: nextVideoId => sendCommand(iframeRef, 'loadVideoById', [nextVideoId]),
         play: () => sendCommand(iframeRef, 'playVideo'),
         pause: () => sendCommand(iframeRef, 'pauseVideo'),
+        seekTo: seconds => sendCommand(iframeRef, 'seekTo', [seconds, true]),
     }), []);
 
     useEffect(() => {
+        const progressTimer = setInterval(() => {
+            sendCommand(iframeRef, 'getCurrentTime');
+            sendCommand(iframeRef, 'getDuration');
+        }, 500);
         const handleMessage = (event: MessageEvent) => {
             if (event.origin !== 'https://www.youtube.com' && event.origin !== 'https://www.youtube-nocookie.com') return;
             if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
-            let message: { event?: string; info?: number };
+            let message: { event?: string; info?: number | YouTubePlayerProgress };
             try { message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; } catch { return; }
             if (message.event === 'onReady') onReady?.();
             if ((message.event === 'onStateChange' || message.event === 'infoDelivery') && message.info !== undefined) {
@@ -30,12 +35,15 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                     : (message.info as unknown as { playerState?: number }).playerState;
                 const state = stateFromCode(stateCode);
                 if (state) onStateChange?.(state);
+                if (message.event === 'infoDelivery' && typeof message.info === 'object') {
+                    onProgress?.({ currentTime: message.info.currentTime ?? 0, duration: message.info.duration ?? 0 });
+                }
             }
-            if (message.event === 'onError') onError?.(youtubeErrorMessage(message.info));
+            if (message.event === 'onError') onError?.(youtubeErrorMessage(typeof message.info === 'number' ? message.info : undefined));
         };
         window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
-    }, [onError, onReady, onStateChange]);
+        return () => { clearInterval(progressTimer); window.removeEventListener('message', handleMessage); };
+    }, [onError, onReady, onProgress, onStateChange]);
 
     return (
         <View style={styles.container}>

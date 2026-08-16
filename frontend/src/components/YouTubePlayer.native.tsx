@@ -5,7 +5,7 @@ import { colors, fonts, spacing } from '../styles';
 import type { YouTubePlayerHandle, YouTubePlayerProps, YouTubePlayerState } from './YouTubePlayer.types';
 
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
-    { videoId, onReady, onStateChange, onError },
+    { videoId, onReady, onStateChange, onProgress, onError },
     ref,
 ) {
     const webViewRef = useRef<WebView>(null);
@@ -29,7 +29,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
           videoId: window.__ytVideoId,
           playerVars: { playsinline: 1, enablejsapi: 1, rel: 0, origin: 'https://vitrolify.app' },
           events: {
-            onReady: function() { window.__send({ type: 'ready' }); window.__ytFlush(); },
+            onReady: function() { window.__send({ type: 'ready' }); window.__ytFlush(); window.__ytProgress(); },
             onStateChange: function(event) { window.__send({ type: 'state', value: event.data }); },
             onError: function(event) { window.__send({ type: 'error', value: event.data }); }
           }
@@ -41,11 +41,19 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
         if (command === 'play') window.__ytPlayer.playVideo();
         if (command === 'pause') window.__ytPlayer.pauseVideo();
         if (command === 'load' && value) window.__ytPlayer.cueVideoById(value);
+        if (command === 'seek' && value) window.__ytPlayer.seekTo(Number(value), true);
       };
       window.__ytFlush = function() {
         var pending = window.__ytPending.splice(0);
         pending.forEach(function(item) { window.__ytCommand(item[0], item[1]); });
       };
+      window.__ytProgress = function() {
+        if (!window.__ytPlayer) return;
+        window.__send({ type: 'progress', currentTime: window.__ytPlayer.getCurrentTime() || 0, duration: window.__ytPlayer.getDuration() || 0 });
+      };
+      window.__ytProgressTimer = setInterval(function() {
+        if (window.__ytPlayer && window.__ytPlayer.getPlayerState() === 1) window.__ytProgress();
+      }, 500);
     }());
   </script></body>
 </html>`;
@@ -54,6 +62,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
         loadVideo: nextVideoId => sendCommand(webViewRef, 'load', nextVideoId),
         play: () => sendCommand(webViewRef, 'play'),
         pause: () => sendCommand(webViewRef, 'pause'),
+        seekTo: seconds => sendCommand(webViewRef, 'seek', String(seconds)),
     }), []);
 
     useEffect(() => {
@@ -85,12 +94,13 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                 onHttpError={() => onError?.('YouTube returned an error while loading this video.')}
                 onMessage={event => {
                     try {
-                        const message = JSON.parse(event.nativeEvent.data) as { type?: string; value?: number };
+                        const message = JSON.parse(event.nativeEvent.data) as { type?: string; value?: number; currentTime?: number; duration?: number };
                         if (message.type === 'ready') onReady?.();
                         if (message.type === 'state' && message.value !== undefined) {
                             const state = stateFromCode(message.value);
                             if (state) onStateChange?.(state);
                         }
+                        if (message.type === 'progress') onProgress?.({ currentTime: message.currentTime ?? 0, duration: message.duration ?? 0 });
                         if (message.type === 'error') onError?.(youtubeErrorMessage(message.value));
                     } catch {
                         onError?.('The YouTube player sent an invalid event.');
