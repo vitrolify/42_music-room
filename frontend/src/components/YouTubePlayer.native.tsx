@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors, fonts, spacing } from '../styles';
 
-type YouTubePlayerProps = {
+export type YouTubePlayerProps = {
     videoId: string;
     onError?: (message: string) => void;
 };
