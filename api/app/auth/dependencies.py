@@ -1,5 +1,6 @@
 import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import (
     Depends,
@@ -18,6 +19,12 @@ from app.db.session import get_db
 from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def get_db_context():
+    async for db in get_db():
+        yield db
 
 
 def get_current_user(authorization: str = Header(default="")) -> dict:
@@ -78,7 +85,6 @@ async def get_current_user_id(
 
 async def get_current_user_id_ws(
     websocket: WebSocket,
-    db: AsyncSession = Depends(get_db),
     token: str | None = Query(default=None),
 ) -> uuid.UUID:
     if not token:
@@ -112,12 +118,13 @@ async def get_current_user_id_ws(
             code=status.WS_1008_POLICY_VIOLATION, reason="Token não contém firebase_uid"
         )
 
-    user_service = UserService(db)
-    user = await user_service.get_or_create(
-        firebase_uid=firebase_uid,
-        email=claims.get("email"),
-        display_name=claims.get("name"),
-    )
+    async with get_db_context() as db:
+        user_service = UserService(db)
+        user = await user_service.get_or_create(
+            firebase_uid=firebase_uid,
+            email=claims.get("email"),
+            display_name=claims.get("name"),
+        )
 
     websocket.state.user_id = user.id
     return user.id

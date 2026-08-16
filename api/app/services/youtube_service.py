@@ -7,6 +7,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+LOAD_TEST_MODE = os.getenv("LOAD_TEST_MODE") == "True"
 
 
 def _parse_iso_duration(duration: str) -> int:
@@ -22,6 +23,14 @@ def _parse_iso_duration(duration: str) -> int:
 
 
 async def fetch_youtube_video_info(video_id: str) -> dict:
+    if LOAD_TEST_MODE:
+        return {
+            "title": f"Mocked Track {video_id}",
+            "channel_title": "Load Test Channel",
+            "thumbnail_url": "https://dummyimage.com/default_thumb.jpg",
+            "duration_seconds": 210,
+        }
+
     if not YOUTUBE_API_KEY:
         raise RuntimeError("YOUTUBE_API_KEY not set.")
 

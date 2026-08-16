@@ -1,5 +1,6 @@
 import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import (
     APIRouter,
@@ -24,16 +25,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws/playlists", tags=["websockets"])
 
 
+@asynccontextmanager
+async def get_db_context():
+    async for db in get_db():
+        yield db
+
+
 @router.websocket("/{playlist_id}")
 async def playlist_websocket_endpoint(
     websocket: WebSocket,
     playlist_id: int,
     user_id: uuid.UUID = Depends(get_current_user_id_ws),
-    db: AsyncSession = Depends(get_db),
 ):
 
     try:
-        await _verify_playlist_access(db=db, user_id=user_id, playlist_id=playlist_id)
+        async with get_db_context() as db:
+            await _verify_playlist_access(
+                db=db, user_id=user_id, playlist_id=playlist_id
+            )
     except WebSocketException as e:
         raise e
     except Exception as e:
