@@ -11,7 +11,7 @@ const deleteCounter = new Counter("event_delete");
 
 const PLAYLIST_COUNT = __ENV.PLAYLIST_COUNT
   ? parseInt(__ENV.PLAYLIST_COUNT)
-  : 100;
+  : 500;
 const PARTICIPANTS_PER_PLAYLIST = __ENV.PARTICIPANTS
   ? parseInt(__ENV.PARTICIPANTS)
   : 4;
