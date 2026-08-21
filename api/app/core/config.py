@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+asyncpg://music_room:music_room@localhost:5432/music_room"
     )
+    redis_url: str = "redis://localhost:6379/0"
 
     db_echo: bool = False
 

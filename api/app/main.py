@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,14 +8,25 @@ from app.api.v1.router import api_router
 from app.api.v1.ws import playlists as ws_playlists
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.db.redis import close_redis
 from app.middleware.action_logging import UserActionMiddleware
 from app.observability.metrics import setup_metrics
 
 setup_logging()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- Startup phase ---
+    yield
+    # --- Shutdown phase ---
+    await close_redis()
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
