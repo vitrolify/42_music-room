@@ -51,6 +51,7 @@ async def _execute_skip_transaction(
             db, playlist_id, payload.playlist_track_id
         )
         if not current_track:
+            await db.rollback()
             logger.warning(
                 {
                     "event": "skip_ignored",
@@ -59,7 +60,12 @@ async def _execute_skip_transaction(
                     "msg": "Track is no longer at position 0. Ignoring skip.",
                 }
             )
-            await db.rollback()
+            await playlist_ws_manager.broadcast_error(
+                playlist_id=playlist_id,
+                target_user_id=event.user_id,
+                code="STALE_STATE",
+                message="The playlist has changed. Your action was not processed",
+            )
             return None
 
         await db.delete(current_track)

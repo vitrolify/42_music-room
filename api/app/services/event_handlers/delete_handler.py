@@ -47,6 +47,7 @@ async def _execute_delete_transaction(
         )
 
         if not track_to_delete:
+            await db.rollback()
             logger.warning(
                 {
                     "event": "delete_aborted",
@@ -55,7 +56,12 @@ async def _execute_delete_transaction(
                     "track_id": payload.playlist_track_id,
                 }
             )
-            await db.rollback()
+            await playlist_ws_manager.broadcast_error(
+                playlist_id=playlist_id,
+                target_user_id=event.user_id,
+                code="STALE_STATE",
+                message="The playlist has changed. Your action was not processed",
+            )
             return None
 
         deleted_position = track_to_delete.position

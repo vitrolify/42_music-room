@@ -60,6 +60,12 @@ async def _execute_playback_transaction(
 
         if not _state_is_valid(current_track, target_status, payload, event):
             await db.rollback()
+            await playlist_ws_manager.broadcast_error(
+                playlist_id=playlist_id,
+                target_user_id=event.user_id,
+                code="STALE_STATE",
+                message="The playlist has changed. Your action was not processed",
+            )
             return None
         current_track.status = target_status
 
