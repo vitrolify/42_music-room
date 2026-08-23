@@ -43,6 +43,9 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
         setVideoTitle(null);
         setThumbnailUrl(null);
 
+        // Force reload even if the video ID is the same (setVideoId is a no-op for identical values)
+        playerRef.current?.loadVideo(id);
+
         try {
             const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(id)}&format=json`;
             const res = await fetch(url);
