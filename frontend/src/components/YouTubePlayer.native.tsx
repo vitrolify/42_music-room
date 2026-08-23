@@ -14,7 +14,7 @@ import {
 import type { YouTubePlayerHandle, YouTubePlayerProps } from './YouTubePlayer.types';
 
 const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
-    { videoId, onReady, onStateChange, onProgress, onError },
+    { videoId, compact, onReady, onStateChange, onProgress, onError },
     ref,
 ) {
     const webViewRef = useRef<WebView>(null);
@@ -70,7 +70,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
     useYouTubePlayerHandle(ref, videoId, command => sendCommand(webViewRef, command));
 
     return (
-        <View style={playerContainerStyles.container}>
+        <View style={compact ? playerContainerStyles.compact : playerContainerStyles.container}>
             <WebView
                 ref={webViewRef}
                 source={{ html, baseUrl: 'https://vitrolify.app/' }}

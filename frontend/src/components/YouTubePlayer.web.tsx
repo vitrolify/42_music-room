@@ -104,7 +104,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
         };
     }, []);
 
-    return <View ref={hostRef as never} style={playerContainerStyles.container} />;
+    return <View ref={hostRef as never} style={props.compact ? playerContainerStyles.compact : playerContainerStyles.container} />;
 });
 
 export default YouTubePlayer;
