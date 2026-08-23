@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Play, Pause } from 'phosphor-react-native';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -8,6 +9,7 @@ const BAR_HEIGHT = 64;
 
 export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
     const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause, seekTo } = usePlayer();
+    const [titleHovered, setTitleHovered] = useState(false);
 
     if (!videoId) return null;
 
@@ -30,8 +32,20 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                     <View style={[styles.thumbnail, styles.thumbnailPlaceholder]} />
                 )}
 
-                <View style={styles.titleWrapper}>
-                    <Text style={styles.titleText} numberOfLines={1}>
+                <View
+                    style={styles.titleWrapper}
+                    {...(Platform.OS === 'web'
+                        ? { onMouseEnter: () => setTitleHovered(true), onMouseLeave: () => setTitleHovered(false) }
+                        : {})}
+                >
+                    <Text
+                        style={[
+                            styles.titleText,
+                            Platform.OS === 'web' && styles.titleTextWeb,
+                            titleHovered && { textDecorationLine: 'underline' },
+                        ]}
+                        numberOfLines={1}
+                    >
                         {videoTitle ?? 'Now Playing'}
                     </Text>
                 </View>
@@ -123,10 +137,13 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 18,
     },
+    titleTextWeb: {
+        cursor: 'pointer',
+    } as any,
     webProgressRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: 240,
+        flex: 1,
         marginLeft: spacing.md,
     },
     webProgressTrack: {
