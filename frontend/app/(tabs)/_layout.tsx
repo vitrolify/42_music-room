@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { House, MagnifyingGlass, Playlist, UsersThree, UserCircle } from 'phosphor-react-native';
-import { View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
@@ -16,9 +16,100 @@ export default function TabsLayout() {
     const hasPlayer = !!videoId;
     const router = useRouter();
 
+    function renderTabItems({ state, descriptors, navigation, horizontal }: any) {
+        return state.routes
+            .filter((route: any) => {
+                const { options } = descriptors[route.key] ?? {};
+                return options?.href !== null;
+            })
+            .map((route: any) => {
+                const { options } = descriptors[route.key] ?? {};
+                const isFocused = state.index === state.routes.indexOf(route);
+                const color = isFocused ? colors.brand : colors.text.secondary;
+                const label = options?.tabBarLabel ?? options?.title ?? route.name;
+                const icon = options?.tabBarIcon;
+
+                const onPress = () => {
+                    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                    if (!event.defaultPrevented) {
+                        navigation.navigate(route.name);
+                    }
+                };
+
+                if (horizontal) {
+                    return (
+                        <Pressable
+                            key={route.key}
+                            onPress={onPress}
+                            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 }}
+                        >
+                            {icon?.({ focused: isFocused, color, size: 24 })}
+                            <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 10, color, marginTop: -2 }}>
+                                {typeof label === 'string' ? label : ''}
+                            </Text>
+                        </Pressable>
+                    );
+                }
+
+                return (
+                    <Pressable
+                        key={route.key}
+                        onPress={onPress}
+                        style={{
+                            height: 76,
+                            paddingVertical: spacing.sm,
+                            marginHorizontal: spacing.sm,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: isFocused ? colors.bg.elevated : 'transparent',
+                        }}
+                    >
+                        {icon?.({ focused: isFocused, color, size: 24 })}
+                        <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 10, color, marginTop: spacing.xs }}>
+                            {typeof label === 'string' ? label : ''}
+                        </Text>
+                    </Pressable>
+                );
+            });
+    }
+
+    function renderBottomTabBar(props: any) {
+        return (
+            <View style={{ backgroundColor: colors.bg.surface, borderTopColor: colors.border.gray, borderTopWidth: 0.5 }}>
+                {hasPlayer && (
+                    <MiniPlayerBar onPress={() => router.push('/player')} />
+                )}
+                <View style={{ flexDirection: 'row', paddingTop: spacing.sm / 2, height: 56 }}>
+                    {renderTabItems({ ...props, horizontal: true })}
+                </View>
+                <View style={{ height: insets.bottom, backgroundColor: colors.bg.surface }} />
+            </View>
+        );
+    }
+
+    function renderSideTabBar(props: any) {
+        return (
+            <View
+                style={{
+                    backgroundColor: colors.bg.surface,
+                    borderRightColor: colors.border.gray,
+                    borderRightWidth: 0.5,
+                    borderTopWidth: 0,
+                    width: 104,
+                    paddingTop: insets.top + spacing.xl,
+                    paddingBottom: insets.bottom + spacing.xl,
+                }}
+            >
+                {renderTabItems({ ...props, horizontal: false })}
+            </View>
+        );
+    }
+
     return (
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, flexDirection: useSideNav ? 'row' : 'column' }}>
             <Tabs
+                tabBar={(props) => useSideNav ? renderSideTabBar(props) : renderBottomTabBar(props)}
                 screenOptions={{
                     headerShown: false,
                     tabBarPosition: useSideNav ? 'left' : 'bottom',
@@ -27,32 +118,7 @@ export default function TabsLayout() {
                     tabBarInactiveTintColor: colors.text.secondary,
                     tabBarActiveBackgroundColor: useSideNav ? colors.bg.elevated : 'transparent',
                     tabBarInactiveBackgroundColor: 'transparent',
-                    tabBarStyle: useSideNav
-                        ? {
-                            backgroundColor: colors.bg.surface,
-                            borderRightColor: colors.border.gray,
-                            borderRightWidth: 0.5,
-                            borderTopWidth: 0,
-                            width: 104,
-                            paddingTop: insets.top + spacing.xl,
-                            paddingBottom: insets.bottom + spacing.xl,
-                        }
-                        : {
-                            backgroundColor: colors.bg.surface,
-                            borderTopColor: colors.border.gray,
-                            borderTopWidth: 0.5,
-                            paddingTop: spacing.sm / 2,
-                            height: 56 + insets.bottom,
-                            paddingBottom: insets.bottom + spacing.xs,
-                        },
-                    tabBarItemStyle: useSideNav
-                        ? {
-                            height: 76,
-                            paddingVertical: spacing.sm,
-                            marginHorizontal: spacing.sm,
-                            borderRadius: 10,
-                        }
-                        : undefined,
+                    tabBarStyle: { display: 'none' },
                     tabBarLabelStyle: {
                         fontFamily: 'Inter_600SemiBold',
                         fontSize: 10,
@@ -119,31 +185,18 @@ export default function TabsLayout() {
                 />
             </Tabs>
 
-            {hasPlayer && !useSideNav && (
-                <View
-                    style={{
-                        position: 'absolute',
-                        bottom: 56 + insets.bottom,
-                        left: 0,
-                        right: 0,
-                        height: MINI_PLAYER_HEIGHT,
-                    }}
-                    pointerEvents="box-none"
-                >
-                    <MiniPlayerBar onPress={() => router.push('/player')} />
-                </View>
-            )}
-
             {hasPlayer && useSideNav && (
                 <View
                     style={{
-                        position: 'absolute',
                         bottom: 0,
-                        left: 0,
+                        left: 104,
                         right: 0,
                         height: MINI_PLAYER_HEIGHT,
+                        backgroundColor: colors.bg.surface,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                        borderTopColor: colors.border.gray,
+                        ...(Platform.OS === 'web' ? { position: 'fixed' as any } : { position: 'absolute' as any }),
                     }}
-                    pointerEvents="box-none"
                 >
                     <MiniPlayerBar onPress={() => router.push('/player')} />
                 </View>
