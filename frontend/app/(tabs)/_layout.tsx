@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
+import YouTubePlayer from '../../src/components/YouTubePlayer';
 import { usePlayer } from '../../src/contexts/PlayerContext';
 
 const MINI_PLAYER_HEIGHT = 64;
@@ -12,7 +13,7 @@ export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const useSideNav = width >= 900;
-    const { videoId } = usePlayer();
+    const { videoId, playerRef, setPlayerReady, setPlayerState, setProgress } = usePlayer();
     const hasPlayer = !!videoId;
     const router = useRouter();
 
@@ -199,6 +200,18 @@ export default function TabsLayout() {
                     }}
                 >
                     <MiniPlayerBar onPress={() => router.push('/player')} />
+                </View>
+            )}
+
+            {videoId && (
+                <View style={{ position: 'absolute', top: -9999, left: -9999, width: 1, height: 1, opacity: 0 }}>
+                    <YouTubePlayer
+                        ref={playerRef}
+                        videoId={videoId}
+                        onReady={() => setPlayerReady(true)}
+                        onStateChange={setPlayerState}
+                        onProgress={setProgress}
+                    />
                 </View>
             )}
         </View>

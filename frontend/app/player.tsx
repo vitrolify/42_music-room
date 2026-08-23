@@ -3,7 +3,6 @@ import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'reac
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Play, Pause } from 'phosphor-react-native';
-import YouTubePlayer from '../src/components/YouTubePlayer';
 import { usePlayer } from '../src/contexts/PlayerContext';
 import { colors, globalStyles, spacing } from '../src/styles';
 
@@ -20,12 +19,8 @@ export default function PlayerScreen() {
         playerState,
         playerReady,
         progress,
-        playerRef,
         loadVideo: contextLoadVideo,
         togglePlayPause,
-        setPlayerReady,
-        setPlayerState,
-        setProgress,
         seekTo,
     } = usePlayer();
 
@@ -37,11 +32,6 @@ export default function PlayerScreen() {
         }
         setError(null);
         contextLoadVideo(nextVideoId);
-    }
-
-    function handlePlayerError(message: string) {
-        setError(message);
-        Alert.alert('Player error', message);
     }
 
     const isPlaying = playerState === 'playing';
@@ -71,15 +61,6 @@ export default function PlayerScreen() {
                             </Text>
                         </View>
                     </View>
-
-                    <YouTubePlayer
-                        ref={playerRef}
-                        videoId={videoId}
-                        onReady={() => setPlayerReady(true)}
-                        onStateChange={setPlayerState}
-                        onProgress={setProgress}
-                        onError={handlePlayerError}
-                    />
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md }}>
                         <Pressable
