@@ -20,8 +20,8 @@ export const playerContainerStyles = StyleSheet.create({
         backgroundColor: colors.bg.card,
     },
     compact: {
-        width: 40,
-        height: 40,
+        width: 80,
+        height: 45,
         overflow: 'hidden',
         borderRadius: 4,
         backgroundColor: colors.bg.card,

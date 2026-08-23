@@ -6,7 +6,7 @@ import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
 import { usePlayer } from '../../src/contexts/PlayerContext';
 
-const MINI_PLAYER_HEIGHT = 56;
+const MINI_PLAYER_HEIGHT = 64;
 
 export default function TabsLayout() {
     const insets = useSafeAreaInsets();
@@ -80,7 +80,7 @@ export default function TabsLayout() {
                 {hasPlayer && (
                     <MiniPlayerBar onPress={() => router.push('/player')} />
                 )}
-                <View style={{ flexDirection: 'row', paddingTop: spacing.sm / 2, height: 56 }}>
+                <View style={{ flexDirection: 'row', paddingTop: spacing.sm / 2, height: 64 }}>
                     {renderTabItems({ ...props, horizontal: true })}
                 </View>
                 <View style={{ height: insets.bottom, backgroundColor: colors.bg.surface }} />

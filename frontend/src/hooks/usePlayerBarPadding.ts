@@ -1,6 +1,6 @@
 import { usePlayer } from '../contexts/PlayerContext';
 
-const MINI_PLAYER_HEIGHT = 56;
+const MINI_PLAYER_HEIGHT = 64;
 
 export function usePlayerBarPadding(): number {
     const { videoId } = usePlayer();

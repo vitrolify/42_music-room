@@ -14,7 +14,7 @@ export default function PlayerEmbed() {
     if (!videoId) return null;
 
     return (
-        <View style={{ width: 40, height: 40, borderRadius: 4, overflow: 'hidden' }}>
+        <View style={{ width: 80, height: 45, borderRadius: 4, overflow: 'hidden' }}>
             <YouTubePlayer
                 ref={playerRef}
                 videoId={videoId}
