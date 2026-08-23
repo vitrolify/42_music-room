@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Play, Pause } from 'phosphor-react-native';
 import YouTubePlayer from './YouTubePlayer';
@@ -58,9 +58,7 @@ export default function PlayerOverlay() {
                 zIndex: 10,
                 backgroundColor: colors.bg.base,
                 opacity: showPlayer ? 1 : 0,
-                ...(Platform.OS === 'web'
-                    ? { pointerEvents: (showPlayer ? 'auto' : 'none') as any }
-                    : { pointerEvents: (showPlayer ? 'auto' : 'none') as any }),
+                pointerEvents: (showPlayer ? 'auto' : 'none') as any,
             }}
         >
             <ScrollView
