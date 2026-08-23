@@ -19,13 +19,6 @@ export const playerContainerStyles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: colors.bg.card,
     },
-    compact: {
-        width: 80,
-        height: 45,
-        overflow: 'hidden',
-        borderRadius: 4,
-        backgroundColor: colors.bg.card,
-    },
 });
 
 export function useYouTubePlayerHandle(

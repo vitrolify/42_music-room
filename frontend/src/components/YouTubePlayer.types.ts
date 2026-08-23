@@ -11,7 +11,6 @@ export type YouTubePlayerProgress = { currentTime: number; duration: number };
 
 export type YouTubePlayerProps = {
     videoId: string;
-    compact?: boolean;
     onReady?: () => void;
     onStateChange?: (state: YouTubePlayerState) => void;
     onProgress?: (progress: YouTubePlayerProgress) => void;
