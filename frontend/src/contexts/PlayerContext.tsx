@@ -9,6 +9,7 @@ type PlayerContextType = {
     playerReady: boolean;
     progress: YouTubePlayerProgress;
     playerRef: React.RefObject<YouTubePlayerHandle | null>;
+    showPlayer: boolean;
     loadVideo: (videoId: string) => void;
     togglePlayPause: () => void;
     play: () => void;
@@ -17,6 +18,7 @@ type PlayerContextType = {
     setPlayerReady: (ready: boolean) => void;
     setPlayerState: (state: YouTubePlayerState) => void;
     setProgress: (progress: YouTubePlayerProgress) => void;
+    setShowPlayer: (show: boolean) => void;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -29,6 +31,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     const [playerReady, setPlayerReady] = useState(false);
     const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
     const playerRef = useRef<YouTubePlayerHandle | null>(null);
+    const [showPlayer, setShowPlayer] = useState(false);
 
     const playerStateRef = useRef(playerState);
     playerStateRef.current = playerState;
@@ -83,6 +86,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
                 playerReady,
                 progress,
                 playerRef,
+                showPlayer,
                 loadVideo,
                 togglePlayPause,
                 play,
@@ -91,6 +95,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
                 setPlayerReady,
                 setPlayerState,
                 setProgress,
+                setShowPlayer,
             }}
         >
             {children}
