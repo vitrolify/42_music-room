@@ -28,7 +28,13 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                 )}
 
                 <View style={styles.titleContainer}>
-                    <Pressable onPress={togglePlayPause} style={styles.playButton}>
+                    <Pressable
+                        onPress={(e) => {
+                            e.stopPropagation?.();
+                            togglePlayPause();
+                        }}
+                        style={styles.playButton}
+                    >
                         {isPlaying ? (
                             <Pause weight="fill" size={24} color={colors.text.primary} />
                         ) : (

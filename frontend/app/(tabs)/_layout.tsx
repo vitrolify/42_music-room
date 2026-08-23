@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { House, MagnifyingGlass, Playlist, UsersThree, UserCircle } from 'phosphor-react-native';
 import { View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ export default function TabsLayout() {
     const useSideNav = width >= 900;
     const { videoId } = usePlayer();
     const hasPlayer = !!videoId;
+    const router = useRouter();
 
     return (
         <View style={{ flex: 1 }}>
@@ -129,7 +130,7 @@ export default function TabsLayout() {
                     }}
                     pointerEvents="box-none"
                 >
-                    <MiniPlayerBar />
+                    <MiniPlayerBar onPress={() => router.push('/player')} />
                 </View>
             )}
 
@@ -144,7 +145,7 @@ export default function TabsLayout() {
                     }}
                     pointerEvents="box-none"
                 >
-                    <MiniPlayerBar />
+                    <MiniPlayerBar onPress={() => router.push('/player')} />
                 </View>
             )}
         </View>
