@@ -42,7 +42,7 @@ export default function TabsLayout() {
                             borderTopColor: colors.border.gray,
                             borderTopWidth: 0.5,
                             paddingTop: spacing.sm / 2,
-                            height: 56 + insets.bottom + (hasPlayer ? MINI_PLAYER_HEIGHT : 0),
+                            height: 56 + insets.bottom,
                             paddingBottom: insets.bottom + spacing.xs,
                         },
                     tabBarItemStyle: useSideNav
@@ -139,7 +139,7 @@ export default function TabsLayout() {
                     style={{
                         position: 'absolute',
                         bottom: 0,
-                        left: 104,
+                        left: 0,
                         right: 0,
                         height: MINI_PLAYER_HEIGHT,
                     }}
