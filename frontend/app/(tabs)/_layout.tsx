@@ -20,7 +20,7 @@ export default function TabsLayout() {
         return state.routes
             .filter((route: any) => {
                 const { options } = descriptors[route.key] ?? {};
-                return options?.href !== null;
+                return options?.tabBarIcon != null;
             })
             .map((route: any) => {
                 const { options } = descriptors[route.key] ?? {};
