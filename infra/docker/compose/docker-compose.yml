@@ -8,6 +8,7 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
       FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-sa.json
       LOAD_TEST_MODE: ${LOAD_TEST_MODE:-False}
     depends_on:
@@ -20,10 +21,14 @@ services:
       - ../../../api/app:/api/app
       - ../../../api/alembic.ini:/api/alembic.ini:ro
       - ${FIREBASE_SA_HOST_PATH:-../../../secrets/vitrolify-sa.json}:/run/secrets/firebase-sa.json:ro
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "6", "--backlog", "8192", "--limit-concurrency", "3000"]
     networks:
       - vitrolify-observability
       - vitrolify-db
+    ulimits:
+      nofile:
+        soft: 10240
+        hard: 10240
 
   nginx:
     image: nginx:1.29.8-alpine
@@ -41,6 +46,7 @@ services:
 
   db:
     image: postgres:16-alpine
+    command: ["postgres", "-c", "max_connections=300"]
     env_file:
       - ../../../.env
     healthcheck:
@@ -50,6 +56,13 @@ services:
       retries: 10
     volumes:
       - db-data:/var/lib/postgresql/data
+    networks:
+      - vitrolify-db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     networks:
       - vitrolify-db
 

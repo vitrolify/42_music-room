@@ -8,15 +8,15 @@ logger = logging.getLogger(__name__)
 
 class BaseConnectionManager:
     def __init__(self):
-        self.active_connections: dict[str, list[WebSocket]] = {}
+        self.active_connections: dict[str, set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, room_id: str, user_id: uuid.UUID):
         await websocket.accept()
 
         if room_id not in self.active_connections:
-            self.active_connections[room_id] = []
+            self.active_connections[room_id] = set()
 
-        self.active_connections[room_id].append(websocket)
+        self.active_connections[room_id].add(websocket)
         logger.info(
             {
                 "event": "playlist_websocket_connection",
@@ -29,7 +29,7 @@ class BaseConnectionManager:
     def disconnect(self, websocket: WebSocket, room_id: str, user_id: uuid.UUID):
         if room_id in self.active_connections:
             try:
-                self.active_connections[room_id].remove(websocket)
+                self.active_connections[room_id].discard(websocket)
                 logger.info(
                     {
                         "event": "playlist_websocket_disconnection",

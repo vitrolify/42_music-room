@@ -2,6 +2,7 @@
 services:
   db-test:
     image: postgres:16-alpine
+    command: ["postgres", "-c", "max_connections=300"]
     environment:
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_password
@@ -13,6 +14,17 @@ services:
       retries: 10
     networks:
       - vitrolify-test-net
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - vitrolify-test-net
+    ulimits:
+      nofile:
+        soft: 10240
+        hard: 10240
 
   migrations-test:
     build:
@@ -38,6 +50,7 @@ services:
     environment:
       LOG_LEVEL: warning
       DATABASE_URL: postgresql+asyncpg://test_user:test_password@db-test:5432/test_db
+      REDIS_URL: redis://redis-test:6379/0
       LOAD_TEST_MODE: "True"
     depends_on:
       db-test:
@@ -47,9 +60,13 @@ services:
     volumes:
       - ../../../api/app:/api/app
       - ../../../api/alembic.ini:/api/alembic.ini:ro
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "6", "--backlog", "8192", "--limit-concurrency", "3000"]
     networks:
       - vitrolify-test-net
+    ulimits:
+      nofile:
+        soft: 10240
+        hard: 10240
 
   k6:
     image: grafana/k6:0.52.0
@@ -64,6 +81,10 @@ services:
     command: ["run", "/scripts/playlist_test.js"]
     networks:
       - vitrolify-test-net
+    ulimits:
+      nofile:
+        soft: 10240
+        hard: 10240
 
 networks:
   vitrolify-test-net:
