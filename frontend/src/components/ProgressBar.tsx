@@ -40,8 +40,12 @@ export default function ProgressBar({ currentTime, duration, onSeek, variant = '
     const thumbSize = isMini ? 10 : 12;
     const showThumb = Platform.OS === 'web' ? hovered : true;
 
+    const hoverProps = Platform.OS === 'web'
+        ? { onMouseEnter: () => setHovered(true), onMouseLeave: () => setHovered(false) }
+        : {};
+
     return (
-        <View>
+        <View {...hoverProps}>
             <Pressable
                 ref={barRef}
                 onPress={event => {
@@ -52,8 +56,6 @@ export default function ProgressBar({ currentTime, duration, onSeek, variant = '
                     widthRef.current = event.nativeEvent.layout.width;
                     event.currentTarget?.measureInWindow?.(x => { leftRef.current = x; });
                 }}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
                 style={[styles.track, { height: isMini ? 20 : 28 }]}
             >
                 <View style={[styles.trackInner, { height: barHeight, borderRadius: barHeight }]}>
