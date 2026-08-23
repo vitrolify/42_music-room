@@ -2,11 +2,12 @@ import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { Play, Pause } from 'phosphor-react-native';
 import { usePlayer } from '../contexts/PlayerContext';
 import { colors, fonts, spacing } from '../styles';
+import ProgressBar, { formatTime } from './ProgressBar';
 
 const BAR_HEIGHT = 64;
 
 export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
-    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause } = usePlayer();
+    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause, seekTo } = usePlayer();
 
     if (!videoId) return null;
 
@@ -14,6 +15,8 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
     const ratio = progress.duration > 0
         ? Math.min(Math.max(progress.currentTime / progress.duration, 0), 1)
         : 0;
+
+    const isWeb = Platform.OS === 'web';
 
     return (
         <Pressable
@@ -27,32 +30,47 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                     <View style={[styles.thumbnail, styles.thumbnailPlaceholder]} />
                 )}
 
-                <View style={styles.titleContainer}>
-                    <Pressable
-                        onPress={(e) => {
-                            e.stopPropagation?.();
-                            togglePlayPause();
-                        }}
-                        style={styles.playButton}
-                    >
-                        {isPlaying ? (
-                            <Pause weight="fill" size={24} color={colors.text.primary} />
-                        ) : (
-                            <Play weight="fill" size={24} color={colors.text.primary} />
-                        )}
-                    </Pressable>
-
-                    <View style={styles.titleWrapper}>
-                        <Text style={styles.titleText} numberOfLines={1}>
-                            {videoTitle ?? 'Now Playing'}
-                        </Text>
-                    </View>
+                <View style={styles.titleWrapper}>
+                    <Text style={styles.titleText} numberOfLines={1}>
+                        {videoTitle ?? 'Now Playing'}
+                    </Text>
                 </View>
+
+                {isWeb && (
+                    <View style={styles.webProgressRow}>
+                        <Text style={styles.timeText}>{formatTime(progress.currentTime)}</Text>
+                        <View style={styles.webProgressTrack}>
+                            <ProgressBar
+                                currentTime={progress.currentTime}
+                                duration={progress.duration}
+                                onSeek={seekTo}
+                                variant="mini"
+                            />
+                        </View>
+                        <Text style={styles.timeText}>{progress.duration > 0 ? formatTime(progress.duration) : '--:--'}</Text>
+                    </View>
+                )}
+
+                <Pressable
+                    onPress={(e) => {
+                        e.stopPropagation?.();
+                        togglePlayPause();
+                    }}
+                    style={styles.playButton}
+                >
+                    {isPlaying ? (
+                        <Pause weight="fill" size={24} color={colors.text.primary} />
+                    ) : (
+                        <Play weight="fill" size={24} color={colors.text.primary} />
+                    )}
+                </Pressable>
             </View>
 
-            <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
-            </View>
+            {!isWeb && (
+                <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
+                </View>
+            )}
         </Pressable>
     );
 }
@@ -95,27 +113,39 @@ const styles = StyleSheet.create({
     thumbnailPlaceholder: {
         backgroundColor: colors.bg.elevated,
     },
-    titleContainer: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: spacing.md,
-    },
-    playButton: {
-        width: 32,
-        height: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     titleWrapper: {
         flex: 1,
-        marginLeft: spacing.sm,
+        marginLeft: spacing.md,
     },
     titleText: {
         color: colors.text.primary,
         fontFamily: fonts.bodySemiBold,
         fontSize: 13,
         lineHeight: 18,
+    },
+    webProgressRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: 240,
+        marginLeft: spacing.md,
+    },
+    webProgressTrack: {
+        flex: 1,
+        marginHorizontal: spacing.sm,
+    },
+    timeText: {
+        color: colors.text.secondary,
+        fontFamily: fonts.body,
+        fontSize: 11,
+        minWidth: 32,
+        textAlign: 'center',
+    },
+    playButton: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: spacing.sm,
     },
     progressTrack: {
         position: 'absolute',
