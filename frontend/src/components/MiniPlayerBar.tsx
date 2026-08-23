@@ -1,13 +1,12 @@
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Play, Pause } from 'phosphor-react-native';
 import { usePlayer } from '../contexts/PlayerContext';
 import { colors, fonts, spacing } from '../styles';
-import PlayerEmbed from './PlayerEmbed';
 
 const BAR_HEIGHT = 64;
 
 export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
-    const { videoId, videoTitle, playerState, progress, togglePlayPause } = usePlayer();
+    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause } = usePlayer();
 
     if (!videoId) return null;
 
@@ -22,7 +21,11 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
             style={styles.container}
         >
             <View style={styles.content}>
-                <PlayerEmbed />
+                {thumbnailUrl ? (
+                    <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} />
+                ) : (
+                    <View style={[styles.thumbnail, styles.thumbnailPlaceholder]} />
+                )}
 
                 <View style={styles.titleContainer}>
                     <Pressable
@@ -82,6 +85,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: spacing.md,
         height: BAR_HEIGHT,
+    },
+    thumbnail: {
+        width: 80,
+        height: 45,
+        borderRadius: 4,
+        backgroundColor: colors.bg.card,
+    },
+    thumbnailPlaceholder: {
+        backgroundColor: colors.bg.elevated,
     },
     titleContainer: {
         flex: 1,
