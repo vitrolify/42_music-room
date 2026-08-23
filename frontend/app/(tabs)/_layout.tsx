@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { House, MagnifyingGlass, Playlist, UsersThree, UserCircle } from 'phosphor-react-native';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,9 +13,8 @@ export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const useSideNav = width >= 900;
-    const { videoId } = usePlayer();
+    const { videoId, setShowPlayer } = usePlayer();
     const hasPlayer = !!videoId;
-    const router = useRouter();
 
     function renderTabItems({ state, descriptors, navigation, horizontal }: any) {
         return state.routes
@@ -79,7 +78,7 @@ export default function TabsLayout() {
         return (
             <View style={{ backgroundColor: colors.bg.surface, borderTopColor: colors.border.gray, borderTopWidth: 0.5 }}>
                 {hasPlayer && (
-                    <MiniPlayerBar onPress={() => router.push('/player')} />
+                    <MiniPlayerBar onPress={() => setShowPlayer(true)} />
                 )}
                 <View style={{ flexDirection: 'row', paddingTop: spacing.sm / 2, height: 64 }}>
                     {renderTabItems({ ...props, horizontal: true })}
@@ -199,7 +198,7 @@ export default function TabsLayout() {
                         ...(Platform.OS === 'web' ? { position: 'fixed' as any } : { position: 'absolute' as any }),
                     }}
                 >
-                    <MiniPlayerBar onPress={() => router.push('/player')} />
+                    <MiniPlayerBar onPress={() => setShowPlayer(true)} />
                 </View>
             )}
 
