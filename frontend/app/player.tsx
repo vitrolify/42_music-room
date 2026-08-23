@@ -26,7 +26,6 @@ export default function PlayerScreen() {
         }
 
         setError(null);
-        setPlayerReady(false);
         setPlayerState('unstarted');
         setProgress({ currentTime: 0, duration: 0 });
         setVideoId(nextVideoId);
