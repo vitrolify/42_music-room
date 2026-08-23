@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { usePlayerBarPadding } from '../../src/hooks/usePlayerBarPadding';
 import { showAlert } from '../../src/lib/alerts';
 import {
     getFriends,
@@ -35,6 +36,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Friends() {
     const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
+    const playerBarPadding = usePlayerBarPadding();
     const router = useRouter();
     const { width } = useWindowDimensions();
     const isCompact = width < 560;
@@ -120,7 +122,7 @@ export default function Friends() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 padding: spacing.xl,
-                paddingBottom: insets.bottom + spacing.xxl,
+                paddingBottom: insets.bottom + spacing.xxl + playerBarPadding,
             }}
             refreshControl={
                 <RefreshControl
