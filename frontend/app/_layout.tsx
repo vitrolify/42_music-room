@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
+import { PlayerProvider } from '../src/contexts/PlayerContext';
 import { colors } from '../src/styles';
 import {
   useFonts,
@@ -72,7 +73,9 @@ export default function RootLayout() {
     return (
         <SafeAreaProvider>
             <AuthProvider>
-                <RootNavigator />
+                <PlayerProvider>
+                    <RootNavigator />
+                </PlayerProvider>
             </AuthProvider>
         </SafeAreaProvider>
     );
