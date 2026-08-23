@@ -1,40 +1,50 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Play, Pause } from 'phosphor-react-native';
 import YouTubePlayer from '../src/components/YouTubePlayer';
-import type { YouTubePlayerHandle, YouTubePlayerProgress, YouTubePlayerState } from '../src/components/YouTubePlayer.types';
+import { usePlayer } from '../src/contexts/PlayerContext';
 import { colors, globalStyles, spacing } from '../src/styles';
 
 export default function PlayerScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [input, setInput] = useState('');
-    const [videoId, setVideoId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const playerRef = useRef<YouTubePlayerHandle>(null);
-    const [playerState, setPlayerState] = useState<YouTubePlayerState>('unstarted');
-    const [playerReady, setPlayerReady] = useState(false);
-    const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
+
+    const {
+        videoId,
+        videoTitle,
+        thumbnailUrl,
+        playerState,
+        playerReady,
+        progress,
+        playerRef,
+        loadVideo: contextLoadVideo,
+        togglePlayPause,
+        setPlayerReady,
+        setPlayerState,
+        setProgress,
+        seekTo,
+    } = usePlayer();
 
     function loadVideo() {
         const nextVideoId = extractYouTubeVideoId(input);
         if (!nextVideoId) {
-            setVideoId(null);
             setError('Enter a valid YouTube video ID or URL.');
             return;
         }
-
         setError(null);
-        setPlayerState('unstarted');
-        setProgress({ currentTime: 0, duration: 0 });
-        setVideoId(nextVideoId);
+        contextLoadVideo(nextVideoId);
     }
 
     function handlePlayerError(message: string) {
         setError(message);
         Alert.alert('Player error', message);
     }
+
+    const isPlaying = playerState === 'playing';
 
     return (
         <ScrollView
@@ -46,32 +56,22 @@ export default function PlayerScreen() {
                 <Text style={globalStyles.link}>Back</Text>
             </Pressable>
 
-            <Text style={globalStyles.title}>YouTube Player</Text>
-            <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
-                Test a video before connecting playback to a playlist.
-            </Text>
-
-            <TextInput
-                style={globalStyles.input}
-                value={input}
-                onChangeText={setInput}
-                placeholder="YouTube ID or URL"
-                placeholderTextColor={colors.text.secondary}
-                autoCapitalize="none"
-                autoCorrect={false}
-                onSubmitEditing={loadVideo}
-            />
-            <Pressable
-                style={({ pressed }) => ({ ...globalStyles.primaryPillButton, opacity: pressed ? 0.8 : 1 })}
-                onPress={loadVideo}
-            >
-                <Text style={globalStyles.primaryPillButtonText}>Load video</Text>
-            </Pressable>
-
-            {error ? <Text style={[globalStyles.errorText, { marginTop: spacing.lg }]}>{error}</Text> : null}
-
             {videoId ? (
-                <View style={{ marginTop: spacing.xl }}>
+                <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
+                        {thumbnailUrl ? (
+                            <Image source={{ uri: thumbnailUrl }} style={{ width: 64, height: 64, borderRadius: 6 }} />
+                        ) : null}
+                        <View style={{ flex: 1, marginLeft: thumbnailUrl ? spacing.md : 0 }}>
+                            <Text style={globalStyles.heading} numberOfLines={2}>
+                                {videoTitle ?? 'Now Playing'}
+                            </Text>
+                            <Text style={[globalStyles.small, { marginTop: spacing.xs }]}>
+                                Video ID: {videoId}
+                            </Text>
+                        </View>
+                    </View>
+
                     <YouTubePlayer
                         ref={playerRef}
                         videoId={videoId}
@@ -80,36 +80,71 @@ export default function PlayerScreen() {
                         onProgress={setProgress}
                         onError={handlePlayerError}
                     />
-                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md }}>
                         <Pressable
-                            style={({ pressed }) => ({ ...globalStyles.primaryPillButton, opacity: !playerReady || pressed ? 0.55 : 1 })}
-                            onPress={() => playerRef.current?.play()}
+                            style={({ pressed }) => ({
+                                width: 48,
+                                height: 48,
+                                borderRadius: 24,
+                                backgroundColor: colors.brand,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: !playerReady || pressed ? 0.55 : 1,
+                            })}
+                            onPress={togglePlayPause}
                             disabled={!playerReady}
                         >
-                            <Text style={globalStyles.primaryPillButtonText}>Play</Text>
+                            {isPlaying ? (
+                                <Pause weight="fill" size={24} color={colors.text.primary} />
+                            ) : (
+                                <Play weight="fill" size={24} color={colors.text.primary} />
+                            )}
                         </Pressable>
-                        <Pressable
-                            style={({ pressed }) => ({ ...globalStyles.pillButton, opacity: !playerReady || pressed ? 0.55 : 1 })}
-                            onPress={() => playerRef.current?.pause()}
-                            disabled={!playerReady}
-                        >
-                            <Text style={globalStyles.pillButtonText}>Pause</Text>
-                        </Pressable>
+
+                        <View style={{ flex: 1 }}>
+                            <ProgressBar
+                                currentTime={progress.currentTime}
+                                duration={progress.duration}
+                                onSeek={seekTo}
+                            />
+                        </View>
                     </View>
+
                     <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Player state: {playerState}</Text>
-                    <ProgressBar
-                        currentTime={progress.currentTime}
-                        duration={progress.duration}
-                        onSeek={seconds => playerRef.current?.seekTo(seconds)}
-                    />
-                    <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Video ID: {videoId}</Text>
                 </View>
             ) : (
-                <View style={[cardStyle, { marginTop: spacing.xl }]}>
-                    <Text style={globalStyles.heading}>No video loaded</Text>
-                    <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>
-                        Paste a YouTube link or an 11-character video ID to begin.
+                <View>
+                    <Text style={globalStyles.title}>YouTube Player</Text>
+                    <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
+                        Test a video before connecting playback to a playlist.
                     </Text>
+
+                    <TextInput
+                        style={globalStyles.input}
+                        value={input}
+                        onChangeText={setInput}
+                        placeholder="YouTube ID or URL"
+                        placeholderTextColor={colors.text.secondary}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        onSubmitEditing={loadVideo}
+                    />
+                    <Pressable
+                        style={({ pressed }) => ({ ...globalStyles.primaryPillButton, opacity: pressed ? 0.8 : 1 })}
+                        onPress={loadVideo}
+                    >
+                        <Text style={globalStyles.primaryPillButtonText}>Load video</Text>
+                    </Pressable>
+
+                    {error ? <Text style={[globalStyles.errorText, { marginTop: spacing.lg }]}>{error}</Text> : null}
+
+                    <View style={[cardStyle, { marginTop: spacing.xl }]}>
+                        <Text style={globalStyles.heading}>No video loaded</Text>
+                        <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>
+                            Paste a YouTube link or an 11-character video ID to begin.
+                        </Text>
+                    </View>
                 </View>
             )}
         </ScrollView>
@@ -151,7 +186,7 @@ function ProgressBar({ currentTime, duration, onSeek }: ProgressBarProps) {
     };
 
     return (
-        <View style={{ marginTop: spacing.lg }}>
+        <View>
             <Pressable
                 ref={barRef}
                 onPress={event => {
