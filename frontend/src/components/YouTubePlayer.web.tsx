@@ -66,6 +66,11 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
                     enablejsapi: 1,
                     playsinline: 1,
                     rel: 0,
+                    controls: 0,
+                    modestbranding: 1,
+                    iv_load_policy: 3,
+                    disablekb: 1,
+                    fs: 0,
                     origin: window.location.origin,
                 },
                 events: {

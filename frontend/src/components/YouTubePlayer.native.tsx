@@ -18,7 +18,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
     ref,
 ) {
     const webViewRef = useRef<WebView>(null);
-    const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?enablejsapi=1&playsinline=1&rel=0&origin=https%3A%2F%2Fvitrolify.app`;
+    const embedUrl = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?enablejsapi=1&playsinline=1&rel=0&controls=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0&origin=https%3A%2F%2Fvitrolify.app`;
     const html = `<!doctype html>
 <html>
   <head>
@@ -36,7 +36,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
       window.onYouTubeIframeAPIReady = function() {
         window.__ytPlayer = new YT.Player('player', {
           videoId: window.__ytVideoId,
-          playerVars: { playsinline: 1, enablejsapi: 1, rel: 0, origin: 'https://vitrolify.app' },
+          playerVars: { playsinline: 1, enablejsapi: 1, rel: 0, controls: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, origin: 'https://vitrolify.app' },
           events: {
             onReady: function() { window.__send({ type: 'ready' }); window.__ytFlush(); window.__ytProgress(); },
             onStateChange: function(event) { window.__send({ type: 'state', value: event.data }); },
