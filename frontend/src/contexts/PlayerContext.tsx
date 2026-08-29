@@ -1,117 +1,28 @@
-import { createContext, useCallback, useRef, useState, use } from 'react';
+import { createContext, useCallback, useEffect, useRef, useState, use } from 'react';
 import type { YouTubePlayerHandle, YouTubePlayerProgress, YouTubePlayerState } from '../components/YouTubePlayer.types';
+import { getFirebaseToken, getPlaybackWebSocketUrl, request } from '../lib/api/client';
+import { useAuth } from './AuthContext';
 
+type SyncStatus = 'connecting' | 'synced' | 'offline' | 'autoplay-blocked';
+type PlaybackSnapshot = { video_id: string; status: 'playing' | 'paused'; position_seconds: number; duration_seconds: number; version: number; controller_session_id: string | null; updated_at: string };
+type PlaybackEvent = { type: string; version: number; payload: PlaybackSnapshot };
 type PlayerContextType = {
-    videoId: string | null;
-    videoTitle: string | null;
-    thumbnailUrl: string | null;
-    playerState: YouTubePlayerState;
-    playerReady: boolean;
-    progress: YouTubePlayerProgress;
-    playerRef: React.RefObject<YouTubePlayerHandle | null>;
-    showPlayer: boolean;
-    loadVideo: (videoId: string) => void;
-    togglePlayPause: () => void;
-    play: () => void;
-    pause: () => void;
-    seekTo: (seconds: number) => void;
-    setPlayerReady: (ready: boolean) => void;
-    setPlayerState: (state: YouTubePlayerState) => void;
-    setProgress: (progress: YouTubePlayerProgress) => void;
-    setShowPlayer: (show: boolean) => void;
+    videoId: string | null; videoTitle: string | null; thumbnailUrl: string | null; playerState: YouTubePlayerState; playerReady: boolean; progress: YouTubePlayerProgress; playerRef: React.RefObject<YouTubePlayerHandle | null>; showPlayer: boolean; syncStatus: SyncStatus; sessionId: string; serverVersion: number;
+    loadVideo: (videoId: string) => void; togglePlayPause: () => void; play: () => void; pause: () => void; seekTo: (seconds: number) => void; setPlayerReady: (ready: boolean) => void; setPlayerState: (state: YouTubePlayerState) => void; setProgress: (progress: YouTubePlayerProgress) => void; setShowPlayer: (show: boolean) => void;
 };
-
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 function PlayerProvider({ children }: { children: React.ReactNode }) {
-    const [videoId, setVideoId] = useState<string | null>(null);
-    const [videoTitle, setVideoTitle] = useState<string | null>(null);
-    const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-    const [playerState, setPlayerState] = useState<YouTubePlayerState>('unstarted');
-    const [playerReady, setPlayerReady] = useState(false);
-    const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
-    const playerRef = useRef<YouTubePlayerHandle | null>(null);
-    const [showPlayer, setShowPlayer] = useState(false);
-
-    const playerStateRef = useRef(playerState);
-    playerStateRef.current = playerState;
-
-    const loadVideo = useCallback(async (id: string) => {
-        setVideoId(id);
-        setPlayerState('unstarted');
-        setProgress({ currentTime: 0, duration: 0 });
-        setVideoTitle(null);
-        setThumbnailUrl(null);
-
-        // Force reload even if the video ID is the same (setVideoId is a no-op for identical values)
-        playerRef.current?.loadVideo(id);
-
-        try {
-            const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(id)}&format=json`;
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                setVideoTitle(data.title ?? null);
-                setThumbnailUrl(data.thumbnail_url ?? null);
-            }
-        } catch {
-            // oEmbed is best-effort; fall back to null
-        }
-    }, []);
-
-    const play = useCallback(() => {
-        playerRef.current?.play();
-    }, []);
-
-    const pause = useCallback(() => {
-        playerRef.current?.pause();
-    }, []);
-
-    const togglePlayPause = useCallback(() => {
-        if (playerStateRef.current === 'playing') {
-            playerRef.current?.pause();
-        } else {
-            playerRef.current?.play();
-        }
-    }, []);
-
-    const seekTo = useCallback((seconds: number) => {
-        playerRef.current?.seekTo(seconds);
-    }, []);
-
-    return (
-        <PlayerContext.Provider
-            value={{
-                videoId,
-                videoTitle,
-                thumbnailUrl,
-                playerState,
-                playerReady,
-                progress,
-                playerRef,
-                showPlayer,
-                loadVideo,
-                togglePlayPause,
-                play,
-                pause,
-                seekTo,
-                setPlayerReady,
-                setPlayerState,
-                setProgress,
-                setShowPlayer,
-            }}
-        >
-            {children}
-        </PlayerContext.Provider>
-    );
+    const { user } = useAuth();
+    const [videoId, setVideoId] = useState<string | null>(null); const [videoTitle, setVideoTitle] = useState<string | null>(null); const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null); const [playerState, setPlayerState] = useState<YouTubePlayerState>('unstarted'); const [playerReady, setPlayerReady] = useState(false); const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 }); const [showPlayer, setShowPlayer] = useState(false); const [syncStatus, setSyncStatus] = useState<SyncStatus>(user ? 'connecting' : 'offline'); const [serverVersion, setServerVersion] = useState(0);
+    const playerRef = useRef<YouTubePlayerHandle | null>(null); const sessionIdRef = useRef(globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`); const socketRef = useRef<WebSocket | null>(null); const desiredRef = useRef<PlaybackSnapshot | null>(null); const lastCheckpointRef = useRef({ time: 0, position: -1 }); const playerStateRef = useRef(playerState); const serverVersionRef = useRef(serverVersion); const progressRef = useRef(progress); const videoIdRef = useRef(videoId); playerStateRef.current = playerState; serverVersionRef.current = serverVersion; progressRef.current = progress; videoIdRef.current = videoId;
+    const sendCommand = useCallback(async (command: string, values: Record<string, unknown> = {}) => { const message = { command, ...values, session_id: sessionIdRef.current }; if (socketRef.current?.readyState === WebSocket.OPEN) socketRef.current.send(JSON.stringify(message)); else { try { await request('/playback/state', 'PUT', message); } catch { setSyncStatus('offline'); } } }, []);
+    const applySnapshot = useCallback((snapshot: PlaybackSnapshot) => { if (snapshot.version <= serverVersionRef.current) return; desiredRef.current = snapshot; serverVersionRef.current = snapshot.version; setServerVersion(snapshot.version); if (snapshot.video_id && snapshot.video_id !== videoIdRef.current) { videoIdRef.current = snapshot.video_id; setVideoId(snapshot.video_id); playerRef.current?.loadVideo(snapshot.video_id); setVideoTitle(null); setThumbnailUrl(null); } const target = snapshot.position_seconds + (snapshot.status === 'playing' ? Math.max(0, (Date.now() - Date.parse(snapshot.updated_at)) / 1000) : 0); if (Math.abs(progressRef.current.currentTime - target) > 1) playerRef.current?.seekTo(target); if (snapshot.status === 'playing') { playerRef.current?.play(); setTimeout(() => { if (desiredRef.current?.version === snapshot.version && playerStateRef.current !== 'playing') setSyncStatus('autoplay-blocked'); }, 700); } else playerRef.current?.pause(); setProgress({ currentTime: target, duration: snapshot.duration_seconds }); }, []);
+    useEffect(() => { let cancelled = false; let reconnectTimer: ReturnType<typeof setTimeout> | undefined; const connect = async () => { if (!user || cancelled) return; setSyncStatus('connecting'); try { const initial = await request<PlaybackSnapshot | null>('GET', '/playback/state'); if (initial && !cancelled) applySnapshot(initial); const token = await getFirebaseToken(); if (!token || cancelled) return; const socket = new WebSocket(getPlaybackWebSocketUrl(sessionIdRef.current, token)); socketRef.current = socket; socket.onopen = () => setSyncStatus('synced'); socket.onmessage = event => { try { const message = JSON.parse(event.data) as PlaybackEvent; if (message.type === 'PLAYBACK_STATE_CHANGED') applySnapshot(message.payload); } catch {} }; socket.onclose = () => { socketRef.current = null; if (!cancelled) { setSyncStatus('offline'); reconnectTimer = setTimeout(connect, 1500); } }; socket.onerror = () => setSyncStatus('offline'); } catch { if (!cancelled) { setSyncStatus('offline'); reconnectTimer = setTimeout(connect, 1500); } } }; void connect(); return () => { cancelled = true; if (reconnectTimer) clearTimeout(reconnectTimer); socketRef.current?.close(); socketRef.current = null; }; }, [applySnapshot, user]);
+    const loadVideo = useCallback(async (id: string) => { setVideoId(id); setPlayerState('unstarted'); setProgress({ currentTime: 0, duration: 0 }); playerRef.current?.loadVideo(id); setVideoTitle(null); setThumbnailUrl(null); void sendCommand('load', { video_id: id, position_seconds: 0, duration_seconds: 0 }); try { const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(id)}&format=json`); if (res.ok) { const data = await res.json(); setVideoTitle(data.title ?? null); setThumbnailUrl(data.thumbnail_url ?? null); } } catch {} }, [sendCommand]);
+    const play = useCallback(() => { playerRef.current?.play(); void sendCommand('play', { position_seconds: progress.currentTime }); }, [progress.currentTime, sendCommand]); const pause = useCallback(() => { playerRef.current?.pause(); void sendCommand('pause', { position_seconds: progress.currentTime }); }, [progress.currentTime, sendCommand]); const togglePlayPause = useCallback(() => { if (playerStateRef.current === 'playing') pause(); else play(); }, [pause, play]); const seekTo = useCallback((seconds: number) => { playerRef.current?.seekTo(seconds); setProgress(p => ({ ...p, currentTime: seconds })); void sendCommand('seek', { position_seconds: seconds, duration_seconds: progress.duration }); }, [progress.duration, sendCommand]);
+    const reportProgress = useCallback((next: YouTubePlayerProgress) => { setProgress(next); const snapshot = desiredRef.current; const now = Date.now(); if (snapshot?.controller_session_id === sessionIdRef.current && snapshot.status === 'playing' && now - lastCheckpointRef.current.time >= 700 && Math.abs(next.currentTime - lastCheckpointRef.current.position) >= 0.25) { lastCheckpointRef.current = { time: now, position: next.currentTime }; void sendCommand('checkpoint', { position_seconds: next.currentTime, duration_seconds: next.duration }); } }, [sendCommand]);
+    return <PlayerContext.Provider value={{ videoId, videoTitle, thumbnailUrl, playerState, playerReady, progress, playerRef, showPlayer, syncStatus, sessionId: sessionIdRef.current, serverVersion, loadVideo, togglePlayPause, play, pause, seekTo, setPlayerReady, setPlayerState, setProgress: reportProgress, setShowPlayer }}>{children}</PlayerContext.Provider>;
 }
-
-function usePlayer() {
-    const context = use(PlayerContext);
-    if (!context) {
-        throw new Error('usePlayer must be used within a PlayerProvider');
-    }
-    return context;
-}
-
+function usePlayer() { const context = use(PlayerContext); if (!context) throw new Error('usePlayer must be used within a PlayerProvider'); return context; }
 export { PlayerContext, PlayerProvider, usePlayer };

@@ -28,6 +28,7 @@ export default function PlayerOverlay() {
         setProgress,
         setShowPlayer,
         seekTo,
+        syncStatus,
     } = usePlayer();
 
     function loadVideo() {
@@ -126,7 +127,12 @@ export default function PlayerOverlay() {
                             </View>
                         </View>
 
-                        <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Player state: {playerState}</Text>
+                        <Text style={[globalStyles.small, { marginTop: spacing.sm }]}>Player state: {playerState} · Sync: {syncStatus}</Text>
+                        {syncStatus === 'autoplay-blocked' ? (
+                            <Pressable onPress={togglePlayPause} style={{ marginTop: spacing.sm }}>
+                                <Text style={globalStyles.link}>Tap to start synchronized playback</Text>
+                            </Pressable>
+                        ) : null}
 
                         <View style={[cardStyle, { marginTop: spacing.xl }]}>
                             <Text style={globalStyles.heading}>Load a new video</Text>
