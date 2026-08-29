@@ -1,10 +1,11 @@
 import uuid
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.device import Device
+from app.models.device import Device, DeviceDelegation
 
 
 async def register_device(
@@ -45,3 +46,67 @@ async def delete_device(
     await db.delete(device)
     await db.commit()
     return True
+
+
+async def grant_device_access(
+    db: AsyncSession, device_id: uuid.UUID, owner_id: uuid.UUID, delegate_id: uuid.UUID
+) -> DeviceDelegation | None:
+    # Verify the requester actually owns this device
+    device_result = await db.execute(
+        select(Device).where(Device.id == device_id, Device.owner_id == owner_id)
+    )
+    if not device_result.scalar_one_or_none():
+        return None
+
+    delegation = DeviceDelegation(device_id=device_id, delegate_user_id=delegate_id)
+    db.add(delegation)
+
+    try:
+        await db.commit()
+        await db.refresh(delegation)
+        return delegation
+    except IntegrityError:
+        await db.rollback()
+        # If the delegation already exists, gracefully return the existing record
+        existing = await db.execute(
+            select(DeviceDelegation).where(
+                DeviceDelegation.device_id == device_id,
+                DeviceDelegation.delegate_user_id == delegate_id,
+            )
+        )
+        return existing.scalar_one()
+
+
+async def revoke_device_access(
+    db: AsyncSession, device_id: uuid.UUID, owner_id: uuid.UUID, delegate_id: uuid.UUID
+) -> bool:
+    # Verify ownership before allowing deletion
+    device_result = await db.execute(
+        select(Device).where(Device.id == device_id, Device.owner_id == owner_id)
+    )
+    if not device_result.scalar_one_or_none():
+        return False
+
+    result = await db.execute(
+        delete(DeviceDelegation).where(
+            DeviceDelegation.device_id == device_id,
+            DeviceDelegation.delegate_user_id == delegate_id,
+        )
+    )
+    await db.commit()
+    return result.rowcount > 0
+
+
+async def list_device_delegates(
+    db: AsyncSession, device_id: uuid.UUID, owner_id: uuid.UUID
+) -> Sequence[DeviceDelegation] | None:
+    device_result = await db.execute(
+        select(Device).where(Device.id == device_id, Device.owner_id == owner_id)
+    )
+    if not device_result.scalar_one_or_none():
+        return None
+
+    result = await db.execute(
+        select(DeviceDelegation).where(DeviceDelegation.device_id == device_id)
+    )
+    return result.scalars().all()

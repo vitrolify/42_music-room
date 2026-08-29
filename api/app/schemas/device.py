@@ -23,3 +23,17 @@ class DeviceRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceDelegationCreate(BaseModel):
+    delegate_user_id: uuid.UUID = Field(
+        ..., description="The UUID of the user being granted control"
+    )
+
+
+class DeviceDelegationRead(BaseModel):
+    device_id: uuid.UUID
+    delegate_user_id: uuid.UUID
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
