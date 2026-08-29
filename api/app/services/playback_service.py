@@ -49,11 +49,11 @@ async def apply_command(
             state.video_id = command.video_id
         if command.position_seconds is None:
             raise ValueError("position_seconds is required")
+        if command.command == "checkpoint" and state.controller_session_id != (session_id or command.session_id):
+            raise ValueError("Only the current controller may send checkpoints")
         state.position_seconds = command.position_seconds
         if command.duration_seconds is not None:
             state.duration_seconds = command.duration_seconds
-        if command.command == "seek" and command.session_id:
-            state.controller_session_id = command.session_id
 
     state.version += 1
     if command.command != "checkpoint":

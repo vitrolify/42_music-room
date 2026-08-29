@@ -1,4 +1,5 @@
 import uuid
+from contextlib import asynccontextmanager
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, WebSocketException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,13 @@ from app.services.playback_service import apply_command, get_state
 from app.websockets.playback_manager import playback_ws_manager
 
 router = APIRouter(prefix="/playback", tags=["playback"])
+ws_router = APIRouter(prefix="/ws", tags=["playback"])
+
+
+@asynccontextmanager
+async def db_context():
+    async for db in get_db():
+        yield db
 
 
 def read_state(state: UserPlaybackState) -> PlaybackStateRead:
@@ -35,7 +43,7 @@ async def update_playback(
     return event
 
 
-@router.websocket("/ws")
+@ws_router.websocket("/playback")
 async def playback_websocket(
     websocket: WebSocket,
     user_id: uuid.UUID = Depends(get_current_user_id_ws),
@@ -45,14 +53,14 @@ async def playback_websocket(
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="session_id is required")
     await playback_ws_manager.connect(websocket, user_id)
     try:
-        async with get_db() as db:
+        async with db_context() as db:
             state = await get_state(db, user_id)
             if state and state.video_id:
                 await websocket.send_json(PlaybackEvent(version=state.version, payload=read_state(state)).model_dump(mode="json"))
         while True:
             raw = await websocket.receive_json()
             command = PlaybackCommand.model_validate({**raw, "session_id": session_id})
-            async with get_db() as db:
+            async with db_context() as db:
                 state = await apply_command(db, user_id, command, session_id)
             event = PlaybackEvent(version=state.version, payload=read_state(state)).model_dump(mode="json")
             await playback_ws_manager.publish(user_id, event)

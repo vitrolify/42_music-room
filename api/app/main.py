@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.error_handlers import setup_exception_handlers, throw_exception
 from app.api.v1.router import api_router
 from app.api.v1.ws import playlists as ws_playlists
+from app.api.v1.endpoints import playback
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.redis import close_redis
@@ -54,4 +55,5 @@ def error() -> dict[str, str]:
 
 
 app.include_router(ws_playlists.router)
+app.include_router(playback.ws_router)
 app.include_router(api_router, prefix="/api/v1")
