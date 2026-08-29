@@ -181,8 +181,14 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const togglePlayPause = useCallback(() => {
         if (playerStateRef.current === 'playing') pause();
-        else play();
-    }, [pause, play]);
+        else if (sync.syncStatus === 'autoplay-blocked') {
+            const syncedPosition = sync.getCurrentPosition();
+            const position = syncedPosition ?? progressRef.current.currentTime;
+            playerRef.current?.seekTo(position);
+            setProgress(current => ({ ...current, currentTime: position }));
+            void sync.sendCommand('play', { position_seconds: position });
+        } else play();
+    }, [pause, play, sync.getCurrentPosition, sync.sendCommand, sync.syncStatus]);
 
     const seekTo = useCallback((seconds: number) => {
         playerRef.current?.seekTo(seconds);

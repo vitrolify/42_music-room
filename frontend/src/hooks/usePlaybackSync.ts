@@ -23,6 +23,7 @@ type PlaybackSync = {
     serverVersion: number;
     sendCommand: (command: PlaybackCommand, values?: PlaybackCommandPayload) => Promise<void>;
     reportProgress: (currentTime: number, duration: number) => void;
+    getCurrentPosition: () => number | null;
     markAutoplayBlocked: () => void;
     markPlaybackStarted: () => void;
     isCurrentSnapshot: (version: number) => boolean;
@@ -181,12 +182,23 @@ export function usePlaybackSync({
         [sendCommand],
     );
 
+    const getCurrentPosition = useCallback(() => {
+        const snapshot = desiredSnapshotRef.current;
+        if (!snapshot) return null;
+
+        const elapsedSeconds = snapshot.status === 'playing'
+            ? Math.max(0, (Date.now() - Date.parse(snapshot.updated_at)) / 1000)
+            : 0;
+        return snapshot.position_seconds + elapsedSeconds;
+    }, []);
+
     return {
         syncStatus,
         sessionId: sessionIdRef.current,
         serverVersion,
         sendCommand,
         reportProgress,
+        getCurrentPosition,
         markAutoplayBlocked,
         markPlaybackStarted,
         isCurrentSnapshot,
