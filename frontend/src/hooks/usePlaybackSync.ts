@@ -24,6 +24,7 @@ type PlaybackSync = {
     sendCommand: (command: PlaybackCommand, values?: PlaybackCommandPayload) => Promise<void>;
     reportProgress: (currentTime: number, duration: number) => void;
     markAutoplayBlocked: () => void;
+    markPlaybackStarted: () => void;
     isCurrentSnapshot: (version: number) => boolean;
 };
 
@@ -45,6 +46,10 @@ export function usePlaybackSync({
 
     const markAutoplayBlocked = useCallback(() => {
         setSyncStatus('autoplay-blocked');
+    }, []);
+
+    const markPlaybackStarted = useCallback(() => {
+        setSyncStatus(current => current === 'autoplay-blocked' ? 'synced' : current);
     }, []);
 
     const isCurrentSnapshot = useCallback(
@@ -183,6 +188,7 @@ export function usePlaybackSync({
         sendCommand,
         reportProgress,
         markAutoplayBlocked,
+        markPlaybackStarted,
         isCurrentSnapshot,
     };
 }

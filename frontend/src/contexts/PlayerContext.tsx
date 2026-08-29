@@ -1,4 +1,4 @@
-import { createContext, use, useCallback, useRef, useState } from 'react';
+import { createContext, use, useCallback, useEffect, useRef, useState } from 'react';
 import type {
     YouTubePlayerHandle,
     YouTubePlayerProgress,
@@ -39,15 +39,19 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     const [videoTitle, setVideoTitle] = useState<string | null>(null);
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [playerState, setPlayerState] = useState<YouTubePlayerState>('unstarted');
-    const [playerReady, setPlayerReady] = useState(false);
+    const [playerReady, setPlayerReadyState] = useState(false);
     const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
     const [showPlayer, setShowPlayer] = useState(false);
 
     const playerRef = useRef<YouTubePlayerHandle | null>(null);
     const playerStateRef = useRef(playerState);
+    const playerReadyRef = useRef(playerReady);
     const progressRef = useRef(progress);
     const videoIdRef = useRef(videoId);
+    const autoplayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoplayVersionRef = useRef<number | null>(null);
     playerStateRef.current = playerState;
+    playerReadyRef.current = playerReady;
     progressRef.current = progress;
     videoIdRef.current = videoId;
 
@@ -66,6 +70,11 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const applySnapshot = useCallback((snapshot: PlaybackSnapshot) => {
+        if (autoplayTimerRef.current) {
+            clearTimeout(autoplayTimerRef.current);
+            autoplayTimerRef.current = null;
+        }
+
         if (snapshot.video_id && snapshot.video_id !== videoIdRef.current) {
             videoIdRef.current = snapshot.video_id;
             setVideoId(snapshot.video_id);
@@ -84,16 +93,21 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (snapshot.status === 'playing') {
+            autoplayVersionRef.current = snapshot.version;
             playerRef.current?.play();
-            setTimeout(() => {
+            autoplayTimerRef.current = setTimeout(() => {
+                autoplayTimerRef.current = null;
                 if (
-                    sync.isCurrentSnapshot(snapshot.version)
+                    playerReadyRef.current
+                    && autoplayVersionRef.current === snapshot.version
+                    && sync.isCurrentSnapshot(snapshot.version)
                     && playerStateRef.current !== 'playing'
                 ) {
                     sync.markAutoplayBlocked();
                 }
-            }, 700);
+            }, 2000);
         } else {
+            autoplayVersionRef.current = null;
             playerRef.current?.pause();
         }
 
@@ -101,6 +115,47 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     }, [loadMetadata]);
 
     const sync = usePlaybackSync({ isAuthenticated: Boolean(user), onSnapshot: applySnapshot });
+
+    useEffect(() => () => {
+        if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current);
+    }, []);
+
+    const handlePlayerReady = useCallback((ready: boolean) => {
+        setPlayerReadyState(ready);
+        playerReadyRef.current = ready;
+
+        if (
+            ready
+            && autoplayVersionRef.current !== null
+            && playerStateRef.current !== 'playing'
+        ) {
+            playerRef.current?.play();
+            if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current);
+            const version = autoplayVersionRef.current;
+            autoplayTimerRef.current = setTimeout(() => {
+                autoplayTimerRef.current = null;
+                if (
+                    autoplayVersionRef.current === version
+                    && sync.isCurrentSnapshot(version)
+                    && playerStateRef.current !== 'playing'
+                ) {
+                    sync.markAutoplayBlocked();
+                }
+            }, 2000);
+        }
+    }, [sync.isCurrentSnapshot, sync.markAutoplayBlocked]);
+
+    const handlePlayerState = useCallback((state: YouTubePlayerState) => {
+        setPlayerState(state);
+        if (state === 'playing') {
+            autoplayVersionRef.current = null;
+            if (autoplayTimerRef.current) {
+                clearTimeout(autoplayTimerRef.current);
+                autoplayTimerRef.current = null;
+            }
+            sync.markPlaybackStarted();
+        }
+    }, [sync.markPlaybackStarted]);
 
     const loadVideo = useCallback((id: string) => {
         videoIdRef.current = id;
@@ -161,8 +216,8 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
             play,
             pause,
             seekTo,
-            setPlayerReady,
-            setPlayerState,
+            setPlayerReady: handlePlayerReady,
+            setPlayerState: handlePlayerState,
             setProgress: reportProgress,
             setShowPlayer,
         }}>
