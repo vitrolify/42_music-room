@@ -8,6 +8,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision: str = "5a2f6a2c9d10"
 down_revision: Union[str, None] = "1fc83f47fb6c"
@@ -16,8 +17,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    playback_status = sa.Enum("playing", "paused", name="playback_status_enum")
-    playback_status.create(op.get_bind(), checkfirst=True)
+    playback_status = postgresql.ENUM(
+        "playing", "paused", name="playback_status_enum", create_type=False
+    )
+    postgresql.ENUM("playing", "paused", name="playback_status_enum").create(
+        op.get_bind(), checkfirst=True
+    )
     op.create_table(
         "user_playback_states",
         sa.Column("user_id", sa.UUID(), nullable=False),
