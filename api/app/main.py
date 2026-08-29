@@ -4,9 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.error_handlers import setup_exception_handlers, throw_exception
+from app.api.v1.endpoints import playback
 from app.api.v1.router import api_router
 from app.api.v1.ws import playlists as ws_playlists
-from app.api.v1.endpoints import playback
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.redis import close_redis

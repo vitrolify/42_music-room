@@ -27,7 +27,10 @@ class PlaybackConnectionManager:
                 self.connections.pop(str(user_id), None)
 
     async def publish(self, user_id: uuid.UUID, message: dict):
-        await redis_client.publish(f"playback_{user_id}", json.dumps(message, default=str))
+        await redis_client.publish(
+            f"playback_{user_id}",
+            json.dumps(message, default=str),
+        )
 
     async def listen(self):
         pubsub = redis_client.pubsub()

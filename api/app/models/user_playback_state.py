@@ -23,13 +23,22 @@ class UserPlaybackState(Base):
     )
     video_id: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[PlaybackStatus] = mapped_column(
-        SAEnum(PlaybackStatus, name="playback_status_enum", values_callable=lambda x: [e.value for e in x]),
+        SAEnum(
+            PlaybackStatus,
+            name="playback_status_enum",
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     position_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    controller_session_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    controller_session_id: Mapped[str | None] = mapped_column(
+        String(128), nullable=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )

@@ -13,7 +13,10 @@ async def get_state(db: AsyncSession, user_id: uuid.UUID) -> UserPlaybackState |
 
 
 async def apply_command(
-    db: AsyncSession, user_id: uuid.UUID, command: PlaybackCommand, session_id: str | None
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    command: PlaybackCommand,
+    session_id: str | None,
 ) -> UserPlaybackState:
     # Materialize the row first so concurrent commands serialize on the same user row.
     await db.execute(
@@ -25,7 +28,9 @@ async def apply_command(
         .on_conflict_do_nothing(index_elements=[UserPlaybackState.user_id])
     )
     result = await db.execute(
-        select(UserPlaybackState).where(UserPlaybackState.user_id == user_id).with_for_update()
+        select(UserPlaybackState)
+        .where(UserPlaybackState.user_id == user_id)
+        .with_for_update()
     )
     state = result.scalar_one()
 
@@ -39,7 +44,11 @@ async def apply_command(
     elif command.command in ("play", "pause"):
         if not state.video_id:
             raise ValueError("No video is loaded")
-        state.status = PlaybackStatus.PLAYING if command.command == "play" else PlaybackStatus.PAUSED
+        state.status = (
+            PlaybackStatus.PLAYING
+            if command.command == "play"
+            else PlaybackStatus.PAUSED
+        )
         if command.position_seconds is not None:
             state.position_seconds = command.position_seconds
     elif command.command in ("seek", "checkpoint"):
@@ -49,7 +58,10 @@ async def apply_command(
             state.video_id = command.video_id
         if command.position_seconds is None:
             raise ValueError("position_seconds is required")
-        if command.command == "checkpoint" and state.controller_session_id != (session_id or command.session_id):
+        if (
+            command.command == "checkpoint"
+            and state.controller_session_id != (session_id or command.session_id)
+        ):
             raise ValueError("Only the current controller may send checkpoints")
         state.position_seconds = command.position_seconds
         if command.duration_seconds is not None:

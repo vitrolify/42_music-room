@@ -5,9 +5,9 @@ from app.api.v1.endpoints import (
     friends,
     health,
     invites,
+    playback,
     playlist_tracks,
     playlists,
-    playback,
     users,
 )
 
