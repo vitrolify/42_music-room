@@ -48,6 +48,22 @@ async def delete_device(
     return True
 
 
+async def update_device_name(
+    db: AsyncSession, device_id: uuid.UUID, user_id: uuid.UUID, new_name: str
+) -> Device | None:
+    result = await db.execute(select(Device).where(Device.id == device_id))
+    device = result.scalar_one_or_none()
+
+    if not device or device.owner_id != user_id:
+        return None
+
+    device.name = new_name
+    await db.commit()
+    await db.refresh(device)
+
+    return device
+
+
 async def grant_device_access(
     db: AsyncSession, device_id: uuid.UUID, owner_id: uuid.UUID, delegate_id: uuid.UUID
 ) -> DeviceDelegation | None:

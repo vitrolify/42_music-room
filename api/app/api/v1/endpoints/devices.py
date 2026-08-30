@@ -12,6 +12,7 @@ from app.schemas.device import (
     DeviceDelegationCreate,
     DeviceDelegationRead,
     DeviceRead,
+    DeviceUpdate,
 )
 from app.services import device_service
 
@@ -71,6 +72,32 @@ async def remove_device(
             status_code=status.HTTP_404_NOT_FOUND,
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch(
+    "/{device_id}",
+    response_model=DeviceRead,
+    status_code=status.HTTP_200_OK,
+    summary="Update a device's name",
+)
+async def rename_device(
+    device_id: uuid.UUID,
+    payload: DeviceUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    updated_device = await device_service.update_device_name(
+        db=db, device_id=device_id, user_id=user_id, new_name=payload.name
+    )
+
+    if not updated_device:
+        raise BaseVitrolifyException(
+            error_code="INVALID_DEVICE_RENAME",
+            message="Device not found or access denied.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    return updated_device
 
 
 @router.post(

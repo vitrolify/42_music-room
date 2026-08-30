@@ -25,6 +25,15 @@ class DeviceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DeviceUpdate(BaseModel):
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="The new friendly name for the device",
+    )
+
+
 class DeviceDelegationCreate(BaseModel):
     delegate_user_id: uuid.UUID = Field(
         ..., description="The UUID of the user being granted control"
