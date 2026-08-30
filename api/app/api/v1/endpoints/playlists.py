@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
+from app.db.redis import get_active_device
 from app.db.session import get_db
 from app.schemas.playlist import PlaylistCreate, PlaylistRead, PlaylistUpdate
 from app.services import playlist_service
@@ -54,6 +55,8 @@ async def get_playlist(
             message="Playlist nao encontrada",
             status_code=status.HTTP_404_NOT_FOUND,
         )
+    active_device_str = await get_active_device(playlist_id)
+    playlist.active_device_id = active_device_str
     return playlist
 
 
