@@ -36,6 +36,17 @@ class PlaylistConnectionManager(BaseConnectionManager):
         room_id = self._get_room_id(playlist_id)
         await redis_client.publish(room_id, json.dumps(message))
 
+    async def broadcast_error(
+        self, playlist_id: int, target_user_id: uuid.UUID, code: str, message: str
+    ):
+        payload = {
+            "type": "USER_ERROR",
+            "target_user_id": str(target_user_id),
+            "error_code": code,
+            "message": message,
+        }
+        await self.broadcast_playlist_update(playlist_id, payload, None)
+
     async def _listen_to_redis(self):
         """
         Runs continuously in the background, listening for Redis broadcasts.
@@ -50,8 +61,17 @@ class PlaylistConnectionManager(BaseConnectionManager):
                     data = message["data"]
 
                     if room_id in self.active_connections:
+                        parsed_data = json.loads(data)
+                        target_user = parsed_data.get("target_user_id")
+
                         connections = list(self.active_connections[room_id])
                         for connection in connections:
+                            if (
+                                target_user
+                                and self.connection_user_map.get(connection)
+                                != target_user
+                            ):
+                                continue
                             try:
                                 await connection.send_text(data)
                             except Exception as e:

@@ -82,6 +82,12 @@ async def _execute_move_transaction(
                 "track_id": payload.playlist_track_id,
             }
         )
+        await playlist_ws_manager.broadcast_error(
+            playlist_id=playlist_id,
+            target_user_id=event.user_id,
+            code="STALE_STATE",
+            message="The playlist has changed. Your action was not processed",
+        )
         return None
     except Exception as e:
         await db.rollback()
