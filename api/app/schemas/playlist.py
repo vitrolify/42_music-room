@@ -27,3 +27,4 @@ class PlaylistRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     active_device_id: uuid.UUID | str | None = None
+    active_device_name: str | None = None

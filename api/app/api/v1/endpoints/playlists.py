@@ -3,12 +3,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
 from app.db.redis import get_active_device
 from app.db.session import get_db
+from app.models.device import Device
 from app.schemas.playlist import PlaylistCreate, PlaylistRead, PlaylistUpdate
 from app.services import playlist_service
 
@@ -55,8 +57,21 @@ async def get_playlist(
             message="Playlist nao encontrada",
             status_code=status.HTTP_404_NOT_FOUND,
         )
+
     active_device_str = await get_active_device(playlist_id)
     playlist.active_device_id = active_device_str
+    playlist.active_device_name = None
+
+    if active_device_str:
+        try:
+            device_uuid = uuid.UUID(active_device_str)
+            result = await db.execute(
+                select(Device.name).where(Device.id == device_uuid)
+            )
+            playlist.active_device_name = result.scalar_one_or_none()
+        except ValueError:
+            pass
+
     return playlist
 
 
