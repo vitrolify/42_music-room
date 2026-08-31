@@ -8,7 +8,7 @@ import ProgressBar, { formatTime } from './ProgressBar';
 const BAR_HEIGHT = 64;
 
 export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
-    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause, seekTo } = usePlayer();
+    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause, seekTo, syncStatus } = usePlayer();
     const [titleHovered, setTitleHovered] = useState(false);
 
     if (!videoId) return null;
@@ -64,6 +64,15 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                         <Text style={styles.timeText}>{progress.duration > 0 ? formatTime(progress.duration) : '--:--'}</Text>
                     </View>
                 )}
+
+                {syncStatus === 'autoplay-blocked' ? (
+                    <Pressable
+                        onPress={(e) => { e.stopPropagation?.(); togglePlayPause(); }}
+                        style={styles.syncWarning}
+                    >
+                        <Text style={styles.syncWarningText}>Tap to sync</Text>
+                    </Pressable>
+                ) : null}
 
                 <Pressable
                     onPress={(e) => {
@@ -163,6 +172,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: spacing.sm,
+    },
+    syncWarning: {
+        marginRight: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: 10,
+        backgroundColor: colors.brand,
+    },
+    syncWarningText: {
+        color: colors.text.primary,
+        fontSize: 11,
+        fontFamily: fonts.body,
     },
     progressTrack: {
         position: 'absolute',
