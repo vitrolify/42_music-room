@@ -57,6 +57,14 @@ export function getPlaylistWebSocketUrl(playlistId: number, token: string): stri
     return apiUrl.toString();
 }
 
+export function getPlaybackWebSocketUrl(sessionId: string, token: string): string {
+    const apiUrl = new URL(API_BASE);
+    apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playback';
+    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}`;
+    return apiUrl.toString();
+}
+
 export async function request<T>(
     method: string,
     path: string,
