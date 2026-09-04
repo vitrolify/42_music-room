@@ -94,10 +94,73 @@ export default function PlaylistDetail() {
 			socket.onopen = () => { reconnectAttempt.current = 0; setConnectionState('connected'); void fetchData(); };
 			socket.onmessage = message => {
 				try {
-					const event = JSON.parse(message.data) as { type?: string };
-					if (['TRACK_ADDED', 'TRACK_MOVED', 'TRACK_DELETED', 'TRACK_PLAYING', 'TRACK_PAUSED', 'TRACK_SKIPPED'].includes(event.type ?? '')) {
-						void fetchData();
-					}
+					const event = JSON.parse(message.data);
+					const { type, payload } = event;
+
+					if (!type || !payload) return;
+
+					setTracks(prevTracks => {
+						let nextTracks = [...prevTracks];
+
+						switch (type) {
+							case 'TRACK_ADDED':
+								nextTracks.push({
+									id: payload.playlist_track_id,
+									playlist_id: playlistId,
+									track_info_id: payload.track_info.id,
+									user_id: payload.added_by?.user_id,
+									position: payload.position,
+									status: payload.status,
+									track_info: payload.track_info,
+								} as PlaylistTrack);
+								break;
+
+							case 'TRACK_DELETED':
+								nextTracks = nextTracks.filter(t => t.id !== payload.playlist_track_id);
+								nextTracks.forEach(t => {
+									if (t.position > payload.deleted_position) t.position -= 1;
+								});
+								break;
+
+							case 'TRACK_MOVED':
+								const idx = nextTracks.findIndex(t => t.id === payload.playlist_track_id);
+								if (idx !== -1) {
+									const [movedTrack] = nextTracks.splice(idx, 1);
+									movedTrack.position = payload.new_position;
+									nextTracks.splice(payload.new_position, 0, movedTrack);
+									nextTracks.forEach((t, i) => { t.position = i; });
+								}
+								break;
+
+							case 'TRACK_PLAYING':
+							case 'TRACK_PAUSED':
+								nextTracks = nextTracks.map(t => {
+									if (t.id === payload.playing_track_id) {
+										return { ...t, status: payload.new_status };
+									}
+
+									return type === 'TRACK_PLAYING' && t.status === 'playing'
+										? { ...t, status: 'paused' }
+										: t;
+								});
+								break;
+
+							case 'TRACK_SKIPPED':
+								nextTracks = nextTracks.filter(t => t.status !== 'playing' && t.position !== 0);
+								nextTracks = nextTracks.map(t => {
+									const updatedTrack = { ...t, position: Math.max(0, t.position - 1) };
+									if (updatedTrack.id === payload.new_playing_track_id) {
+										updatedTrack.status = 'playing';
+									}
+									return updatedTrack;
+								});
+								break;
+
+							default:
+								return prevTracks;
+						}
+						return nextTracks.sort((a, b) => a.position - b.position);
+					});
 				} catch { /* Ignore malformed broadcasts. */ }
 			};
 			socket.onerror = () => setConnectionState('offline');
@@ -124,23 +187,6 @@ export default function PlaylistDetail() {
 		setRefreshing(false);
 	}
 
-	async function refreshTracksAfterMutation(
-		hasExpectedChange: (nextTracks: PlaylistTrack[]) => boolean,
-		unchangedMessage: string,
-	) {
-		await sleep(500);
-
-		for (let attempt = 0; attempt < 3; attempt += 1) {
-			const nextTracks = await listPlaylistTracks(playlistId);
-			setTracks(nextTracks);
-
-			if (hasExpectedChange(nextTracks)) return;
-
-			await sleep(500);
-		}
-
-		Alert.alert('Still processing', unchangedMessage);
-	}
 
 	async function handleAddTrack() {
 		const trimmedTrackInfoId = trackInfoId.trim();
@@ -153,13 +199,8 @@ export default function PlaylistDetail() {
 		setMutating(true);
 		setMutationMessage('Adding track...');
 		try {
-			const previousTrackCount = tracks.length;
 			await addPlaylistTrack(playlistId, trimmedTrackInfoId);
 			setTrackInfoId('');
-			await refreshTracksAfterMutation(
-				nextTracks => nextTracks.length > previousTrackCount,
-				'The add request was accepted, but the track has not appeared yet. Refresh and try again if it does not show up.',
-			);
 		} catch (err) {
 			Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'add track'));
 		} finally {
@@ -184,12 +225,6 @@ export default function PlaylistDetail() {
 		setMutationMessage('Moving track...');
 		try {
 			await movePlaylistTrack(playlistId, track, newPosition);
-			await refreshTracksAfterMutation(
-				nextTracks => nextTracks.some(nextTrack => (
-					nextTrack.id === track.id && nextTrack.position === newPosition
-				)),
-				'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
-			);
 		} catch (err) {
 			Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
 		} finally {
@@ -312,6 +347,11 @@ export default function PlaylistDetail() {
 										if (action === 'delete' && track.position === 0) return;
 										if (action === 'delete') {
 											const confirmed = await new Promise<boolean>(resolve => {
+												// Fallback for Web browsers
+												if (typeof window !== 'undefined' && window.confirm) {
+													resolve(window.confirm('Delete track? This removes the queued track from the playlist.'));
+													return;
+												}
 												Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
 													{ text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
 													{ text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
@@ -326,21 +366,6 @@ export default function PlaylistDetail() {
 											if (action === 'pause') await pausePlaylistTrack(playlistId, track);
 											if (action === 'skip') await skipPlaylistTrack(playlistId, track);
 											if (action === 'delete') await deletePlaylistTrack(playlistId, track);
-											await refreshTracksAfterMutation(
-												nextTracks => {
-													if (action === 'delete') {
-														return !nextTracks.some(nextTrack => nextTrack.id === track.id);
-													}
-													if (action === 'skip') {
-														return nextTracks[0]?.id !== track.id;
-													}
-													const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
-													return action === 'play'
-														? updatedTrack?.status === 'playing'
-														: updatedTrack?.status === 'paused';
-												},
-												`The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
-											);
 										} catch (err) {
 											Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
 										} finally { setMutationMessage(null); setMutating(false); }
