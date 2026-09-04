@@ -410,7 +410,7 @@ function TrackRow({ track, isFirst, isLast, disabled, onMove, onAction }: TrackR
 					/>
 					<MoveButton
 						label="Down"
-						disabled={disabled || isLast}
+						disabled={disabled || isLast || isFirst}
 						onPress={() => onMove(track, track.position + 1)}
 					/>
 				</View>
