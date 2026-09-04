@@ -52,6 +52,8 @@ export default function PlaylistDetail() {
 
 	const isValidPlaylistId = Number.isInteger(playlistId) && playlistId > 0;
 	const canAddTrack = isValidPlaylistId && trackInfoId.trim().length > 0 && !mutating;
+	const staleErrorCount = useRef(0);
+	const STALE_THRESHOLD = 3;
 
 	const fetchData = useCallback(async () => {
 		if (!isValidPlaylistId) {
@@ -95,6 +97,19 @@ export default function PlaylistDetail() {
 			socket.onmessage = message => {
 				try {
 					const event = JSON.parse(message.data);
+					if (event.code === 'STALE_STATE' || event.payload?.code === 'STALE_STATE') {
+						staleErrorCount.current += 1;
+
+						if (staleErrorCount.current >= STALE_THRESHOLD) {
+							Alert.alert('Syncing Playlist', 'Your track list was out of sync. Refreshing now.');
+							void fetchData();
+							staleErrorCount.current = 0; // Reset after a successful refresh
+						} else {
+							const errorMsg = event.message || event.payload?.message || 'Playlist state is stale.';
+							Alert.alert('Action Failed', errorMsg);
+						}
+						return;
+					}
 					const { type, payload } = event;
 
 					if (!type || !payload) return;
