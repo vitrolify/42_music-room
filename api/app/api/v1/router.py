@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    devices,
     events,
     friends,
     health,
@@ -24,4 +25,5 @@ api_router.include_router(invites.router)
 api_router.include_router(friends.router)
 api_router.include_router(playlist_tracks.router)
 api_router.include_router(events.router)
+api_router.include_router(devices.router)
 api_router.include_router(playback.router)

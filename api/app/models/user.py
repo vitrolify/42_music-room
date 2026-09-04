@@ -2,6 +2,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from app.models.device import Device, DeviceDelegation
     from app.models.event_queue import EventQueue
     from app.models.playlist import Playlist
     from app.models.playlist_track import PlaylistTrack
@@ -118,4 +119,10 @@ class User(Base):
     )
     events: Mapped[list["EventQueue"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    owned_devices: Mapped[list["Device"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+    device_delegations: Mapped[list["DeviceDelegation"]] = relationship(
+        back_populates="delegate", cascade="all, delete-orphan"
     )
