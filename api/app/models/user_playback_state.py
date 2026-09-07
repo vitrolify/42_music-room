@@ -36,6 +36,15 @@ class UserPlaybackState(Base):
     controller_session_id: Mapped[str | None] = mapped_column(
         String(128), nullable=True
     )
+    active_playlist_id: Mapped[int | None] = mapped_column(
+        ForeignKey("playlists.id", ondelete="SET NULL"), nullable=True
+    )
+    active_playlist_track_id: Mapped[int | None] = mapped_column(
+        ForeignKey("playlist_track.id", ondelete="SET NULL"), nullable=True
+    )
+    controller_device_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("devices.id", ondelete="SET NULL"), nullable=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

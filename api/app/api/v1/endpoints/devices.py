@@ -30,12 +30,16 @@ async def auto_register_device(
     db: AsyncSession = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    device = await device_service.register_device(
-        db=db,
-        device_id=payload.id,
-        user_id=user_id,
-        name=payload.name,
-    )
+    try:
+        device = await device_service.register_device(
+            db=db, device_id=payload.id, user_id=user_id, name=payload.name
+        )
+    except ValueError as exc:
+        raise BaseVitrolifyException(
+            error_code="FOREIGN_DEVICE",
+            message=str(exc),
+            status_code=status.HTTP_403_FORBIDDEN,
+        ) from exc
     return device
 
 
