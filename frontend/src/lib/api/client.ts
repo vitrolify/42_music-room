@@ -1,7 +1,14 @@
 import * as Firebase from '../firebase';
+import { Platform } from 'react-native';
 
 function getApiBaseUrl(): string {
-    const envUrl = process.env.EXPO_PUBLIC_API_URL;
+    // Expo exposes EXPO_PUBLIC_* at bundle time. Keep the web-specific setting
+    // for the browser build, while allowing native builds to override it when
+    // the API is not reachable through the host machine's port 80.
+    const envUrl = process.env.EXPO_PUBLIC_API_URL
+        ?? (Platform.OS === 'web'
+            ? process.env.EXPO_PUBLIC_API_URL_WEB
+            : process.env.EXPO_PUBLIC_API_URL_NATIVE);
     if (envUrl) return envUrl;
 
     try {
@@ -49,19 +56,19 @@ export async function getFirebaseToken(): Promise<string | null> {
     return null;
 }
 
-export function getPlaylistWebSocketUrl(playlistId: number, token: string): string {
+export function getPlaylistWebSocketUrl(playlistId: number, token: string, deviceId?: string): string {
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + `/ws/playlists/${playlistId}`;
-    apiUrl.search = `?token=${encodeURIComponent(token)}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
     return apiUrl.toString();
 }
 
-export function getPlaybackWebSocketUrl(sessionId: string, token: string): string {
+export function getPlaybackWebSocketUrl(sessionId: string, token: string, deviceId?: string): string {
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playback';
-    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
     return apiUrl.toString();
 }
 

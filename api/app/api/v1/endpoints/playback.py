@@ -16,6 +16,7 @@ from app.auth.dependencies import get_current_user_id, get_current_user_id_ws
 from app.db.session import get_db
 from app.models.user_playback_state import UserPlaybackState
 from app.schemas.playback import PlaybackCommand, PlaybackEvent, PlaybackStateRead
+from app.services.device_service import user_owns_device
 from app.services.playback_service import apply_command, get_state
 from app.websockets.playback_manager import playback_ws_manager
 
@@ -50,6 +51,10 @@ async def update_playback(
 ):
     try:
         state = await apply_command(db, user_id, payload, payload.session_id)
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -65,12 +70,23 @@ async def playback_websocket(
     websocket: WebSocket,
     user_id: uuid.UUID = Depends(get_current_user_id_ws),
     session_id: str | None = None,
+    device_id: uuid.UUID | None = None,
 ):
     if not session_id or len(session_id) > 128:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
             reason="session_id is required",
         )
+    if not device_id:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION, reason="device_id is required"
+        )
+    async with db_context() as db:
+        if not await user_owns_device(db, device_id, user_id):
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="device_id is not registered to this user",
+            )
     await playback_ws_manager.connect(websocket, user_id)
     try:
         async with db_context() as db:
@@ -80,7 +96,9 @@ async def playback_websocket(
                 await websocket.send_json(event.model_dump(mode="json"))
         while True:
             raw = await websocket.receive_json()
-            command = PlaybackCommand.model_validate({**raw, "session_id": session_id})
+            command = PlaybackCommand.model_validate(
+                {**raw, "session_id": session_id, "device_id": str(device_id)}
+            )
             async with db_context() as db:
                 state = await apply_command(db, user_id, command, session_id)
             event = PlaybackEvent(
