@@ -7,6 +7,9 @@ export type PlaybackSnapshot = {
     duration_seconds: number;
     version: number;
     controller_session_id: string | null;
+    active_playlist_id: number | null;
+    active_playlist_track_id: number | null;
+    controller_device_id: string | null;
     updated_at: string;
 };
 
@@ -22,4 +25,6 @@ export type PlaybackCommandPayload = {
     video_id?: string;
     position_seconds?: number;
     duration_seconds?: number;
+    device_id?: string;
+    expected_version?: number;
 };
