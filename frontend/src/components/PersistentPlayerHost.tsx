@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { usePathname } from 'expo-router';
 import { Pause, Play, SkipForward } from 'phosphor-react-native';
 import YouTubePlayer from './YouTubePlayer';
@@ -15,6 +15,7 @@ import { colors, globalStyles, spacing } from '../styles';
  */
 export default function PersistentPlayerHost() {
     const pathname = usePathname();
+    const { width } = useWindowDimensions();
     const [error, setError] = useState<string | null>(null);
     const {
         videoId,
@@ -40,7 +41,7 @@ export default function PersistentPlayerHost() {
 
     return (
         <View pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'} style={styles.host}>
-            <View style={[styles.surface, !presentation.showPlayerSurface && styles.hidden]}>
+            <View style={[styles.surface, { width: width >= 900 ? '52%' : '100%' }, !presentation.showPlayerSurface && styles.hidden]}>
                 <View style={styles.headingRow}>
                     {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}
                     <View style={{ flex: 1 }}>
@@ -85,8 +86,8 @@ export default function PersistentPlayerHost() {
 export const ACTIVE_PLAYER_SURFACE_HEIGHT = 332;
 
 const styles = StyleSheet.create({
-    host: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 },
-    surface: { padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
+    host: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, alignItems: 'center', pointerEvents: 'box-none' as never },
+    surface: { maxWidth: 720, padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
     hidden: { opacity: 0, height: 0, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
     headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
     thumbnail: { width: 40, height: 40, borderRadius: 4 },

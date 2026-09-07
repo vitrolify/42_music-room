@@ -221,7 +221,9 @@ export default function PlaylistDetail() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 padding: spacing.xl,
-                paddingTop: activePlaylistId === playlistId ? ACTIVE_PLAYER_SURFACE_HEIGHT + spacing.xl : spacing.xl,
+                paddingTop: activePlaylistId === playlistId
+                    ? ACTIVE_PLAYER_SURFACE_HEIGHT + spacing.xl
+                    : spacing.xl,
                 paddingBottom: insets.bottom + spacing.xxl,
             }}
             refreshControl={
