@@ -5,6 +5,7 @@ import { Pause, Play, SkipForward } from 'phosphor-react-native';
 import YouTubePlayer from './YouTubePlayer';
 import ProgressBar from './ProgressBar';
 import { usePlayer } from '../contexts/PlayerContext';
+import { getPlayerPresentation } from '../lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../styles';
 
 /**
@@ -33,14 +34,13 @@ export default function PersistentPlayerHost() {
         syncStatus,
     } = usePlayer();
 
-    const isActivePlaylistRoute = activePlaylistId !== null
-        && new RegExp(`/playlist/${activePlaylistId}(?:/|$)`).test(pathname);
+    const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname });
 
-    if (!videoId) return null;
+    if (!presentation.shouldMountHost) return null;
 
     return (
-        <View pointerEvents={isActivePlaylistRoute ? 'auto' : 'none'} style={styles.host}>
-            <View style={[styles.surface, !isActivePlaylistRoute && styles.hidden]}>
+        <View pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'} style={styles.host}>
+            <View style={[styles.surface, !presentation.showPlayerSurface && styles.hidden]}>
                 <View style={styles.headingRow}>
                     {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}
                     <View style={{ flex: 1 }}>

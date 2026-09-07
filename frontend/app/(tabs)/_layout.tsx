@@ -6,6 +6,7 @@ import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
 import PersistentPlayerHost from '../../src/components/PersistentPlayerHost';
 import { usePlayer } from '../../src/contexts/PlayerContext';
+import { getActivePlaylistRoute, getPlayerPresentation } from '../../src/lib/playerPresentation';
 
 const MINI_PLAYER_HEIGHT = 64;
 
@@ -15,7 +16,9 @@ export default function TabsLayout() {
     const useSideNav = width >= 900;
     const { videoId, activePlaylistId } = usePlayer();
     const router = useRouter();
-    const hasPlayer = !!videoId;
+    const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname: '' });
+    const hasPlayer = presentation.showMiniPlayer;
+    const activePlaylistRoute = getActivePlaylistRoute(activePlaylistId);
 
     function renderTabItems({ state, descriptors, navigation, horizontal }: any) {
         return state.routes
@@ -81,7 +84,7 @@ export default function TabsLayout() {
                 {hasPlayer && (
                     <MiniPlayerBar
                         onPress={() => {
-                            if (activePlaylistId) router.push(`/(tabs)/playlist/${activePlaylistId}`);
+                            if (activePlaylistRoute) router.push(activePlaylistRoute);
                         }}
                     />
                 )}
@@ -205,7 +208,7 @@ export default function TabsLayout() {
                 >
                     <MiniPlayerBar
                         onPress={() => {
-                            if (activePlaylistId) router.push(`/(tabs)/playlist/${activePlaylistId}`);
+                            if (activePlaylistRoute) router.push(activePlaylistRoute);
                         }}
                     />
                 </View>

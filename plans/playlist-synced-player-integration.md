@@ -91,7 +91,7 @@ A user has one active playlist across their own devices. Playback state is synch
 
 - [ ] Add migration coverage proving a single Alembic head and successful upgrade.
 - [x] Add backend integration tests for owner playback, state restoration, delegated controls, invalid devices, duplicate end events, playlist switching, and terminal queue completion.
-- [ ] Add frontend/component tests for active-playlist navigation, persistent mounting, control visibility, and state hydration.
+- [x] Add frontend/component tests for active-playlist navigation, persistent mounting, control visibility, and state hydration.
 - [ ] Run backend lint/type/test checks and frontend type checks.
   - Partial verification: frontend type checking, backend Ruff, and Alembic-head verification pass; backend type and integration tests have not been run.
 
@@ -117,6 +117,14 @@ simultaneous stale end reports. The suite is run against a migrated disposable P
 database via `PLAYBACK_TEST_DATABASE_URL`; it passes there. Full-repository Ruff still reports
 pre-existing lint errors outside this checkpoint, and no type-checker is configured as a dev
 dependency.
+
+T6 adds a Node-native frontend presentation suite in
+`frontend/tests/playerPresentation.test.ts`. It verifies hydration-driven mini-player routing,
+route-scoped control visibility, persistent host mounting across navigation, terminal mini-player
+availability, and rejection of stale standalone video state. `npm run test:player-flow` passes
+(5 tests). This isolated worktree has no `frontend/node_modules`, so the frontend type check could
+not be executed here; the Task 6 type-check subtask remains open rather than claiming a check that
+did not run.
 
 ## Implementation constraints
 
@@ -216,10 +224,11 @@ parameters.
 
 **Scope:** Frontend portion of task 6, after T4 and the T3 API contract are merged.
 
-- [ ] Add component/integration coverage for state hydration, active-playlist navigation, persistent mounting, control visibility, and terminal mini-player behavior.
+- [x] Add component/integration coverage for state hydration, active-playlist navigation, persistent mounting, control visibility, and terminal mini-player behavior.
 - [ ] Run frontend type checking and available test commands.
-- [ ] Resolve only frontend integration defects found by these checks.
+- [x] Resolve only frontend integration defects found by these checks.
 
-**Verify:** frontend checks pass; active-playlist rendering and mini-player routing satisfy every UI acceptance scenario.
+**Verify:** `npm run test:player-flow` passes. Frontend type checking remains pending because this
+isolated worktree does not contain installed frontend dependencies.
 
 **Checkpoint commit:** `test(frontend): verify playlist player flow`
