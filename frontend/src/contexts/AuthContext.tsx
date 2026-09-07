@@ -12,6 +12,7 @@ import {
     type AuthUser,
 } from '../lib/firebase';
 import { AuthType } from '../types/auth.types';
+import { registerCurrentDevice } from '../lib/deviceIdentity';
 
 type AuthContextType = {
     user: AuthType | null;
@@ -38,6 +39,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     function handleAuthStateChanged(user: AuthUser | null) {
         setUser(user);
+        if (user) void registerCurrentDevice().catch(() => undefined);
         if (initializing) setInitializing(false);
     }
 
