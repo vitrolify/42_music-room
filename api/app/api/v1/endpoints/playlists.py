@@ -1,5 +1,7 @@
 """Endpoints de Playlist e Invite."""
 
+import uuid
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
