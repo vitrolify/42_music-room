@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.dependencies import get_current_user_id
+from app.db.redis import get_active_device
 from app.db.session import AsyncSessionLocal, get_db
 from app.models.event_queue import EventQueue, PlaylistEventType
 from app.models.playlist import Playlist
@@ -28,7 +29,9 @@ async def command_playlist_playback(
     """Playlist-scoped controls, including controller progress/end reports."""
     playlist = await playlist_service.get_playlist_by_id(db, playlist_id)
     if not playlist:
-        raise BaseVitrolifyException("PLAYLIST_NOT_FOUND", "Playlist não encontrada", 404)
+        raise BaseVitrolifyException(
+            "PLAYLIST_NOT_FOUND", "Playlist não encontrada", 404
+        )
     if not await playlist_service.user_has_playlist_permission(
         db, user_id, playlist, action="edit"
     ):
@@ -38,7 +41,8 @@ async def command_playlist_playback(
             db, playlist_id=playlist_id, actor_id=user_id, command=payload.command,
             playlist_track_id=payload.playlist_track_id, device_id=payload.device_id,
             session_id=payload.session_id, expected_version=payload.expected_version,
-            position_seconds=payload.position_seconds, duration_seconds=payload.duration_seconds,
+            position_seconds=payload.position_seconds,
+            duration_seconds=payload.duration_seconds,
         )
     except PermissionError as exc:
         raise BaseVitrolifyException("FORBIDDEN", str(exc), 403) from exc

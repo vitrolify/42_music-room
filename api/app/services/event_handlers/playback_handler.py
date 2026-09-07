@@ -6,16 +6,18 @@ from typing import TypeGuard
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
-
 from app.models.event_queue import EventQueue, PlaylistEventType
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 from app.models.user_playback_state import PlaybackStatus
 from app.schemas.event import PlaybackPayload
-from app.services.playback_service import apply_playlist_command, synchronize_playlist_track
+from app.services.playback_service import (
+    apply_playlist_command,
+    synchronize_playlist_track,
+)
 from app.services.playlist_service import get_playlist_by_id, lock_playlist
 from app.services.playlist_track_service import get_playing_track_by_id
-from app.websockets.playlist_manager import playlist_ws_manager
 from app.websockets.playback_manager import playback_ws_manager
+from app.websockets.playlist_manager import playlist_ws_manager
 
 logger = logging.getLogger(__name__)
 
