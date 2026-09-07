@@ -4,6 +4,7 @@
  * full controls.
  */
 export const PLAYER_ROUTE = '/player' as const;
+export const PLAYER_HEADER_HEIGHT = 56;
 
 export function getActivePlaylistRoute(activePlaylistId: number | null): string | null {
     return activePlaylistId === null ? null : `/(tabs)/playlist/${activePlaylistId}`;

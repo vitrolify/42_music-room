@@ -1,7 +1,8 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '../../src/contexts/PlayerContext';
+import { PLAYER_HEADER_HEIGHT } from '../../src/lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../../src/styles';
 
 /**
@@ -15,18 +16,19 @@ export default function PlayerScreen() {
     const { videoId, activePlaylistId } = usePlayer();
 
     return (
-        <ScrollView
-            style={globalStyles.screen}
-            contentContainerStyle={{
-                paddingTop: insets.top + spacing.xl,
-                paddingHorizontal: spacing.xl,
-                paddingBottom: insets.bottom + spacing.xxl,
-            }}
-        >
-            <Pressable onPress={() => router.back()}>
-                <Text style={globalStyles.link}>Back</Text>
-            </Pressable>
-            <Text style={[globalStyles.title, { marginTop: spacing.lg }]}>Now Playing</Text>
+        <View style={globalStyles.screen}>
+            <View style={[styles.header, { height: insets.top + PLAYER_HEADER_HEIGHT, paddingTop: insets.top }]}>
+                <Pressable onPress={() => router.back()} hitSlop={10}>
+                    <Text style={globalStyles.link}>Back</Text>
+                </Pressable>
+                <Text style={globalStyles.title}>Now Playing</Text>
+            </View>
+            <ScrollView
+                contentContainerStyle={{
+                    padding: spacing.xl,
+                    paddingBottom: insets.bottom + spacing.xxl,
+                }}
+            >
             {!videoId ? (
                 <View style={{ marginTop: spacing.xl, padding: spacing.lg, backgroundColor: colors.bg.card, borderRadius: 8 }}>
                     <Text style={globalStyles.heading}>Nothing is playing</Text>
@@ -35,6 +37,18 @@ export default function PlayerScreen() {
             ) : activePlaylistId === null ? (
                 <Text style={[globalStyles.small, { color: colors.text.secondary, marginTop: spacing.sm }]}>Playback is synchronizing.</Text>
             ) : null}
-        </ScrollView>
+            </ScrollView>
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.lg,
+        paddingHorizontal: spacing.xl,
+        backgroundColor: colors.bg.base,
+        zIndex: 10,
+    },
+});

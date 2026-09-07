@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pause, Play, SkipForward } from 'phosphor-react-native';
 import YouTubePlayer from './YouTubePlayer';
 import ProgressBar from './ProgressBar';
 import { usePlayer } from '../contexts/PlayerContext';
-import { getPlayerPresentation } from '../lib/playerPresentation';
+import { getPlayerPresentation, PLAYER_HEADER_HEIGHT } from '../lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../styles';
 
 /**
@@ -16,6 +17,7 @@ import { colors, globalStyles, spacing } from '../styles';
 export default function PersistentPlayerHost() {
     const pathname = usePathname();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const [error, setError] = useState<string | null>(null);
     const {
@@ -41,7 +43,10 @@ export default function PersistentPlayerHost() {
     if (!presentation.shouldMountHost) return null;
 
     return (
-        <View pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'} style={[styles.host, width >= 900 && styles.wideHost]}>
+        <View
+            pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'}
+            style={[styles.host, { top: insets.top + PLAYER_HEADER_HEIGHT }, width >= 900 && styles.wideHost]}
+        >
             <View style={[styles.surface, { width: width >= 900 ? '52%' : '100%' }, !presentation.showPlayerSurface && styles.hidden]}>
                 <View style={styles.headingRow}>
                     {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}

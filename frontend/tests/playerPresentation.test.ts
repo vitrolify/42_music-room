@@ -5,6 +5,7 @@ import {
     getPlayerPresentation,
     isPlayerPath,
     PLAYER_ROUTE,
+    PLAYER_HEADER_HEIGHT,
 } from '../src/lib/playerPresentation.ts';
 
 test('hydrates an active playlist into a navigable player presentation', () => {
@@ -73,4 +74,8 @@ test('a stale standalone video cannot render a non-navigable player', () => {
         showPlayerSurface: false,
         activePlaylistRoute: null,
     });
+});
+
+test('player header reserves a stable safe-area offset for the fullplayer', () => {
+    assert.equal(PLAYER_HEADER_HEIGHT, 56);
 });
