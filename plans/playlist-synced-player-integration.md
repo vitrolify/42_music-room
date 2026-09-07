@@ -76,11 +76,11 @@ A user has one active playlist across their own devices. Playback state is synch
 
 ### 5. Refactor the player UI around the active playlist
 
-- [ ] Replace the standalone PlayerOverlay/manual YouTube URL entry flow with a single globally mounted player host.
+- [x] Replace the standalone PlayerOverlay/manual YouTube URL entry flow with a single globally mounted player host.
   - Verify: navigation away from the active playlist does not destroy the YouTube instance or stop playback.
-- [ ] Render the player embed, title, play/pause action, elapsed/total time, and seekable progress bar on the active playlist only.
+- [x] Render the player embed, title, play/pause action, elapsed/total time, and seekable progress bar on the active playlist only.
   - Verify: opening a non-active playlist shows its queue without a playable embedded surface.
-- [ ] Adapt `PlayerContext` and playback synchronization so playlist actions, rather than generic video loading, drive play/pause/skip; playlist-scoped seek/checkpoint drives progress updates.
+- [x] Adapt `PlayerContext` and playback synchronization so playlist actions, rather than generic video loading, drive play/pause/skip; playlist-scoped seek/checkpoint drives progress updates.
   - Verify: user controls on any synced device update all of that user’s devices and do not diverge from queue state.
 - [x] Change the mini player press action to navigate to the active playlist route; preserve direct play/pause and progress behavior.
   - Verify: pressing the title/bar always opens the active playlist, including after app-state hydration.
@@ -191,10 +191,10 @@ parameters.
 
 **Scope:** Tasks 5.1–5.5: player-host refactor, playlist controls, mini-player routing, and removal of standalone video loading.
 
-- [ ] Keep one YouTube instance mounted at the tab/app-shell level while routes change.
-- [ ] Render its visible embed/control surface only for the active playlist.
-- [ ] Bind player controls to the finalized playlist command API and playback snapshot fields.
-- [ ] Make mini-player presses navigate to the active playlist; remove the manual URL/video-ID UI.
+- [x] Keep one YouTube instance mounted at the tab/app-shell level while routes change.
+- [x] Render its visible embed/control surface only for the active playlist.
+- [x] Bind player controls to the finalized playlist command API and playback snapshot fields.
+- [x] Make mini-player presses navigate to the active playlist; remove the manual URL/video-ID UI.
 
 **Verify:** navigation does not recreate the player; inactive playlists have no player panel; mini-player navigation reaches the restored active playlist.
 

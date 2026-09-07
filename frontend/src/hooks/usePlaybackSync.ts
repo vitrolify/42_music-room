@@ -5,8 +5,6 @@ import {
     request,
 } from '../lib/api/client';
 import type {
-    PlaybackCommand,
-    PlaybackCommandPayload,
     PlaybackEvent,
     PlaybackSnapshot,
     SyncStatus,
@@ -22,8 +20,9 @@ type PlaybackSync = {
     syncStatus: SyncStatus;
     sessionId: string;
     serverVersion: number;
-    sendCommand: (command: PlaybackCommand, values?: PlaybackCommandPayload) => Promise<void>;
-    reportProgress: (currentTime: number, duration: number) => void;
+    activePlaylistTrackId: number | null;
+    isController: boolean;
+    applyCommandSnapshot: (snapshot: PlaybackSnapshot) => void;
     getCurrentPosition: () => number | null;
     markAutoplayBlocked: () => void;
     markPlaybackStarted: () => void;
@@ -38,13 +37,13 @@ export function usePlaybackSync({
         isAuthenticated ? 'connecting' : 'offline',
     );
     const [serverVersion, setServerVersion] = useState(0);
+    const [activePlaylistTrackId, setActivePlaylistTrackId] = useState<number | null>(null);
     const sessionIdRef = useRef(
         globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     );
     const socketRef = useRef<WebSocket | null>(null);
     const desiredSnapshotRef = useRef<PlaybackSnapshot | null>(null);
     const serverVersionRef = useRef(0);
-    const lastCheckpointRef = useRef({ time: 0, position: -1 });
 
     const markAutoplayBlocked = useCallback(() => {
         setSyncStatus('autoplay-blocked');
@@ -59,31 +58,13 @@ export function usePlaybackSync({
         [],
     );
 
-    const sendCommand = useCallback(
-        async (command: PlaybackCommand, values: PlaybackCommandPayload = {}) => {
-            // Register immediately before issuing a command so an auth callback and
-            // a reconnect cannot race an unregistered WebSocket/device command.
-            try {
-                const deviceId = await registerCurrentDevice();
-                const message = {
-                    command,
-                    ...values,
-                    device_id: deviceId,
-                    session_id: sessionIdRef.current,
-                };
-
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify(message));
-                    return;
-                }
-
-                await request('PUT', '/playback/state', message);
-            } catch {
-                setSyncStatus('offline');
-            }
-        },
-        [],
-    );
+    const applyCommandSnapshot = useCallback((snapshot: PlaybackSnapshot) => {
+        desiredSnapshotRef.current = snapshot;
+        serverVersionRef.current = snapshot.version;
+        setServerVersion(snapshot.version);
+        setActivePlaylistTrackId(snapshot.active_playlist_track_id);
+        onSnapshot(snapshot);
+    }, [onSnapshot]);
 
     useEffect(() => {
         let cancelled = false;
@@ -105,10 +86,7 @@ export function usePlaybackSync({
                     '/playback/state',
                 );
                 if (initial && !cancelled && initial.version > serverVersionRef.current) {
-                    desiredSnapshotRef.current = initial;
-                    serverVersionRef.current = initial.version;
-                    setServerVersion(initial.version);
-                    onSnapshot(initial);
+                    applyCommandSnapshot(initial);
                 }
 
                 const token = await getFirebaseToken();
@@ -127,10 +105,7 @@ export function usePlaybackSync({
                             message.type === 'PLAYBACK_STATE_CHANGED'
                             && message.payload.version > serverVersionRef.current
                         ) {
-                            desiredSnapshotRef.current = message.payload;
-                            serverVersionRef.current = message.payload.version;
-                            setServerVersion(message.payload.version);
-                            onSnapshot(message.payload);
+                            applyCommandSnapshot(message.payload);
                         }
                     } catch {
                         // Ignore malformed messages from the server.
@@ -162,32 +137,6 @@ export function usePlaybackSync({
         };
     }, [isAuthenticated, onSnapshot]);
 
-    const reportProgress = useCallback(
-        (currentTime: number, duration: number) => {
-            const snapshot = desiredSnapshotRef.current;
-            const now = Date.now();
-            const isController = snapshot?.controller_session_id === sessionIdRef.current;
-            const checkpointDue = now - lastCheckpointRef.current.time >= 700;
-            const positionChanged = Math.abs(
-                currentTime - lastCheckpointRef.current.position,
-            ) >= 0.25;
-
-            if (
-                isController
-                && snapshot?.status === 'playing'
-                && checkpointDue
-                && positionChanged
-            ) {
-                lastCheckpointRef.current = { time: now, position: currentTime };
-                void sendCommand('checkpoint', {
-                    position_seconds: currentTime,
-                    duration_seconds: duration,
-                });
-            }
-        },
-        [sendCommand],
-    );
-
     const getCurrentPosition = useCallback(() => {
         const snapshot = desiredSnapshotRef.current;
         if (!snapshot) return null;
@@ -202,8 +151,9 @@ export function usePlaybackSync({
         syncStatus,
         sessionId: sessionIdRef.current,
         serverVersion,
-        sendCommand,
-        reportProgress,
+        activePlaylistTrackId,
+        isController: desiredSnapshotRef.current?.controller_session_id === sessionIdRef.current,
+        applyCommandSnapshot,
         getCurrentPosition,
         markAutoplayBlocked,
         markPlaybackStarted,

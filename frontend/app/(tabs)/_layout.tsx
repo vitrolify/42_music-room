@@ -4,7 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
-import PlayerOverlay from '../../src/components/PlayerOverlay';
+import PersistentPlayerHost from '../../src/components/PersistentPlayerHost';
 import { usePlayer } from '../../src/contexts/PlayerContext';
 
 const MINI_PLAYER_HEIGHT = 64;
@@ -211,7 +211,7 @@ export default function TabsLayout() {
                 </View>
             )}
 
-            <PlayerOverlay />
+            <PersistentPlayerHost />
         </View>
     );
 }

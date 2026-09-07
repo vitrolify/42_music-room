@@ -17,9 +17,6 @@ import {
     getPlaylist,
     listPlaylistTracks,
     movePlaylistTrack,
-    playPlaylistTrack,
-    pausePlaylistTrack,
-    skipPlaylistTrack,
     deletePlaylistTrack,
     getFirebaseToken,
     getPlaylistWebSocketUrl,
@@ -29,12 +26,15 @@ import {
 } from '../../../src/lib/api';
 import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
+import { usePlayer } from '../../../src/contexts/PlayerContext';
+import { ACTIVE_PLAYER_SURFACE_HEIGHT } from '../../../src/components/PersistentPlayerHost';
 
 export default function PlaylistDetail() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { id } = useLocalSearchParams<{ id: string }>();
     const playlistId = Number(id);
+    const { activePlaylistId, commandPlaylistTrack } = usePlayer();
 
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
@@ -221,6 +221,7 @@ export default function PlaylistDetail() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 padding: spacing.xl,
+                paddingTop: activePlaylistId === playlistId ? ACTIVE_PLAYER_SURFACE_HEIGHT + spacing.xl : spacing.xl,
                 paddingBottom: insets.bottom + spacing.xxl,
             }}
             refreshControl={
@@ -332,9 +333,9 @@ export default function PlaylistDetail() {
                                         setMutating(true);
                                         setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
                                         try {
-                                            if (action === 'play') await playPlaylistTrack(playlistId, track);
-                                            if (action === 'pause') await pausePlaylistTrack(playlistId, track);
-                                            if (action === 'skip') await skipPlaylistTrack(playlistId, track);
+                                            if (action === 'play' || action === 'pause' || action === 'skip') {
+                                                await commandPlaylistTrack(playlistId, track.id, action);
+                                            }
                                             if (action === 'delete') await deletePlaylistTrack(playlistId, track);
                                             await refreshTracksAfterMutation(
                                                 nextTracks => {
