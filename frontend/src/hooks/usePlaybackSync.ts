@@ -11,7 +11,7 @@ import type {
     PlaybackSnapshot,
     SyncStatus,
 } from '../lib/api/playback.types';
-import { getDeviceId } from '../lib/deviceIdentity';
+import { registerCurrentDevice } from '../lib/deviceIdentity';
 
 type PlaybackSyncOptions = {
     isAuthenticated: boolean;
@@ -61,20 +61,22 @@ export function usePlaybackSync({
 
     const sendCommand = useCallback(
         async (command: PlaybackCommand, values: PlaybackCommandPayload = {}) => {
-            const deviceId = await getDeviceId();
-            const message = {
-                command,
-                ...values,
-                device_id: deviceId,
-                session_id: sessionIdRef.current,
-            };
-
-            if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify(message));
-                return;
-            }
-
+            // Register immediately before issuing a command so an auth callback and
+            // a reconnect cannot race an unregistered WebSocket/device command.
             try {
+                const deviceId = await registerCurrentDevice();
+                const message = {
+                    command,
+                    ...values,
+                    device_id: deviceId,
+                    session_id: sessionIdRef.current,
+                };
+
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify(message));
+                    return;
+                }
+
                 await request('PUT', '/playback/state', message);
             } catch {
                 setSyncStatus('offline');
@@ -112,7 +114,7 @@ export function usePlaybackSync({
                 const token = await getFirebaseToken();
                 if (!token || cancelled) return;
 
-                const deviceId = await getDeviceId();
+                const deviceId = await registerCurrentDevice();
                 const socket = new WebSocket(
                     getPlaybackWebSocketUrl(sessionIdRef.current, token, deviceId),
                 );

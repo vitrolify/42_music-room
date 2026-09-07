@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEY = 'vitrolify.device-id.v1';
-let nativeDeviceId: string | null = null;
+let nativeDeviceIdPromise: Promise<string> | null = null;
 
 function newUuid(): string {
     return globalThis.crypto?.randomUUID?.()
@@ -21,10 +22,17 @@ export async function getDeviceId(): Promise<string> {
         return created;
     }
 
-    // Native builds retain this value for the lifetime of the installed app. A native
-    // secure-store adapter can be supplied without changing callers.
-    if (!nativeDeviceId) nativeDeviceId = newUuid();
-    return nativeDeviceId;
+    if (!nativeDeviceIdPromise) {
+        nativeDeviceIdPromise = (async () => {
+            const existing = await SecureStore.getItemAsync(STORAGE_KEY);
+            if (existing) return existing;
+
+            const created = newUuid();
+            await SecureStore.setItemAsync(STORAGE_KEY, created);
+            return created;
+        })();
+    }
+    return nativeDeviceIdPromise;
 }
 
 export async function registerCurrentDevice(): Promise<string> {

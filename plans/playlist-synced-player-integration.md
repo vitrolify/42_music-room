@@ -41,7 +41,7 @@ A user has one active playlist across their own devices. Playback state is synch
 
 ### 2. Establish durable device identity
 
-- [ ] Add a platform-aware device-identity utility: persist one generated UUID per native install and per browser profile.
+- [x] Add a platform-aware device-identity utility: persist one generated UUID per native install and per browser profile.
   - Verify: restarting the app/browser returns the same UUID; a separate profile/device gets a different UUID.
 - [x] Register the identity after authentication and expose it to API/WebSocket callers.
   - Verify: the device appears in `GET /devices` for the authenticated user.
@@ -97,10 +97,12 @@ A user has one active playlist across their own devices. Playback state is synch
 
 ## Execution status (2026-09-07)
 
-Only the checked items above are implemented. The work was completed directly in the shared
-worktree, not by the plan's proposed subagents. Tasks 3–6 remain incomplete, including the
+Only the checked items above are implemented. Task 2 now stores native IDs in Expo Secure Store
+and browser IDs in profile local storage; registration is repeated before socket connections and
+commands to avoid an authentication-registration race. Tasks 3–6 remain incomplete, including the
 controller-only `ended` flow, playlist-scoped seek/checkpoint contract, persistent active-playlist
-embed surface, and the planned backend/frontend integration tests.
+embed surface, and the planned backend/frontend integration tests. The frontend has no configured
+unit/component test runner, so T2 was validated with TypeScript checking only.
 
 ## Implementation constraints
 
@@ -146,12 +148,14 @@ T1 and T2 can run in parallel. T3 starts only after T1; it can use T2’s commit
 
 **Scope:** Tasks 2.1–2.3 only: generated persisted device identity, device registration client integration, and `device_id` in both WebSocket URL builders.
 
-- [ ] Add platform-specific persistent UUID storage for web and native.
-- [ ] Register/reuse the device after authentication and make the identity available to the WebSocket callers.
-- [ ] Update playlist and playback WebSocket URLs to include the device ID.
+- [x] Add platform-specific persistent UUID storage for web and native.
+- [x] Register/reuse the device after authentication and make the identity available to the WebSocket callers.
+- [x] Update playlist and playback WebSocket URLs to include the device ID.
 - [ ] Add focused unit/component checks for identity persistence and URL construction.
 
-**Verify:** reload returns the same device ID; a distinct profile gets a distinct ID; both socket URLs contain an encoded `device_id`.
+**Verify:** `npx tsc --noEmit` passes. The frontend has no configured unit/component test runner;
+manual runtime verification remains for reload/profile persistence and encoded WebSocket URL
+parameters.
 
 **Checkpoint commit:** `feat(frontend): persist playback device identity`
 
