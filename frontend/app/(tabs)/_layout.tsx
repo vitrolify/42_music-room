@@ -1,11 +1,12 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { House, MagnifyingGlass, Playlist, UsersThree, UserCircle } from 'phosphor-react-native';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
-import PlayerOverlay from '../../src/components/PlayerOverlay';
+import PersistentPlayerHost from '../../src/components/PersistentPlayerHost';
 import { usePlayer } from '../../src/contexts/PlayerContext';
+import { getPlayerPresentation, PLAYER_ROUTE } from '../../src/lib/playerPresentation';
 
 const MINI_PLAYER_HEIGHT = 64;
 
@@ -13,8 +14,10 @@ export default function TabsLayout() {
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
     const useSideNav = width >= 900;
-    const { videoId, setShowPlayer } = usePlayer();
-    const hasPlayer = !!videoId;
+    const { videoId, activePlaylistId } = usePlayer();
+    const router = useRouter();
+    const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname: '' });
+    const hasPlayer = presentation.showMiniPlayer;
 
     function renderTabItems({ state, descriptors, navigation, horizontal }: any) {
         return state.routes
@@ -78,7 +81,11 @@ export default function TabsLayout() {
         return (
             <View style={{ backgroundColor: colors.bg.surface, borderTopColor: colors.border.gray, borderTopWidth: 0.5 }}>
                 {hasPlayer && (
-                    <MiniPlayerBar onPress={() => setShowPlayer(true)} />
+                    <MiniPlayerBar
+                        onPress={() => {
+                            router.push(PLAYER_ROUTE);
+                        }}
+                    />
                 )}
                 <View style={{ flexDirection: 'row', paddingTop: spacing.sm / 2, height: 64 }}>
                     {renderTabItems({ ...props, horizontal: true })}
@@ -172,6 +179,10 @@ export default function TabsLayout() {
                     }}
                 />
                 <Tabs.Screen
+                    name="player"
+                    options={{ href: null }}
+                />
+                <Tabs.Screen
                     name="playlist/[id]"
                     options={{
                         href: null,
@@ -198,11 +209,15 @@ export default function TabsLayout() {
                         ...(Platform.OS === 'web' ? { position: 'fixed' as any } : { position: 'absolute' as any }),
                     }}
                 >
-                    <MiniPlayerBar onPress={() => setShowPlayer(true)} />
+                    <MiniPlayerBar
+                        onPress={() => {
+                            router.push(PLAYER_ROUTE);
+                        }}
+                    />
                 </View>
             )}
 
-            <PlayerOverlay />
+            <PersistentPlayerHost />
         </View>
     );
 }

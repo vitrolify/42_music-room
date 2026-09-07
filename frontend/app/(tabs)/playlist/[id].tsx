@@ -17,9 +17,6 @@ import {
     getPlaylist,
     listPlaylistTracks,
     movePlaylistTrack,
-    playPlaylistTrack,
-    pausePlaylistTrack,
-    skipPlaylistTrack,
     deletePlaylistTrack,
     getFirebaseToken,
     getPlaylistWebSocketUrl,
@@ -27,13 +24,16 @@ import {
     type Playlist,
     type PlaylistTrack,
 } from '../../../src/lib/api';
+import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
+import { usePlayer } from '../../../src/contexts/PlayerContext';
 
 export default function PlaylistDetail() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { id } = useLocalSearchParams<{ id: string }>();
     const playlistId = Number(id);
+    const { commandPlaylistTrack } = usePlayer();
 
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
@@ -86,7 +86,19 @@ export default function PlaylistDetail() {
             const token = await getFirebaseToken();
             if (!active || !token) { setConnectionState('offline'); return; }
             setConnectionState('connecting');
-            const socket = new WebSocket(getPlaylistWebSocketUrl(playlistId, token));
+            let deviceId: string;
+            try {
+                deviceId = await registerCurrentDevice();
+            } catch {
+                if (!active) return;
+                setConnectionState('offline');
+                const delay = Math.min(1000 * 2 ** reconnectAttempt.current, 10000);
+                reconnectAttempt.current += 1;
+                reconnectTimer.current = setTimeout(() => void connect(), delay);
+                return;
+            }
+            if (!active) return;
+            const socket = new WebSocket(getPlaylistWebSocketUrl(playlistId, token, deviceId));
             socketRef.current = socket;
             socket.onopen = () => { reconnectAttempt.current = 0; setConnectionState('connected'); void fetchData(); };
             socket.onmessage = message => {
@@ -319,9 +331,9 @@ export default function PlaylistDetail() {
                                         setMutating(true);
                                         setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
                                         try {
-                                            if (action === 'play') await playPlaylistTrack(playlistId, track);
-                                            if (action === 'pause') await pausePlaylistTrack(playlistId, track);
-                                            if (action === 'skip') await skipPlaylistTrack(playlistId, track);
+                                            if (action === 'play' || action === 'pause' || action === 'skip') {
+                                                await commandPlaylistTrack(playlistId, track.id, action);
+                                            }
                                             if (action === 'delete') await deletePlaylistTrack(playlistId, track);
                                             await refreshTracksAfterMutation(
                                                 nextTracks => {
