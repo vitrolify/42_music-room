@@ -90,7 +90,7 @@ A user has one active playlist across their own devices. Playback state is synch
 ### 6. Automated verification
 
 - [ ] Add migration coverage proving a single Alembic head and successful upgrade.
-- [ ] Add backend integration tests for owner playback, state restoration, delegated controls, invalid devices, duplicate end events, playlist switching, and terminal queue completion.
+- [x] Add backend integration tests for owner playback, state restoration, delegated controls, invalid devices, duplicate end events, playlist switching, and terminal queue completion.
 - [ ] Add frontend/component tests for active-playlist navigation, persistent mounting, control visibility, and state hydration.
 - [ ] Run backend lint/type/test checks and frontend type checks.
   - Partial verification: frontend type checking, backend Ruff, and Alembic-head verification pass; backend type and integration tests have not been run.
@@ -109,6 +109,14 @@ contract and accepts the same durable device/session fields on queued playlist e
 owner playback state transitions lock their rows and publish both post-commit snapshots. Focused
 integration coverage remains part of T5; this checkpoint was syntax-checked, but its configured
 Ruff/Alembic executables are not installed in this worktree.
+
+T5 adds opt-in PostgreSQL integration coverage in
+`api/tests/integration/test_playlist_playback_sync.py` for durable state restoration,
+foreign-device rejection, delegated control, playlist switching, terminal completion, and
+simultaneous stale end reports. The suite is run against a migrated disposable PostgreSQL
+database via `PLAYBACK_TEST_DATABASE_URL`; it passes there. Full-repository Ruff still reports
+pre-existing lint errors outside this checkpoint, and no type-checker is configured as a dev
+dependency.
 
 ## Implementation constraints
 
@@ -196,8 +204,8 @@ parameters.
 
 **Scope:** Backend portion of task 6, after T3 is merged.
 
-- [ ] Add end-to-end tests for restore-on-second-device, device validation, owner/delegate authorization, playlist switching, and terminal completion.
-- [ ] Add a concurrent/stale end-report test proving the queue advances exactly once.
+- [x] Add end-to-end tests for restore-on-second-device, device validation, owner/delegate authorization, playlist switching, and terminal completion.
+- [x] Add a concurrent/stale end-report test proving the queue advances exactly once.
 - [ ] Run backend lint, type, migration, and test commands.
 
 **Verify:** all backend checks pass and each acceptance scenario has automated coverage.
