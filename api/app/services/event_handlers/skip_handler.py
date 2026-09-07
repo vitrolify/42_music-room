@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
 from app.models.playlist_track import TrackPlaybackStatus
+from app.models.user_playback_state import PlaybackStatus
 from app.schemas.event import PlaybackPayload
-from app.services.playlist_service import lock_playlist
+from app.services.playback_service import synchronize_playlist_track
+from app.services.playlist_service import get_playlist_by_id, lock_playlist
 from app.services.playlist_track_service import (
     get_playing_track_by_id,
     get_track_by_position,
@@ -74,6 +76,13 @@ async def _execute_skip_transaction(
         await set_track_zero_to(TrackPlaybackStatus.playing, db, playlist_id)
 
         new_track = await get_track_by_position(db, playlist_id, 0)
+        playlist = await get_playlist_by_id(db, playlist_id)
+        if not playlist:
+            raise ValueError("Playlist not found")
+        await synchronize_playlist_track(
+            db, owner_id=playlist.owner_id, playlist_id=playlist_id, track=new_track,
+            status=PlaybackStatus.PLAYING if new_track else PlaybackStatus.PAUSED,
+        )
         ws_message = _build_track_skipped_payload(
             playlist_id=playlist_id,
             new_playing_track_id=new_track.id if new_track else None,

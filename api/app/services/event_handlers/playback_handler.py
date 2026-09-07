@@ -6,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue, PlaylistEventType
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
+from app.models.user_playback_state import PlaybackStatus
 from app.schemas.event import PlaybackPayload
-from app.services.playlist_service import lock_playlist
+from app.services.playback_service import synchronize_playlist_track
+from app.services.playlist_service import get_playlist_by_id, lock_playlist
 from app.services.playlist_track_service import get_playing_track_by_id
 from app.websockets.playlist_manager import playlist_ws_manager
 
@@ -68,6 +70,20 @@ async def _execute_playback_transaction(
             )
             return None
         current_track.status = target_status
+        playlist = await get_playlist_by_id(db, playlist_id)
+        if not playlist:
+            raise ValueError("Playlist not found")
+        await synchronize_playlist_track(
+            db,
+            owner_id=playlist.owner_id,
+            playlist_id=playlist_id,
+            track=current_track,
+            status=(
+                PlaybackStatus.PLAYING
+                if target_status == TrackPlaybackStatus.playing
+                else PlaybackStatus.PAUSED
+            ),
+        )
 
         ws_message = _build_playback_changed_payload(
             playlist_id=playlist_id,
