@@ -128,21 +128,33 @@ async def _verify_event_permissions(
         PlaylistEventType.skip,
         PlaylistEventType.pause,
         PlaylistEventType.play,
+        PlaylistEventType.delete,
     ):
         if playlist.owner_id != user_id:
             playback = await get_state(db, playlist.owner_id)
-            if (
-                not playback
-                or playback.active_playlist_id != playlist.id
-                or not playback.controller_device_id
-            ):
+            active_device_str = (
+                str(playback.controller_device_id)
+                if playback
+                and playback.active_playlist_id == playlist.id
+                and playback.controller_device_id
+                else await get_active_device(playlist.id)
+            )
+            if not active_device_str:
                 raise BaseVitrolifyException(
                     error_code="NO_ACTIVE_DEVICE",
                     message="O dono da playlist não está ouvindo música no momento.",
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
+            try:
+                active_device_uuid = uuid.UUID(active_device_str)
+            except ValueError as exc:
+                raise BaseVitrolifyException(
+                    error_code="INVALID_DEVICE_STATE",
+                    message="Estado do dispositivo inválido no servidor.",
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                ) from exc
             is_delegate = await device_service.has_device_delegation(
-                db=db, device_id=playback.controller_device_id, delegate_id=user_id
+                db=db, device_id=active_device_uuid, delegate_id=user_id
             )
             if not is_delegate:
                 raise BaseVitrolifyException(

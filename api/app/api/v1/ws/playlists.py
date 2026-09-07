@@ -14,6 +14,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id_ws
+from app.db.redis import clear_active_device, set_active_device
 from app.db.session import get_db
 from app.models.playlist import Playlist
 from app.services.playlist_service import (
@@ -54,6 +55,8 @@ async def playlist_websocket_endpoint(
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason=str(e))
 
     await playlist_ws_manager.connect_to_playlist(websocket, playlist_id, user_id)
+    if is_owner and device_id:
+        await set_active_device(playlist_id, device_id)
 
     try:
         while True:
@@ -74,9 +77,8 @@ async def playlist_websocket_endpoint(
         playlist_ws_manager.disconnect_from_playlist(websocket, playlist_id, user_id)
 
     finally:
-        # Presence is intentionally not playback authority.  Controller identity
-        # lives on the durable owner playback state.
-        pass
+        if is_owner and device_id:
+            await clear_active_device(playlist_id, device_id)
 
 
 async def _verify_playlist_access(
