@@ -52,24 +52,24 @@ A user has one active playlist across their own devices. Playback state is synch
 
 ### 3. Make playlist playback transactional and authorized
 
-- [ ] Refactor playlist play, pause, skip, and new `ended` processing to update queue state and the owner’s playback state in one locked database transaction.
+- [x] Refactor playlist play, pause, skip, and new `ended` processing to update queue state and the owner’s playback state in one locked database transaction.
   - Verify: each successful action emits a playlist update and a synchronized playback snapshot with matching playlist/track/status data.
-- [ ] Add playlist-scoped seek and checkpoint commands carrying track ID, expected version, position, duration, device ID, and session ID.
+- [x] Add playlist-scoped seek and checkpoint commands carrying track ID, expected version, position, duration, device ID, and session ID.
   - Verify: a valid controller updates position and increments version; stale versions are rejected.
-- [ ] Implement activation: playing a new playlist pauses the previous active position-zero track, sets the new active playlist/track, loads its YouTube ID, and sets the requesting owner device as controller.
+- [x] Implement activation: playing a new playlist pauses the previous active position-zero track, sets the new active playlist/track, loads its YouTube ID, and sets the requesting owner device as controller.
   - Verify: no owner can have two tracks marked playing after an activation.
-- [ ] Enforce delegated control against the durable controller device. Delegated commands may change play/pause/seek/skip state but do not replace controller device/session.
+- [x] Enforce delegated control against the durable controller device. Delegated commands may change play/pause/seek/skip state but do not replace controller device/session.
   - Verify: authorized delegates succeed; unauthorized users receive `403`; delegated `delete` remains denied or follows normal playlist-edit permission only.
-- [ ] Implement controller-only `ended` handling. Lock state, verify active playlist/track/version/controller identity, and advance the queue once.
+- [x] Implement controller-only `ended` handling. Lock state, verify active playlist/track/version/controller identity, and advance the queue once.
   - Verify: repeated or concurrent `ended` requests leave exactly one successor at position zero.
-- [ ] Preserve terminal playback at end of queue: keep active playlist and terminal media metadata, clear the removed active-track reference when needed, and set status to paused.
+- [x] Preserve terminal playback at end of queue: keep active playlist and terminal media metadata, clear the removed active-track reference when needed, and set status to paused.
   - Verify: no successor starts, the mini player remains visible, and the user can navigate to the completed playlist.
 
 ### 4. Unify realtime contracts
 
-- [ ] Extend playback-state REST and WebSocket payloads with active playlist, active track, and controller-device fields.
+- [x] Extend playback-state REST and WebSocket payloads with active playlist, active track, and controller-device fields.
   - Verify: a newly connected owner device hydrates the complete current state before receiving later broadcasts.
-- [ ] Keep playlist WebSockets for queue mutations and playback WebSockets for owner-device playback snapshots; ensure both broadcasts are emitted after a successful transaction.
+- [x] Keep playlist WebSockets for queue mutations and playback WebSockets for owner-device playback snapshots; ensure both broadcasts are emitted after a successful transaction.
   - Verify: playlist viewers refresh queue changes, while all owner devices apply the same media state and position.
 - [x] Remove Redis TTL as authority for delegated playback authorization; retain Redis only for realtime delivery/presence if needed.
   - Verify: a controller still has authority after more than one hour of continuous playback.
@@ -103,6 +103,12 @@ commands to avoid an authentication-registration race. Tasks 3–6 remain incomp
 controller-only `ended` flow, playlist-scoped seek/checkpoint contract, persistent active-playlist
 embed surface, and the planned backend/frontend integration tests. The frontend has no configured
 unit/component test runner, so T2 was validated with TypeScript checking only.
+
+T3 now uses `PUT /playlists/{playlist_id}/playback` for the complete playlist-scoped command
+contract and accepts the same durable device/session fields on queued playlist events. Queue and
+owner playback state transitions lock their rows and publish both post-commit snapshots. Focused
+integration coverage remains part of T5; this checkpoint was syntax-checked, but its configured
+Ruff/Alembic executables are not installed in this worktree.
 
 ## Implementation constraints
 
@@ -163,11 +169,11 @@ parameters.
 
 **Scope:** Tasks 3 and 4.1–4.3: command authorization, activation, transactional queue/playback transitions, realtime payloads, and controller-only completion.
 
-- [ ] Validate controller device ownership and use durable playback state—not Redis TTL—as delegation authority.
-- [ ] Extend playlist events with `ended`; add playlist-scoped seek/checkpoint API handling.
-- [ ] Implement locked atomic transitions for play, pause, seek, checkpoint, skip, switch-playlist, and end-of-track.
-- [ ] Publish matching queue and owner playback snapshots after commit.
-- [ ] Preserve terminal paused playback after the final queue item.
+- [x] Validate controller device ownership and use durable playback state—not Redis TTL—as delegation authority.
+- [x] Extend playlist events with `ended`; add playlist-scoped seek/checkpoint API handling.
+- [x] Implement locked atomic transitions for play, pause, seek, checkpoint, skip, switch-playlist, and end-of-track.
+- [x] Publish matching queue and owner playback snapshots after commit.
+- [x] Preserve terminal paused playback after the final queue item.
 
 **Verify:** focused API/integration tests demonstrate delegation boundaries, one active playlist per owner, duplicate-end protection, and correct next-track/terminal behavior.
 

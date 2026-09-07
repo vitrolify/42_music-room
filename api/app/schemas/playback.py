@@ -30,6 +30,16 @@ class PlaybackCommand(BaseModel):
     expected_version: int | None = Field(default=None, ge=0)
 
 
+class PlaylistPlaybackCommand(BaseModel):
+    command: str = Field(pattern="^(play|pause|seek|checkpoint|skip|ended)$")
+    playlist_track_id: int
+    device_id: uuid.UUID
+    session_id: str = Field(min_length=1, max_length=128)
+    expected_version: int | None = Field(default=None, ge=0)
+    position_seconds: float | None = Field(default=None, ge=0)
+    duration_seconds: float | None = Field(default=None, ge=0)
+
+
 class PlaybackEvent(BaseModel):
     type: str = "PLAYBACK_STATE_CHANGED"
     version: int
