@@ -126,3 +126,15 @@ async def list_device_delegates(
         select(DeviceDelegation).where(DeviceDelegation.device_id == device_id)
     )
     return result.scalars().all()
+
+
+async def has_device_delegation(
+    db: AsyncSession, device_id: uuid.UUID, delegate_id: uuid.UUID
+) -> bool:
+    result = await db.execute(
+        select(DeviceDelegation).where(
+            DeviceDelegation.device_id == device_id,
+            DeviceDelegation.delegate_user_id == delegate_id,
+        )
+    )
+    return result.scalar_one_or_none() is not None
