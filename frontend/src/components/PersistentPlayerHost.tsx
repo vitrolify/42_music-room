@@ -40,7 +40,7 @@ export default function PersistentPlayerHost() {
     if (!presentation.shouldMountHost) return null;
 
     return (
-        <View pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'} style={styles.host}>
+        <View pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'} style={[styles.host, width >= 900 && styles.wideHost]}>
             <View style={[styles.surface, { width: width >= 900 ? '52%' : '100%' }, !presentation.showPlayerSurface && styles.hidden]}>
                 <View style={styles.headingRow}>
                     {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}
@@ -87,6 +87,7 @@ export const ACTIVE_PLAYER_SURFACE_HEIGHT = 332;
 
 const styles = StyleSheet.create({
     host: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, alignItems: 'center', pointerEvents: 'box-none' as never },
+    wideHost: { left: 104 },
     surface: { maxWidth: 720, padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
     hidden: { opacity: 0, height: 0, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
     headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
