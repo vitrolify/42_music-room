@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Play, Pause } from 'phosphor-react-native';
 import YouTubePlayer from './YouTubePlayer';
@@ -9,7 +9,6 @@ import { colors, globalStyles, spacing } from '../styles';
 
 export default function PlayerOverlay() {
     const insets = useSafeAreaInsets();
-    const [input, setInput] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     const {
@@ -21,7 +20,6 @@ export default function PlayerOverlay() {
         progress,
         playerRef,
         showPlayer,
-        loadVideo: contextLoadVideo,
         togglePlayPause,
         setPlayerReady,
         setPlayerState,
@@ -30,16 +28,6 @@ export default function PlayerOverlay() {
         seekTo,
         syncStatus,
     } = usePlayer();
-
-    function loadVideo() {
-        const nextVideoId = extractYouTubeVideoId(input);
-        if (!nextVideoId) {
-            setError('Enter a valid YouTube video ID or URL.');
-            return;
-        }
-        setError(null);
-        contextLoadVideo(nextVideoId);
-    }
 
     function handlePlayerError(message: string) {
         setError(message);
@@ -134,57 +122,18 @@ export default function PlayerOverlay() {
                             </Pressable>
                         ) : null}
 
-                        <View style={[cardStyle, { marginTop: spacing.xl }]}>
-                            <Text style={globalStyles.heading}>Load a new video</Text>
-                            <TextInput
-                                style={[globalStyles.input, { marginTop: spacing.sm }]}
-                                value={input}
-                                onChangeText={setInput}
-                                placeholder="YouTube ID or URL"
-                                placeholderTextColor={colors.text.secondary}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                onSubmitEditing={loadVideo}
-                            />
-                            <Pressable
-                                style={({ pressed }) => ({ ...globalStyles.primaryPillButton, opacity: pressed ? 0.8 : 1, marginTop: spacing.sm })}
-                                onPress={loadVideo}
-                            >
-                                <Text style={globalStyles.primaryPillButtonText}>Load video</Text>
-                            </Pressable>
-                            {error ? <Text style={[globalStyles.errorText, { marginTop: spacing.sm }]}>{error}</Text> : null}
-                        </View>
                     </View>
                 ) : (
                     <View>
                         <Text style={globalStyles.title}>YouTube Player</Text>
                         <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>
-                            Test a video before connecting playback to a playlist.
+                            Start playback from the first track in a playlist.
                         </Text>
-
-                        <TextInput
-                            style={globalStyles.input}
-                            value={input}
-                            onChangeText={setInput}
-                            placeholder="YouTube ID or URL"
-                            placeholderTextColor={colors.text.secondary}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            onSubmitEditing={loadVideo}
-                        />
-                        <Pressable
-                            style={({ pressed }) => ({ ...globalStyles.primaryPillButton, opacity: pressed ? 0.8 : 1 })}
-                            onPress={loadVideo}
-                        >
-                            <Text style={globalStyles.primaryPillButtonText}>Load video</Text>
-                        </Pressable>
-
-                        {error ? <Text style={[globalStyles.errorText, { marginTop: spacing.lg }]}>{error}</Text> : null}
 
                         <View style={[cardStyle, { marginTop: spacing.xl }]}>
                             <Text style={globalStyles.heading}>No video loaded</Text>
                             <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>
-                                Paste a YouTube link or an 11-character video ID to begin.
+                                The active playlist will load the player when playback begins.
                             </Text>
                         </View>
                     </View>
