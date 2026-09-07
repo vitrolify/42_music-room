@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWindowDimensions } from 'react-native';
 import {
     addPlaylistTrack,
     getPlaylist,
@@ -28,15 +27,13 @@ import {
 import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
 import { usePlayer } from '../../../src/contexts/PlayerContext';
-import { ACTIVE_PLAYER_SURFACE_HEIGHT } from '../../../src/components/PersistentPlayerHost';
 
 export default function PlaylistDetail() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { width } = useWindowDimensions();
     const { id } = useLocalSearchParams<{ id: string }>();
     const playlistId = Number(id);
-    const { activePlaylistId, commandPlaylistTrack } = usePlayer();
+    const { commandPlaylistTrack } = usePlayer();
 
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
@@ -223,10 +220,6 @@ export default function PlaylistDetail() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 padding: spacing.xl,
-                paddingTop: activePlaylistId === playlistId && width < 900
-                    ? ACTIVE_PLAYER_SURFACE_HEIGHT + spacing.xl
-                    : spacing.xl,
-                paddingLeft: activePlaylistId === playlistId && width >= 900 ? '54%' : spacing.xl,
                 paddingBottom: insets.bottom + spacing.xxl,
             }}
             refreshControl={

@@ -6,7 +6,7 @@ import { colors, spacing } from '../../src/styles';
 import MiniPlayerBar from '../../src/components/MiniPlayerBar';
 import PersistentPlayerHost from '../../src/components/PersistentPlayerHost';
 import { usePlayer } from '../../src/contexts/PlayerContext';
-import { getActivePlaylistRoute, getPlayerPresentation } from '../../src/lib/playerPresentation';
+import { getPlayerPresentation, PLAYER_ROUTE } from '../../src/lib/playerPresentation';
 
 const MINI_PLAYER_HEIGHT = 64;
 
@@ -18,7 +18,6 @@ export default function TabsLayout() {
     const router = useRouter();
     const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname: '' });
     const hasPlayer = presentation.showMiniPlayer;
-    const activePlaylistRoute = getActivePlaylistRoute(activePlaylistId);
 
     function renderTabItems({ state, descriptors, navigation, horizontal }: any) {
         return state.routes
@@ -84,7 +83,7 @@ export default function TabsLayout() {
                 {hasPlayer && (
                     <MiniPlayerBar
                         onPress={() => {
-                            if (activePlaylistRoute) router.push(activePlaylistRoute);
+                            router.push(PLAYER_ROUTE);
                         }}
                     />
                 )}
@@ -180,6 +179,10 @@ export default function TabsLayout() {
                     }}
                 />
                 <Tabs.Screen
+                    name="player"
+                    options={{ href: null }}
+                />
+                <Tabs.Screen
                     name="playlist/[id]"
                     options={{
                         href: null,
@@ -208,7 +211,7 @@ export default function TabsLayout() {
                 >
                     <MiniPlayerBar
                         onPress={() => {
-                            if (activePlaylistRoute) router.push(activePlaylistRoute);
+                            router.push(PLAYER_ROUTE);
                         }}
                     />
                 </View>

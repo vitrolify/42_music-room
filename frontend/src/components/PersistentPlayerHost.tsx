@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { usePathname } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'phosphor-react-native';
 import YouTubePlayer from './YouTubePlayer';
 import ProgressBar from './ProgressBar';
@@ -10,11 +10,12 @@ import { colors, globalStyles, spacing } from '../styles';
 
 /**
  * The YouTube instance lives beside the tab navigator, not inside a route.
- * Its surface is only exposed while the route is the hydrated active playlist,
- * so changing tabs never recreates or interrupts the underlying player.
+ * Its full controls are exposed only by the dedicated player route, so changing
+ * routes never recreates or interrupts the underlying player.
  */
 export default function PersistentPlayerHost() {
     const pathname = usePathname();
+    const router = useRouter();
     const { width } = useWindowDimensions();
     const [error, setError] = useState<string | null>(null);
     const {
@@ -78,18 +79,27 @@ export default function PersistentPlayerHost() {
                 </View>
                 {syncStatus === 'autoplay-blocked' ? <Text style={globalStyles.small}>Tap play to start synchronized playback.</Text> : null}
                 {error ? <Text style={globalStyles.errorText}>{error}</Text> : null}
+                {presentation.showPlayerSurface ? (
+                    <Pressable
+                        style={({ pressed }) => [globalStyles.primaryPillButton, { marginTop: spacing.md, opacity: pressed ? 0.75 : 1 }]}
+                        onPress={() => {
+                            if (presentation.activePlaylistRoute) router.push(presentation.activePlaylistRoute as never);
+                        }}
+                        disabled={!presentation.activePlaylistRoute}
+                    >
+                        <Text style={globalStyles.primaryPillButtonText}>Open current playlist</Text>
+                    </Pressable>
+                ) : null}
             </View>
         </View>
     );
 }
 
-export const ACTIVE_PLAYER_SURFACE_HEIGHT = 332;
-
 const styles = StyleSheet.create({
     host: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, alignItems: 'center', pointerEvents: 'box-none' as never },
     wideHost: { left: 104 },
     surface: { maxWidth: 720, padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
-    hidden: { opacity: 0, height: 0, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
+    hidden: { opacity: 0, height: 1, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
     headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
     thumbnail: { width: 40, height: 40, borderRadius: 4 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },

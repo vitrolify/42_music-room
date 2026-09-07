@@ -3,41 +3,43 @@ import test from 'node:test';
 import {
     getActivePlaylistRoute,
     getPlayerPresentation,
-    isActivePlaylistPath,
+    isPlayerPath,
+    PLAYER_ROUTE,
 } from '../src/lib/playerPresentation.ts';
 
 test('hydrates an active playlist into a navigable player presentation', () => {
     const presentation = getPlayerPresentation({
         videoId: 'abc123',
         activePlaylistId: 42,
-        pathname: '/(tabs)/index',
+        pathname: '/(tabs)/player',
     });
 
     assert.equal(presentation.shouldMountHost, true);
     assert.equal(presentation.showMiniPlayer, true);
-    assert.equal(presentation.showPlayerSurface, false);
+    assert.equal(presentation.showPlayerSurface, true);
     assert.equal(presentation.activePlaylistRoute, '/(tabs)/playlist/42');
 });
 
 test('keeps the player mounted but hides controls after navigating away', () => {
-    const onActivePlaylist = getPlayerPresentation({
+    const onPlayerRoute = getPlayerPresentation({
         videoId: 'abc123', activePlaylistId: 42, pathname: '/(tabs)/playlist/42',
     });
     const elsewhere = getPlayerPresentation({
         videoId: 'abc123', activePlaylistId: 42, pathname: '/(tabs)/search',
     });
 
-    assert.equal(onActivePlaylist.shouldMountHost, true);
-    assert.equal(onActivePlaylist.showPlayerSurface, true);
+    assert.equal(onPlayerRoute.shouldMountHost, true);
+    assert.equal(onPlayerRoute.showPlayerSurface, false);
     assert.equal(elsewhere.shouldMountHost, true);
     assert.equal(elsewhere.showPlayerSurface, false);
 });
 
-test('only the exact active playlist route exposes controls', () => {
-    assert.equal(isActivePlaylistPath('/(tabs)/playlist/42', 42), true);
-    assert.equal(isActivePlaylistPath('/(tabs)/playlist/42/edit', 42), true);
-    assert.equal(isActivePlaylistPath('/(tabs)/playlist/420', 42), false);
-    assert.equal(isActivePlaylistPath('/(tabs)/playlist/42', null), false);
+test('only the dedicated player route exposes full controls', () => {
+    assert.equal(PLAYER_ROUTE, '/player');
+    assert.equal(isPlayerPath('/(tabs)/player'), true);
+    assert.equal(isPlayerPath('/player'), true);
+    assert.equal(isPlayerPath('/(tabs)/playlist/42'), false);
+    assert.equal(isPlayerPath('/(tabs)/player/settings'), false);
 });
 
 test('terminal paused playback retains the mini-player route', () => {
@@ -48,6 +50,16 @@ test('terminal paused playback retains the mini-player route', () => {
     assert.equal(terminalPlayback.showMiniPlayer, true);
     assert.equal(terminalPlayback.activePlaylistRoute, '/(tabs)/playlist/7');
     assert.equal(getActivePlaylistRoute(null), null);
+});
+
+test('terminal paused playback still exposes the dedicated player', () => {
+    const terminalPlayback = getPlayerPresentation({
+        videoId: 'final-track', activePlaylistId: 7, pathname: '/player',
+    });
+
+    assert.equal(terminalPlayback.shouldMountHost, true);
+    assert.equal(terminalPlayback.showPlayerSurface, true);
+    assert.equal(terminalPlayback.activePlaylistRoute, '/(tabs)/playlist/7');
 });
 
 test('a stale standalone video cannot render a non-navigable player', () => {

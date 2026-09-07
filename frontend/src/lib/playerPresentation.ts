@@ -1,15 +1,16 @@
 /**
- * Keep the route-dependent presentation rules independent from the player
- * instance. The host stays mounted while changing routes; only its surface is
- * hidden outside the active playlist.
+ * Keep route presentation independent from the player instance. The host stays
+ * mounted while changing routes; only the dedicated player route exposes its
+ * full controls.
  */
+export const PLAYER_ROUTE = '/player' as const;
+
 export function getActivePlaylistRoute(activePlaylistId: number | null): string | null {
     return activePlaylistId === null ? null : `/(tabs)/playlist/${activePlaylistId}`;
 }
 
-export function isActivePlaylistPath(pathname: string, activePlaylistId: number | null): boolean {
-    return activePlaylistId !== null
-        && new RegExp(`/playlist/${activePlaylistId}(?:/|$)`).test(pathname);
+export function isPlayerPath(pathname: string): boolean {
+    return pathname === PLAYER_ROUTE || pathname === '/(tabs)/player';
 }
 
 export function getPlayerPresentation({
@@ -28,8 +29,7 @@ export function getPlayerPresentation({
         // recreate the underlying YouTube instance.
         shouldMountHost: hasActivePlaylistPlayback,
         showMiniPlayer: hasActivePlaylistPlayback,
-        showPlayerSurface: hasActivePlaylistPlayback
-            && isActivePlaylistPath(pathname, activePlaylistId),
+        showPlayerSurface: hasActivePlaylistPlayback && isPlayerPath(pathname),
         activePlaylistRoute: getActivePlaylistRoute(activePlaylistId),
     };
 }
