@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { getMyProfile, updateMyProfile } from '../../src/lib/api';
 import { getAvatarSource } from '../../src/lib/avatars';
+import { usePlayerBarPadding } from '../../src/hooks/usePlayerBarPadding';
 import { colors, fonts, fontSizes, spacing, borderRadius, globalStyles } from '../../src/styles';
 
 const AVATAR_OPTIONS = ['vinil', 'tape', 'globe', 'et', 'cat', 'owl'] as const;
@@ -26,6 +27,7 @@ const VISIBILITY_OPTIONS: { value: ProfileVisibility; label: string }[] = [
 export default function Profile() {
     const { user, initializing, logout, sendPasswordReset, linkGoogle } = useAuth();
     const insets = useSafeAreaInsets();
+    const playerBarPadding = usePlayerBarPadding();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -179,7 +181,7 @@ export default function Profile() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 padding: spacing.xl,
-                paddingBottom: insets.bottom + spacing.xxl,
+                paddingBottom: insets.bottom + spacing.xxl + playerBarPadding,
                 alignItems: 'center',
             }}
         >

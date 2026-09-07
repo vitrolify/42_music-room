@@ -103,6 +103,6 @@ async def _verify_event_permissions(
             if not is_delegate:
                 raise BaseVitrolifyException(
                     error_code="FORBIDDEN",
-                    message="Você não tem permissão de controle para o dispositivo ativo.",
+                    message="Você não tem permissão de controle para o dispositivo.",
                     status_code=status.HTTP_403_FORBIDDEN,
                 )

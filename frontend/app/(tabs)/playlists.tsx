@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MusicNote, Trash, UserPlus } from 'phosphor-react-native';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { usePlayerBarPadding } from '../../src/hooks/usePlayerBarPadding';
 import {
     listPlaylists,
     createPlaylist,
@@ -34,6 +35,7 @@ export default function Playlists() {
     const router = useRouter();
     const { user, initializing } = useAuth();
     const insets = useSafeAreaInsets();
+    const playerBarPadding = usePlayerBarPadding();
 
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [myInvites, setMyInvites] = useState<InviteWithPlaylist[]>([]);
@@ -173,7 +175,7 @@ export default function Playlists() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 padding: spacing.xl,
-                paddingBottom: insets.bottom + spacing.xxl,
+                paddingBottom: insets.bottom + spacing.xxl + playerBarPadding,
             }}
             refreshControl={
                 <RefreshControl
