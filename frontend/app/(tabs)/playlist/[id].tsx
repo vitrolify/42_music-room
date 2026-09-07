@@ -27,6 +27,7 @@ import {
     type Playlist,
     type PlaylistTrack,
 } from '../../../src/lib/api';
+import { getDeviceId } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
 
 export default function PlaylistDetail() {
@@ -86,7 +87,8 @@ export default function PlaylistDetail() {
             const token = await getFirebaseToken();
             if (!active || !token) { setConnectionState('offline'); return; }
             setConnectionState('connecting');
-            const socket = new WebSocket(getPlaylistWebSocketUrl(playlistId, token));
+            const deviceId = await getDeviceId();
+            const socket = new WebSocket(getPlaylistWebSocketUrl(playlistId, token, deviceId));
             socketRef.current = socket;
             socket.onopen = () => { reconnectAttempt.current = 0; setConnectionState('connected'); void fetchData(); };
             socket.onmessage = message => {

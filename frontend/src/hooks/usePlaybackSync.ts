@@ -11,6 +11,7 @@ import type {
     PlaybackSnapshot,
     SyncStatus,
 } from '../lib/api/playback.types';
+import { getDeviceId } from '../lib/deviceIdentity';
 
 type PlaybackSyncOptions = {
     isAuthenticated: boolean;
@@ -60,9 +61,11 @@ export function usePlaybackSync({
 
     const sendCommand = useCallback(
         async (command: PlaybackCommand, values: PlaybackCommandPayload = {}) => {
+            const deviceId = await getDeviceId();
             const message = {
                 command,
                 ...values,
+                device_id: deviceId,
                 session_id: sessionIdRef.current,
             };
 
@@ -109,8 +112,9 @@ export function usePlaybackSync({
                 const token = await getFirebaseToken();
                 if (!token || cancelled) return;
 
+                const deviceId = await getDeviceId();
                 const socket = new WebSocket(
-                    getPlaybackWebSocketUrl(sessionIdRef.current, token),
+                    getPlaybackWebSocketUrl(sessionIdRef.current, token, deviceId),
                 );
                 socketRef.current = socket;
                 socket.onopen = () => setSyncStatus('synced');

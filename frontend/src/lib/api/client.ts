@@ -49,19 +49,19 @@ export async function getFirebaseToken(): Promise<string | null> {
     return null;
 }
 
-export function getPlaylistWebSocketUrl(playlistId: number, token: string): string {
+export function getPlaylistWebSocketUrl(playlistId: number, token: string, deviceId?: string): string {
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + `/ws/playlists/${playlistId}`;
-    apiUrl.search = `?token=${encodeURIComponent(token)}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
     return apiUrl.toString();
 }
 
-export function getPlaybackWebSocketUrl(sessionId: string, token: string): string {
+export function getPlaybackWebSocketUrl(sessionId: string, token: string, deviceId?: string): string {
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playback';
-    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
     return apiUrl.toString();
 }
 
