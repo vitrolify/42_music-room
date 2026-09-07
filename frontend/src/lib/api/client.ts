@@ -1,12 +1,14 @@
 import * as Firebase from '../firebase';
+import { Platform } from 'react-native';
 
 function getApiBaseUrl(): string {
     // Expo exposes EXPO_PUBLIC_* at bundle time. Keep the web-specific setting
     // for the browser build, while allowing native builds to override it when
     // the API is not reachable through the host machine's port 80.
     const envUrl = process.env.EXPO_PUBLIC_API_URL
-        ?? process.env.EXPO_PUBLIC_API_URL_WEB
-        ?? process.env.EXPO_PUBLIC_API_URL_NATIVE;
+        ?? (Platform.OS === 'web'
+            ? process.env.EXPO_PUBLIC_API_URL_WEB
+            : process.env.EXPO_PUBLIC_API_URL_NATIVE);
     if (envUrl) return envUrl;
 
     try {
