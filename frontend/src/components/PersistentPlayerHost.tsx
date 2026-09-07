@@ -48,14 +48,16 @@ export default function PersistentPlayerHost() {
                         <Text style={globalStyles.small}>Active playlist</Text>
                     </View>
                 </View>
-                <YouTubePlayer
-                    ref={playerRef}
-                    videoId={videoId}
-                    onReady={() => setPlayerReady(true)}
-                    onStateChange={setPlayerState}
-                    onProgress={setProgress}
-                    onError={setError}
-                />
+                {videoId ? (
+                    <YouTubePlayer
+                        ref={playerRef}
+                        videoId={videoId}
+                        onReady={() => setPlayerReady(true)}
+                        onStateChange={setPlayerState}
+                        onProgress={setProgress}
+                        onError={setError}
+                    />
+                ) : null}
                 <View style={styles.controls}>
                     <Pressable
                         style={({ pressed }) => [styles.roundButton, { opacity: !playerReady || pressed ? 0.55 : 1 }]}
