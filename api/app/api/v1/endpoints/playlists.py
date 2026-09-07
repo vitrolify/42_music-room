@@ -71,7 +71,6 @@ async def get_playlist(
             playlist.active_device_name = result.scalar_one_or_none()
         except ValueError:
             pass
-
     return playlist
 
 
