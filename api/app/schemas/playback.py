@@ -13,6 +13,9 @@ class PlaybackStateRead(BaseModel):
     duration_seconds: float
     version: int
     controller_session_id: str | None
+    active_playlist_id: int | None
+    active_playlist_track_id: int | None
+    controller_device_id: uuid.UUID | None
     updated_at: datetime
 
 
@@ -23,6 +26,8 @@ class PlaybackCommand(BaseModel):
     duration_seconds: float | None = Field(default=None, ge=0)
     client_command_id: uuid.UUID | None = None
     session_id: str | None = Field(default=None, max_length=128)
+    device_id: uuid.UUID | None = None
+    expected_version: int | None = Field(default=None, ge=0)
 
 
 class PlaybackEvent(BaseModel):
