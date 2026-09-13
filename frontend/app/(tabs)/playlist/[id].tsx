@@ -47,6 +47,8 @@ export default function PlaylistDetail() {
     const socketRef = useRef<WebSocket | null>(null);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttempt = useRef(0);
+    const staleErrorCount = useRef(0);
+    const STALE_THRESHOLD = 3;
 
     const isValidPlaylistId = Number.isInteger(playlistId) && playlistId > 0;
     const canAddTrack = isValidPlaylistId && trackInfoId.trim().length > 0 && !mutating;
@@ -103,10 +105,83 @@ export default function PlaylistDetail() {
             socket.onopen = () => { reconnectAttempt.current = 0; setConnectionState('connected'); void fetchData(); };
             socket.onmessage = message => {
                 try {
-                    const event = JSON.parse(message.data) as { type?: string };
-                    if (['TRACK_ADDED', 'TRACK_MOVED', 'TRACK_DELETED', 'TRACK_PLAYING', 'TRACK_PAUSED', 'TRACK_SKIPPED'].includes(event.type ?? '')) {
-                        void fetchData();
+                    const event = JSON.parse(message.data);
+                    if (event.code === 'STALE_STATE' || event.payload?.code === 'STALE_STATE') {
+                        staleErrorCount.current += 1;
+
+                        if (staleErrorCount.current >= STALE_THRESHOLD) {
+                            Alert.alert('Syncing Playlist', 'Your track list was out of sync. Refreshing now.');
+                            void fetchData();
+                            staleErrorCount.current = 0;
+                        } else {
+                            const errorMsg = event.message || event.payload?.message || 'Playlist state is stale.';
+                            Alert.alert('Action Failed', errorMsg);
+                        }
+                        return;
                     }
+
+                    const { type, payload } = event;
+                    if (!type || !payload) return;
+
+                    setTracks(prevTracks => {
+                        let nextTracks = [...prevTracks];
+
+                        switch (type) {
+                            case 'TRACK_ADDED':
+                                nextTracks.push({
+                                    id: payload.playlist_track_id,
+                                    playlist_id: playlistId,
+                                    track_info_id: payload.track_info.id,
+                                    user_id: payload.added_by?.user_id,
+                                    position: payload.position,
+                                    status: payload.status,
+                                    track_info: payload.track_info,
+                                } as PlaylistTrack);
+                                break;
+                            case 'TRACK_DELETED':
+                                nextTracks = nextTracks.filter(t => t.id !== payload.playlist_track_id);
+                                nextTracks.forEach(track => {
+                                    if (track.position > payload.deleted_position) track.position -= 1;
+                                });
+                                break;
+                            case 'TRACK_MOVED': {
+                                const index = nextTracks.findIndex(t => t.id === payload.playlist_track_id);
+                                if (index !== -1) {
+                                    const [movedTrack] = nextTracks.splice(index, 1);
+                                    movedTrack.position = payload.new_position;
+                                    nextTracks.splice(payload.new_position, 0, movedTrack);
+                                    nextTracks.forEach((track, position) => { track.position = position; });
+                                }
+                                break;
+                            }
+                            case 'TRACK_PLAYING':
+                            case 'TRACK_PAUSED':
+                                nextTracks = nextTracks.map(track => {
+                                    if (track.id === payload.playing_track_id) {
+                                        return { ...track, status: payload.new_status };
+                                    }
+                                    return type === 'TRACK_PLAYING' && track.status === 'playing'
+                                        ? { ...track, status: 'paused' }
+                                        : track;
+                                });
+                                break;
+                            case 'TRACK_SKIPPED':
+                                nextTracks = nextTracks
+                                    .filter(track => track.status !== 'playing' && track.position !== 0)
+                                    .map(track => {
+                                        const updatedTrack = { ...track, position: Math.max(0, track.position - 1) };
+                                        if (updatedTrack.id === payload.new_playing_track_id) {
+                                            updatedTrack.status = 'playing';
+                                        }
+                                        return updatedTrack;
+                                    });
+                                break;
+                            default:
+                                return prevTracks;
+                        }
+
+                        return nextTracks.sort((a, b) => a.position - b.position);
+                    });
                 } catch { /* Ignore malformed broadcasts. */ }
             };
             socket.onerror = () => setConnectionState('offline');
@@ -394,7 +469,7 @@ function TrackRow({ track, isFirst, isLast, disabled, onMove, onAction }: TrackR
                     />
                     <MoveButton
                         label="Down"
-                        disabled={disabled || isLast}
+                        disabled={disabled || isLast || isFirst}
                         onPress={() => onMove(track, track.position + 1)}
                     />
                 </View>
