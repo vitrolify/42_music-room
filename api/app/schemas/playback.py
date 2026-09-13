@@ -44,3 +44,27 @@ class PlaybackEvent(BaseModel):
     type: str = "PLAYBACK_STATE_CHANGED"
     version: int
     payload: PlaybackStateRead
+
+
+class PlaybackSessionTrack(BaseModel):
+    id: int | None = None
+    video_id: str
+    title: str | None = None
+    channel_title: str | None = None
+    thumbnail_url: str | None = None
+
+
+class PlaybackSessionRead(BaseModel):
+    session_id: str
+    shared: bool
+    owner_id: uuid.UUID
+    owner_name: str | None = None
+    playlist_id: int | None
+    track: PlaybackSessionTrack | None = None
+    status: PlaybackStatus
+    position_seconds: float
+    duration_seconds: float
+    version: int
+    controller_device_id: uuid.UUID | None
+    controller_device_name: str | None = None
+    updated_at: datetime

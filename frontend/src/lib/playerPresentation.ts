@@ -18,10 +18,12 @@ export function getPlayerPresentation({
     videoId,
     activePlaylistId,
     pathname,
+    isAuthenticated = true,
 }: {
     videoId: string | null;
     activePlaylistId: number | null;
     pathname: string;
+    isAuthenticated?: boolean;
 }) {
     const hasActivePlaylistPlayback = Boolean(videoId && activePlaylistId !== null);
 
@@ -29,7 +31,9 @@ export function getPlayerPresentation({
         // This intentionally does not depend on pathname. Navigation must not
         // recreate the underlying YouTube instance.
         shouldMountHost: hasActivePlaylistPlayback,
-        showMiniPlayer: hasActivePlaylistPlayback,
+        // Authenticated users get an empty bar too, but a stale standalone
+        // video (without a playlist) is not a valid playback surface.
+        showMiniPlayer: isAuthenticated && (videoId === null || hasActivePlaylistPlayback),
         showPlayerSurface: hasActivePlaylistPlayback && isPlayerPath(pathname),
         activePlaylistRoute: getActivePlaylistRoute(activePlaylistId),
     };

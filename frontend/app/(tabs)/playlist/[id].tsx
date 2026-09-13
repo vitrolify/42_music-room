@@ -27,6 +27,7 @@ import {
 import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
 import { usePlayer } from '../../../src/contexts/PlayerContext';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 export default function PlaylistDetail() {
     const router = useRouter();
@@ -34,6 +35,7 @@ export default function PlaylistDetail() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const playlistId = Number(id);
     const { commandPlaylistTrack } = usePlayer();
+    const { user } = useAuth();
 
     const [playlist, setPlaylist] = useState<Playlist | null>(null);
     const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
@@ -327,6 +329,12 @@ export default function PlaylistDetail() {
                 </View>
                 <Text style={globalStyles.title}>{playlist?.name ?? 'Playlist'}</Text>
                 <Text style={[globalStyles.small, { marginTop: spacing.xs }]}>Tracks</Text>
+                {playlist && playlist.owner_id !== user?.uid ? (
+                    <View style={[cardStyle, { marginTop: spacing.md, marginBottom: 0, borderLeftWidth: 3, borderLeftColor: colors.brand }]}>
+                        <Text style={globalStyles.bodyBold}>Playback control</Text>
+                        <Text style={[globalStyles.small, { marginTop: spacing.xs }]}>If the owner delegated control to you, use Play, Pause, or Skip on the first track below. You can also use the controls in the Player screen.</Text>
+                    </View>
+                ) : null}
                 {mutationMessage ? (
                     <Text style={[globalStyles.small, { color: colors.brand, marginTop: spacing.xs }]}>
                         {mutationMessage}

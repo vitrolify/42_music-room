@@ -7,6 +7,7 @@ import MiniPlayerBar from '../../src/components/MiniPlayerBar';
 import PersistentPlayerHost from '../../src/components/PersistentPlayerHost';
 import { usePlayer } from '../../src/contexts/PlayerContext';
 import { getPlayerPresentation, PLAYER_ROUTE } from '../../src/lib/playerPresentation';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 const MINI_PLAYER_HEIGHT = 64;
 
@@ -15,8 +16,9 @@ export default function TabsLayout() {
     const { width } = useWindowDimensions();
     const useSideNav = width >= 900;
     const { videoId, activePlaylistId } = usePlayer();
+    const { isLoggedIn } = useAuth();
     const router = useRouter();
-    const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname: '' });
+    const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname: '', isAuthenticated: isLoggedIn });
     const hasPlayer = presentation.showMiniPlayer;
 
     function renderTabItems({ state, descriptors, navigation, horizontal }: any) {
@@ -196,7 +198,7 @@ export default function TabsLayout() {
                 />
             </Tabs>
 
-            {hasPlayer && useSideNav && (
+            {isLoggedIn && useSideNav && (
                 <View
                     style={{
                         bottom: 0,

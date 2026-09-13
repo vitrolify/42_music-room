@@ -32,10 +32,6 @@ async def command_playlist_playback(
         raise BaseVitrolifyException(
             "PLAYLIST_NOT_FOUND", "Playlist não encontrada", 404
         )
-    if not await playlist_service.user_has_playlist_permission(
-        db, user_id, playlist, action="edit"
-    ):
-        raise BaseVitrolifyException("FORBIDDEN", "Forbidden", 403)
     try:
         state, track = await apply_playlist_command(
             db, playlist_id=playlist_id, actor_id=user_id, command=payload.command,

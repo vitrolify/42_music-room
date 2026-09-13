@@ -8,6 +8,7 @@ import ProgressBar from './ProgressBar';
 import { usePlayer } from '../contexts/PlayerContext';
 import { getPlayerPresentation, PLAYER_HEADER_HEIGHT } from '../lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../styles';
+import PlaybackSessionPicker from './PlaybackSessionPicker';
 
 /**
  * The YouTube instance lives beside the tab navigator, not inside a route.
@@ -36,6 +37,10 @@ export default function PersistentPlayerHost() {
         setPlayerState,
         setProgress,
         syncStatus,
+        setPlayerHostHeight,
+        sessions,
+        selectedSessionOwnerId,
+        selectSession,
     } = usePlayer();
 
     const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname });
@@ -45,28 +50,36 @@ export default function PersistentPlayerHost() {
     return (
         <View
             pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'}
+            onLayout={event => setPlayerHostHeight(event.nativeEvent.layout.height)}
             style={[styles.host, { top: insets.top + PLAYER_HEADER_HEIGHT }, width >= 900 && styles.wideHost]}
         >
             <View style={[styles.surface, { width: width >= 900 ? '52%' : '100%' }, !presentation.showPlayerSurface && styles.hidden]}>
                 <View style={styles.headingRow}>
-                    {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}
+                    {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : <View style={styles.thumbnail} />}
                     <View style={{ flex: 1 }}>
                         <Text style={globalStyles.heading} numberOfLines={1}>{videoTitle ?? 'Now Playing'}</Text>
-                        <Text style={globalStyles.small}>Active playlist</Text>
+                        <View style={styles.sessionRow}>
+                            <Text style={[globalStyles.small, { flex: 1 }]}>{selectedSessionOwnerId ? 'Shared playback session' : 'Your playback'}</Text>
+                            <PlaybackSessionPicker sessions={sessions} selectedOwnerId={selectedSessionOwnerId} onSelect={selectSession} />
+                        </View>
                     </View>
                 </View>
-                {videoId ? (
-                    <YouTubePlayer
-                        ref={playerRef}
-                        videoId={videoId}
-                        onReady={() => setPlayerReady(true)}
-                        onStateChange={setPlayerState}
-                        onProgress={setProgress}
-                        onError={setError}
-                    />
-                ) : null}
+                <Text style={[globalStyles.small, !selectedSessionOwnerId && styles.invisibleText]}>
+                    Owner: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.owner_name ?? 'Unknown'} · Device: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.controller_device_name ?? 'Unknown'}
+                </Text>
+                <YouTubePlayer
+                    ref={playerRef}
+                    videoId={videoId!}
+                    onReady={() => setPlayerReady(true)}
+                    onStateChange={setPlayerState}
+                    onProgress={setProgress}
+                    onError={setError}
+                />
+                <Text style={[globalStyles.smallBold, { marginTop: spacing.md }]}>Playback controls</Text>
                 <View style={styles.controls}>
                     <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={playerState === 'playing' ? 'Pause playback' : 'Play playback'}
                         style={({ pressed }) => [styles.roundButton, { opacity: !playerReady || pressed ? 0.55 : 1 }]}
                         onPress={togglePlayPause}
                         disabled={!playerReady}
@@ -78,11 +91,14 @@ export default function PersistentPlayerHost() {
                     <View style={{ flex: 1 }}>
                         <ProgressBar currentTime={progress.currentTime} duration={progress.duration} onSeek={seekTo} variant="full" />
                     </View>
-                    <Pressable style={styles.skipButton} onPress={skip}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Skip track" style={styles.skipButton} onPress={skip}>
                         <SkipForward weight="fill" size={22} color={colors.text.primary} />
+                        <Text style={styles.skipLabel}>Skip</Text>
                     </Pressable>
                 </View>
+                {selectedSessionOwnerId ? <Text style={globalStyles.small}>Controls are shared with {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.owner_name ?? 'the owner'}.</Text> : null}
                 {syncStatus === 'autoplay-blocked' ? <Text style={globalStyles.small}>Tap play to start synchronized playback.</Text> : null}
+                {syncStatus === 'offline' ? <Text style={globalStyles.errorText}>Playback connection offline. Reconnecting…</Text> : null}
                 {error ? <Text style={globalStyles.errorText}>{error}</Text> : null}
                 {presentation.showPlayerSurface ? (
                     <Pressable
@@ -106,8 +122,11 @@ const styles = StyleSheet.create({
     surface: { maxWidth: 720, padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
     hidden: { opacity: 0, height: 1, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
     headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+    sessionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     thumbnail: { width: 40, height: 40, borderRadius: 4 },
+    invisibleText: { opacity: 0 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
     roundButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
-    skipButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    skipButton: { minWidth: 48, height: 40, alignItems: 'center', justifyContent: 'center' },
+    skipLabel: { color: colors.text.secondary, fontSize: 10, fontFamily: 'Inter_700Bold' },
 });
