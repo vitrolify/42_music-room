@@ -5,6 +5,7 @@ import { usePlayer } from '../../src/contexts/PlayerContext';
 import { PLAYER_HEADER_HEIGHT } from '../../src/lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../../src/styles';
 import PlayerDelegationCard from '../../src/components/PlayerDelegationCard';
+import PlaybackSessionPicker from '../../src/components/PlaybackSessionPicker';
 
 /**
  * Dedicated player destination. The synchronized YouTube surface is mounted
@@ -33,19 +34,11 @@ export default function PlayerScreen() {
             >
             {!videoId ? (
                 <View style={{ marginTop: spacing.xl, padding: spacing.lg, backgroundColor: colors.bg.card, borderRadius: 8 }}>
-                    <Text style={globalStyles.heading}>Nothing is playing</Text>
-                    <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>There is no playback on this device.</Text>
-                    {sessions.filter(session => session.shared).map(session => (
-                        <Pressable
-                            key={session.session_id}
-                            onPress={() => void selectSession(session.owner_id)}
-                            style={{ marginTop: spacing.md, padding: spacing.md, borderRadius: 8, backgroundColor: colors.bg.elevated }}
-                        >
-                            <Text style={globalStyles.bodyBold}>{session.owner_name ?? 'Shared playback'}</Text>
-                            <Text style={[globalStyles.small, { marginTop: spacing.xs }]}>Playing on {session.controller_device_name ?? 'shared device'}</Text>
-                            <Text style={[globalStyles.link, { marginTop: spacing.sm }]}>{selectedSessionOwnerId === session.owner_id ? 'Connecting…' : 'Join shared playback'}</Text>
-                        </Pressable>
-                    ))}
+                    <Text style={globalStyles.heading}>Nada tocando</Text>
+                    <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>Escolha uma sessão para acompanhar.</Text>
+                    <View style={{ marginTop: spacing.lg, alignSelf: 'flex-start' }}>
+                        <PlaybackSessionPicker sessions={sessions} selectedOwnerId={selectedSessionOwnerId} onSelect={selectSession} />
+                    </View>
                 </View>
             ) : activePlaylistId === null ? (
                 <Text style={[globalStyles.small, { color: colors.text.secondary, marginTop: spacing.sm }]}>Playback is synchronizing.</Text>

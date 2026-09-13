@@ -8,6 +8,7 @@ import ProgressBar from './ProgressBar';
 import { usePlayer } from '../contexts/PlayerContext';
 import { getPlayerPresentation, PLAYER_HEADER_HEIGHT } from '../lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../styles';
+import PlaybackSessionPicker from './PlaybackSessionPicker';
 
 /**
  * The YouTube instance lives beside the tab navigator, not inside a route.
@@ -54,38 +55,26 @@ export default function PersistentPlayerHost() {
         >
             <View style={[styles.surface, { width: width >= 900 ? '52%' : '100%' }, !presentation.showPlayerSurface && styles.hidden]}>
                 <View style={styles.headingRow}>
-                    {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}
+                    {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : <View style={styles.thumbnail} />}
                     <View style={{ flex: 1 }}>
                         <Text style={globalStyles.heading} numberOfLines={1}>{videoTitle ?? 'Now Playing'}</Text>
-                        <Text style={globalStyles.small}>{selectedSessionOwnerId ? 'Shared playback session' : 'Your playback'}</Text>
+                        <View style={styles.sessionRow}>
+                            <Text style={[globalStyles.small, { flex: 1 }]}>{selectedSessionOwnerId ? 'Shared playback session' : 'Your playback'}</Text>
+                            <PlaybackSessionPicker sessions={sessions} selectedOwnerId={selectedSessionOwnerId} onSelect={selectSession} />
+                        </View>
                     </View>
                 </View>
-                {selectedSessionOwnerId ? (
-                    <Text style={globalStyles.small}>
-                        Owner: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.owner_name ?? 'Unknown'} · Device: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.controller_device_name ?? 'Unknown'}
-                    </Text>
-                ) : null}
-                {sessions.length > 1 ? (
-                    <View style={styles.sessionPicker}>
-                        <Text style={globalStyles.smallBold}>Playback sessions</Text>
-                        {sessions.map(session => (
-                            <Pressable key={session.session_id} onPress={() => void selectSession(session.shared ? session.owner_id : null)} style={styles.sessionOption}>
-                                <Text style={globalStyles.small}>{session.shared ? `${session.owner_name ?? 'Someone'} · ${session.controller_device_name ?? 'shared device'}` : 'Your playback'}</Text>
-                                <Text style={styles.sessionMarker}>{(session.shared ? selectedSessionOwnerId === session.owner_id : selectedSessionOwnerId === null) ? '●' : '○'}</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                ) : null}
-                {videoId ? (
-                    <YouTubePlayer
-                        ref={playerRef}
-                        videoId={videoId}
-                        onReady={() => setPlayerReady(true)}
-                        onStateChange={setPlayerState}
-                        onProgress={setProgress}
-                        onError={setError}
-                    />
-                ) : null}
+                <Text style={[globalStyles.small, !selectedSessionOwnerId && styles.invisibleText]}>
+                    Owner: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.owner_name ?? 'Unknown'} · Device: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.controller_device_name ?? 'Unknown'}
+                </Text>
+                <YouTubePlayer
+                    ref={playerRef}
+                    videoId={videoId!}
+                    onReady={() => setPlayerReady(true)}
+                    onStateChange={setPlayerState}
+                    onProgress={setProgress}
+                    onError={setError}
+                />
                 <Text style={[globalStyles.smallBold, { marginTop: spacing.md }]}>Playback controls</Text>
                 <View style={styles.controls}>
                     <Pressable
@@ -133,10 +122,9 @@ const styles = StyleSheet.create({
     surface: { maxWidth: 720, padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
     hidden: { opacity: 0, height: 1, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
     headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-    sessionPicker: { marginBottom: spacing.sm, padding: spacing.sm, backgroundColor: colors.bg.card, borderRadius: 8 },
-    sessionOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs },
-    sessionMarker: { color: colors.brand, fontSize: 14 },
+    sessionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     thumbnail: { width: 40, height: 40, borderRadius: 4 },
+    invisibleText: { opacity: 0 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
     roundButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
     skipButton: { minWidth: 48, height: 40, alignItems: 'center', justifyContent: 'center' },

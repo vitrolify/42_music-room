@@ -13,7 +13,7 @@ import { registerCurrentDevice } from '../lib/deviceIdentity';
 
 type PlaybackSyncOptions = {
     isAuthenticated: boolean;
-    onSnapshot: (snapshot: PlaybackSnapshot) => void;
+    onSnapshot: (snapshot: PlaybackSnapshot | null) => void;
     ownerId?: string | null;
     onUnauthorized?: () => void;
 };
@@ -93,8 +93,12 @@ export function usePlaybackSync({
             try {
                 if (!ownerId) {
                     const initial = await request<PlaybackSnapshot | null>('GET', '/playback/state');
-                    if (initial && !cancelled && initial.version > serverVersionRef.current) {
-                        applyCommandSnapshot(initial);
+                    if (!cancelled) {
+                        if (initial && initial.version > serverVersionRef.current) {
+                            applyCommandSnapshot(initial);
+                        } else if (!initial) {
+                            onSnapshot(null);
+                        }
                     }
                 }
 

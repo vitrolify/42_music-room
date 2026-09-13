@@ -4,16 +4,16 @@ import { Play, Pause } from 'phosphor-react-native';
 import { usePlayer } from '../contexts/PlayerContext';
 import { colors, fonts, spacing } from '../styles';
 import ProgressBar, { formatTime } from './ProgressBar';
+import PlaybackSessionPicker from './PlaybackSessionPicker';
 
 const BAR_HEIGHT = 64;
 
 export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
-    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause, seekTo, syncStatus } = usePlayer();
+    const { videoId, videoTitle, thumbnailUrl, playerState, progress, togglePlayPause, seekTo, syncStatus, sessions, selectedSessionOwnerId, selectSession } = usePlayer();
     const [titleHovered, setTitleHovered] = useState(false);
 
-    if (!videoId) return null;
-
     const isPlaying = playerState === 'playing';
+    const hasTrack = Boolean(videoId);
     const ratio = progress.duration > 0
         ? Math.min(Math.max(progress.currentTime / progress.duration, 0), 1)
         : 0;
@@ -46,11 +46,11 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                         ]}
                         numberOfLines={1}
                     >
-                        {videoTitle ?? 'Now Playing'}
+                        {videoTitle ?? (hasTrack ? 'Now Playing' : 'Nada tocando')}
                     </Text>
                 </View>
 
-                {isWeb && (
+                {isWeb && hasTrack && (
                     <View style={styles.webProgressRow}>
                         <Text style={styles.timeText}>{formatTime(progress.currentTime)}</Text>
                         <View style={styles.webProgressTrack}>
@@ -65,7 +65,7 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                     </View>
                 )}
 
-                {syncStatus === 'autoplay-blocked' ? (
+                {syncStatus === 'autoplay-blocked' && hasTrack ? (
                     <Pressable
                         onPress={(e) => { e.stopPropagation?.(); togglePlayPause(); }}
                         style={styles.syncWarning}
@@ -74,12 +74,14 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                     </Pressable>
                 ) : null}
 
+                <PlaybackSessionPicker sessions={sessions} selectedOwnerId={selectedSessionOwnerId} onSelect={selectSession} compact />
                 <Pressable
                     onPress={(e) => {
                         e.stopPropagation?.();
                         togglePlayPause();
                     }}
-                    style={styles.playButton}
+                    style={[styles.playButton, !hasTrack && styles.disabledButton]}
+                    disabled={!hasTrack}
                 >
                     {isPlaying ? (
                         <Pause weight="fill" size={24} color={colors.text.primary} />
@@ -89,7 +91,7 @@ export default function MiniPlayerBar({ onPress }: { onPress?: () => void }) {
                 </Pressable>
             </View>
 
-            {!isWeb && (
+            {!isWeb && hasTrack && (
                 <View style={styles.progressTrack}>
                     <View style={[styles.progressFill, { width: `${ratio * 100}%` }]} />
                 </View>
@@ -172,6 +174,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: spacing.sm,
+    },
+    disabledButton: {
+        opacity: 0.35,
     },
     syncWarning: {
         marginRight: spacing.sm,
