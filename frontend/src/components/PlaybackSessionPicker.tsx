@@ -30,9 +30,9 @@ export default function PlaybackSessionPicker({ sessions, selectedOwnerId, onSel
                 onPress={event => { event.stopPropagation?.(); setVisible(true); }}
                 style={[styles.trigger, compact && styles.compactTrigger]}
             >
-                <DeviceMobile size={compact ? 18 : 20} color={colors.text.secondary} />
+                <DeviceMobile size={compact ? 16 : 20} color={colors.text.secondary} />
                 {!compact && <Text style={styles.triggerText} numberOfLines={1}>{selected?.shared ? selected.owner_name ?? 'Shared playback' : 'Seu playback'}</Text>}
-                <CaretDown size={16} color={colors.text.secondary} />
+                <CaretDown size={compact ? 13 : 16} color={colors.text.secondary} />
             </Pressable>
             <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
                 <View style={styles.backdrop}>
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     sheet: { backgroundColor: colors.bg.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: spacing.xl, maxHeight: '85%' },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
     trigger: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minWidth: 120, maxWidth: 220, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: 999, backgroundColor: colors.bg.card },
-    compactTrigger: { minWidth: 36, width: 36, height: 36, justifyContent: 'center', paddingHorizontal: 0 },
+    compactTrigger: { minWidth: 50, width: 50, height: 36, justifyContent: 'center', paddingHorizontal: spacing.sm, gap: 2 },
     triggerText: { flex: 1, color: colors.text.secondary, fontSize: 11 },
     option: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 10, marginTop: spacing.xs, gap: spacing.md },
     selectedOption: { backgroundColor: colors.bg.elevated },
