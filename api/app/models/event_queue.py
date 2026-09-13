@@ -22,6 +22,7 @@ class PlaylistEventType(str, Enum):
     pause = "pause"
     add = "add"
     skip = "skip"
+    ended = "ended"
     move = "move"
     delete = "delete"
 

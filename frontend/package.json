@@ -7,6 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test:player-flow": "node --test tests/playerPresentation.test.ts",
     "postinstall": "node -e \"var p='node_modules/phosphor-react-native/package.json';var j=require('./'+p);j['react-native']='lib/commonjs/index.js';require('fs').writeFileSync(p,JSON.stringify(j,null,2)+'\\n')\""
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "expo-font": "~55.0.8",
     "expo-linking": "~55.0.15",
     "expo-router": "~55.0.16",
+    "expo-secure-store": "~15.0.7",
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~55.0.6",
     "firebase": "^12.12.1",

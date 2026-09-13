@@ -15,6 +15,8 @@ async def register_device(
     device = result.scalar_one_or_none()
 
     if device:
+        if device.owner_id != user_id:
+            raise ValueError("A device ID cannot be registered to another user")
         return device
 
     new_device = Device(id=device_id, owner_id=user_id, name=name)
@@ -136,5 +138,14 @@ async def has_device_delegation(
             DeviceDelegation.device_id == device_id,
             DeviceDelegation.delegate_user_id == delegate_id,
         )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def user_owns_device(
+    db: AsyncSession, device_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    result = await db.execute(
+        select(Device.id).where(Device.id == device_id, Device.owner_id == user_id)
     )
     return result.scalar_one_or_none() is not None

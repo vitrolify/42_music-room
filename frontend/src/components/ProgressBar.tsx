@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, spacing } from '../styles';
 
@@ -15,6 +15,10 @@ export default function ProgressBar({ currentTime, duration, onSeek, variant = '
     const barRef = useRef<any>(null);
     const [draftTime, setDraftTime] = useState<number | null>(null);
     const [hovered, setHovered] = useState(false);
+
+    useEffect(() => {
+        setDraftTime(null);
+    }, [currentTime, duration]);
 
     const shownTime = draftTime ?? currentTime;
     const ratio = duration > 0 ? Math.min(Math.max(shownTime / duration, 0), 1) : 0;

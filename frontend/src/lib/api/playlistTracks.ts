@@ -86,3 +86,27 @@ export const skipPlaylistTrack = (playlistId: number, track: PlaylistTrack) =>
     playbackEvent(playlistId, 'skip', track);
 export const deletePlaylistTrack = (playlistId: number, track: PlaylistTrack) =>
     playbackEvent(playlistId, 'delete', track);
+
+export type PlaylistPlaybackCommand = {
+    command: 'play' | 'pause' | 'seek' | 'checkpoint' | 'skip' | 'ended';
+    playlist_track_id: number;
+    device_id: string;
+    session_id: string;
+    expected_version?: number;
+    position_seconds?: number;
+    duration_seconds?: number;
+};
+
+export type PlaylistPlaybackResponse = {
+    type: 'PLAYBACK_STATE_CHANGED';
+    version: number;
+    payload: import('./playback.types').PlaybackSnapshot;
+};
+
+/** The sole client command path for playlist playback and controller reports. */
+export async function commandPlaylistPlayback(
+    playlistId: number,
+    command: PlaylistPlaybackCommand,
+): Promise<PlaylistPlaybackResponse> {
+    return request<PlaylistPlaybackResponse>('PUT', `/playlists/${playlistId}/playback`, command);
+}

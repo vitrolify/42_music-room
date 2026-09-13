@@ -10,9 +10,59 @@ from app.db.session import AsyncSessionLocal, get_db
 from app.models.event_queue import EventQueue, PlaylistEventType
 from app.models.playlist import Playlist
 from app.schemas.event import EVENT_EXAMPLES, EventCreate, EventRead
+from app.schemas.playback import PlaybackEvent, PlaylistPlaybackCommand
 from app.services import device_service, event_service, playlist_service, worker_service
+from app.services.playback_service import apply_playlist_command, get_state
+from app.websockets.playback_manager import playback_ws_manager
+from app.websockets.playlist_manager import playlist_ws_manager
 
 router = APIRouter(tags=["events"], prefix="/playlists/{playlist_id}")
+
+
+@router.put("/playback", response_model=PlaybackEvent)
+async def command_playlist_playback(
+    playlist_id: int,
+    payload: PlaylistPlaybackCommand,
+    db: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Playlist-scoped controls, including controller progress/end reports."""
+    playlist = await playlist_service.get_playlist_by_id(db, playlist_id)
+    if not playlist:
+        raise BaseVitrolifyException(
+            "PLAYLIST_NOT_FOUND", "Playlist não encontrada", 404
+        )
+    if not await playlist_service.user_has_playlist_permission(
+        db, user_id, playlist, action="edit"
+    ):
+        raise BaseVitrolifyException("FORBIDDEN", "Forbidden", 403)
+    try:
+        state, track = await apply_playlist_command(
+            db, playlist_id=playlist_id, actor_id=user_id, command=payload.command,
+            playlist_track_id=payload.playlist_track_id, device_id=payload.device_id,
+            session_id=payload.session_id, expected_version=payload.expected_version,
+            position_seconds=payload.position_seconds,
+            duration_seconds=payload.duration_seconds,
+        )
+    except PermissionError as exc:
+        raise BaseVitrolifyException("FORBIDDEN", str(exc), 403) from exc
+    except ValueError as exc:
+        raise BaseVitrolifyException("INVALID_PLAYBACK_COMMAND", str(exc), 409) from exc
+
+    from app.api.v1.endpoints.playback import read_state
+    event = PlaybackEvent(version=state.version, payload=read_state(state))
+    await playlist_ws_manager.broadcast_playlist_update(
+        playlist_id=playlist_id,
+        user_id=user_id,
+        message={"type": "PLAYLIST_PLAYBACK_CHANGED", "payload": {
+            "playlist_id": playlist_id,
+            "playing_track_id": track.id if track else None,
+            "status": state.status.value,
+            "version": state.version,
+        }},
+    )
+    await playback_ws_manager.publish(playlist.owner_id, event.model_dump(mode="json"))
+    return event
 
 
 @router.post(
@@ -81,7 +131,14 @@ async def _verify_event_permissions(
         PlaylistEventType.delete,
     ):
         if playlist.owner_id != user_id:
-            active_device_str = await get_active_device(playlist.id)
+            playback = await get_state(db, playlist.owner_id)
+            active_device_str = (
+                str(playback.controller_device_id)
+                if playback
+                and playback.active_playlist_id == playlist.id
+                and playback.controller_device_id
+                else await get_active_device(playlist.id)
+            )
             if not active_device_str:
                 raise BaseVitrolifyException(
                     error_code="NO_ACTIVE_DEVICE",
@@ -90,13 +147,12 @@ async def _verify_event_permissions(
                 )
             try:
                 active_device_uuid = uuid.UUID(active_device_str)
-            except ValueError:
+            except ValueError as exc:
                 raise BaseVitrolifyException(
                     error_code="INVALID_DEVICE_STATE",
                     message="Estado do dispositivo inválido no servidor.",
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
+                ) from exc
             is_delegate = await device_service.has_device_delegation(
                 db=db, device_id=active_device_uuid, delegate_id=user_id
             )

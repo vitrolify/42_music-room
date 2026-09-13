@@ -59,6 +59,11 @@ class TrackAddEvent(AddPayload):
 
 class PlaybackPayload(BaseModel):
     playlist_track_id: int
+    device_id: uuid.UUID
+    session_id: str = Field(min_length=1, max_length=128)
+    expected_version: int | None = Field(default=None, ge=0)
+    position_seconds: float | None = Field(default=None, ge=0)
+    duration_seconds: float | None = Field(default=None, ge=0)
 
 
 class TrackSkipEvent(PlaybackPayload):
@@ -73,6 +78,10 @@ class TrackPauseEvent(PlaybackPayload):
     event: Literal[PlaylistEventType.pause]
 
 
+class TrackEndedEvent(PlaybackPayload):
+    event: Literal[PlaylistEventType.ended]
+
+
 class TrackDeleteEvent(PlaybackPayload):
     event: Literal[PlaylistEventType.delete]
 
@@ -84,6 +93,7 @@ EventCreate = Annotated[
         TrackSkipEvent,
         TrackPlayEvent,
         TrackPauseEvent,
+        TrackEndedEvent,
         TrackDeleteEvent,
     ],
     Field(discriminator="event"),
