@@ -23,6 +23,8 @@ type PlayerContextType = {
     serverVersion: number;
     activePlaylistId: number | null;
     controllerDeviceId: string | null;
+    playerHostHeight: number;
+    setPlayerHostHeight: (height: number) => void;
     togglePlayPause: () => void;
     play: () => void;
     pause: () => void;
@@ -46,6 +48,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
     const [activePlaylistId, setActivePlaylistId] = useState<number | null>(null);
     const [controllerDeviceId, setControllerDeviceId] = useState<string | null>(null);
+    const [playerHostHeight, setPlayerHostHeight] = useState(0);
 
     const playerRef = useRef<YouTubePlayerHandle | null>(null);
     const playerStateRef = useRef(playerState);
@@ -261,6 +264,8 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
             serverVersion: sync.serverVersion,
             activePlaylistId,
             controllerDeviceId,
+            playerHostHeight,
+            setPlayerHostHeight,
             togglePlayPause,
             play,
             pause,

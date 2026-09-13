@@ -14,7 +14,7 @@ import PlayerDelegationCard from '../../src/components/PlayerDelegationCard';
 export default function PlayerScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { videoId, activePlaylistId } = usePlayer();
+    const { videoId, activePlaylistId, playerHostHeight } = usePlayer();
 
     return (
         <View style={globalStyles.screen}>
@@ -27,6 +27,7 @@ export default function PlayerScreen() {
             <ScrollView
                 contentContainerStyle={{
                     padding: spacing.xl,
+                    paddingTop: Math.max(spacing.xl, playerHostHeight + spacing.md),
                     paddingBottom: insets.bottom + spacing.xxl,
                 }}
             >

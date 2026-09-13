@@ -36,6 +36,7 @@ export default function PersistentPlayerHost() {
         setPlayerState,
         setProgress,
         syncStatus,
+        setPlayerHostHeight,
     } = usePlayer();
 
     const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname });
@@ -45,6 +46,7 @@ export default function PersistentPlayerHost() {
     return (
         <View
             pointerEvents={presentation.showPlayerSurface ? 'auto' : 'none'}
+            onLayout={event => setPlayerHostHeight(event.nativeEvent.layout.height)}
             style={[styles.host, { top: insets.top + PLAYER_HEADER_HEIGHT }, width >= 900 && styles.wideHost]}
         >
             <View style={[styles.surface, { width: width >= 900 ? '52%' : '100%' }, !presentation.showPlayerSurface && styles.hidden]}>
@@ -65,8 +67,11 @@ export default function PersistentPlayerHost() {
                         onError={setError}
                     />
                 ) : null}
+                <Text style={[globalStyles.smallBold, { marginTop: spacing.md }]}>Playback controls</Text>
                 <View style={styles.controls}>
                     <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={playerState === 'playing' ? 'Pause playback' : 'Play playback'}
                         style={({ pressed }) => [styles.roundButton, { opacity: !playerReady || pressed ? 0.55 : 1 }]}
                         onPress={togglePlayPause}
                         disabled={!playerReady}
@@ -78,8 +83,9 @@ export default function PersistentPlayerHost() {
                     <View style={{ flex: 1 }}>
                         <ProgressBar currentTime={progress.currentTime} duration={progress.duration} onSeek={seekTo} variant="full" />
                     </View>
-                    <Pressable style={styles.skipButton} onPress={skip}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Skip track" style={styles.skipButton} onPress={skip}>
                         <SkipForward weight="fill" size={22} color={colors.text.primary} />
+                        <Text style={styles.skipLabel}>Skip</Text>
                     </Pressable>
                 </View>
                 {syncStatus === 'autoplay-blocked' ? <Text style={globalStyles.small}>Tap play to start synchronized playback.</Text> : null}
@@ -109,5 +115,6 @@ const styles = StyleSheet.create({
     thumbnail: { width: 40, height: 40, borderRadius: 4 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
     roundButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
-    skipButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    skipButton: { minWidth: 48, height: 40, alignItems: 'center', justifyContent: 'center' },
+    skipLabel: { color: colors.text.secondary, fontSize: 10, fontFamily: 'Inter_700Bold' },
 });
