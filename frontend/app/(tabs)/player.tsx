@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '../../src/contexts/PlayerContext';
 import { PLAYER_HEADER_HEIGHT } from '../../src/lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../../src/styles';
+import PlayerDelegationCard from '../../src/components/PlayerDelegationCard';
 
 /**
  * Dedicated player destination. The synchronized YouTube surface is mounted
@@ -36,7 +37,7 @@ export default function PlayerScreen() {
                 </View>
             ) : activePlaylistId === null ? (
                 <Text style={[globalStyles.small, { color: colors.text.secondary, marginTop: spacing.sm }]}>Playback is synchronizing.</Text>
-            ) : null}
+            ) : <PlayerDelegationCard />}
             </ScrollView>
         </View>
     );

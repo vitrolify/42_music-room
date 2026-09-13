@@ -15,6 +15,8 @@ import { getMyProfile, updateMyProfile } from '../../src/lib/api';
 import { getAvatarSource } from '../../src/lib/avatars';
 import { usePlayerBarPadding } from '../../src/hooks/usePlayerBarPadding';
 import { colors, fonts, fontSizes, spacing, borderRadius, globalStyles } from '../../src/styles';
+import { useDeviceDelegation } from '../../src/hooks/useDeviceDelegation';
+import DeviceDelegationPanel from '../../src/components/DeviceDelegationPanel';
 
 const AVATAR_OPTIONS = ['vinil', 'tape', 'globe', 'et', 'cat', 'owl'] as const;
 type ProfileVisibility = 'public' | 'friends_only';
@@ -28,6 +30,7 @@ export default function Profile() {
     const { user, initializing, logout, sendPasswordReset, linkGoogle } = useAuth();
     const insets = useSafeAreaInsets();
     const playerBarPadding = usePlayerBarPadding();
+    const delegation = useDeviceDelegation();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -346,6 +349,17 @@ export default function Profile() {
                     <Text style={globalStyles.pillButtonText}>Save</Text>
                 )}
             </Pressable>
+
+            <View style={{ width: '100%', marginTop: spacing.xxl }}>
+                <Text style={[globalStyles.heading, { marginBottom: spacing.xs }]}>Playback devices</Text>
+                <Text style={[globalStyles.small, { marginBottom: spacing.md }]}>Manage who can control your registered devices.</Text>
+                {delegation.loadState === 'loading' || delegation.loadState === 'idle' ? <ActivityIndicator color={colors.brand} /> : null}
+                {delegation.loadState === 'error' ? <View><Text style={globalStyles.errorText}>{delegation.error}</Text><Pressable style={globalStyles.pillButton} onPress={() => void delegation.refresh()}><Text style={globalStyles.pillButtonText}>Try again</Text></Pressable></View> : null}
+                {delegation.loadState === 'ready' && delegation.devices.length === 0 ? <Text style={globalStyles.small}>No playback devices registered yet.</Text> : null}
+                {delegation.loadState === 'ready' ? delegation.devices.map(device => <DeviceDelegationPanel key={device.id} device={device} delegates={delegation.delegatesByDevice[device.id] ?? []} friends={delegation.friends} operation={delegation.operation} onRename={(name) => delegation.rename(device.id, name)} onGrant={(friendId) => delegation.grant(device.id, friendId)} onRevoke={(friendId) => delegation.revoke(device.id, friendId)} />) : null}
+                {delegation.message ? <Text style={[globalStyles.small, { color: colors.brand, textAlign: 'center' }]}>{delegation.message}</Text> : null}
+                {delegation.error && delegation.loadState === 'ready' ? <Text style={globalStyles.errorText}>{delegation.error}</Text> : null}
+            </View>
 
             {user?.email && user.providerIds.includes('password') ? (
                 <Pressable

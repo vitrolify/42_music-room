@@ -22,6 +22,7 @@ type PlayerContextType = {
     sessionId: string;
     serverVersion: number;
     activePlaylistId: number | null;
+    controllerDeviceId: string | null;
     togglePlayPause: () => void;
     play: () => void;
     pause: () => void;
@@ -44,6 +45,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     const [playerReady, setPlayerReadyState] = useState(false);
     const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
     const [activePlaylistId, setActivePlaylistId] = useState<number | null>(null);
+    const [controllerDeviceId, setControllerDeviceId] = useState<string | null>(null);
 
     const playerRef = useRef<YouTubePlayerHandle | null>(null);
     const playerStateRef = useRef(playerState);
@@ -75,6 +77,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const applySnapshot = useCallback((snapshot: PlaybackSnapshot) => {
         setActivePlaylistId(snapshot.active_playlist_id);
+        setControllerDeviceId(snapshot.controller_device_id);
         if (autoplayTimerRef.current) {
             clearTimeout(autoplayTimerRef.current);
             autoplayTimerRef.current = null;
@@ -257,6 +260,7 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
             sessionId: sync.sessionId,
             serverVersion: sync.serverVersion,
             activePlaylistId,
+            controllerDeviceId,
             togglePlayPause,
             play,
             pause,
