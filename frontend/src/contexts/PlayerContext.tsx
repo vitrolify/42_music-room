@@ -4,11 +4,13 @@ import type {
     YouTubePlayerProgress,
     YouTubePlayerState,
 } from '../components/YouTubePlayer.types';
-import type { PlaybackSnapshot, SyncStatus } from '../lib/api/playback.types';
+import type { PlaybackSession, PlaybackSnapshot, SyncStatus } from '../lib/api/playback.types';
 import { usePlaybackSync } from '../hooks/usePlaybackSync';
+import { usePlaybackSessions } from '../hooks/usePlaybackSessions';
 import { useAuth } from './AuthContext';
 import { commandPlaylistPlayback } from '../lib/api/playlistTracks';
 import { registerCurrentDevice } from '../lib/deviceIdentity';
+import { ApiError } from '../lib/api/client';
 
 type PlayerContextType = {
     videoId: string | null;
@@ -34,6 +36,9 @@ type PlayerContextType = {
     setPlayerReady: (ready: boolean) => void;
     setPlayerState: (state: YouTubePlayerState) => void;
     setProgress: (progress: YouTubePlayerProgress) => void;
+    sessions: PlaybackSession[];
+    selectedSessionOwnerId: string | null;
+    selectSession: (ownerId: string | null) => Promise<void>;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -49,6 +54,8 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     const [activePlaylistId, setActivePlaylistId] = useState<number | null>(null);
     const [controllerDeviceId, setControllerDeviceId] = useState<string | null>(null);
     const [playerHostHeight, setPlayerHostHeight] = useState(0);
+    const [selectedSessionOwnerId, setSelectedSessionOwnerId] = useState<string | null>(null);
+    const { sessions, remove: removeSession } = usePlaybackSessions(Boolean(user));
 
     const playerRef = useRef<YouTubePlayerHandle | null>(null);
     const playerStateRef = useRef(playerState);
@@ -125,7 +132,48 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
         setProgress({ currentTime: targetPosition, duration: snapshot.duration_seconds });
     }, [loadMetadata]);
 
-    const sync = usePlaybackSync({ isAuthenticated: Boolean(user), onSnapshot: applySnapshot });
+    const handleUnauthorized = useCallback(() => {
+        if (selectedSessionOwnerId) {
+            removeSession(selectedSessionOwnerId);
+            setSelectedSessionOwnerId(null);
+        }
+    }, [removeSession, selectedSessionOwnerId]);
+
+    const sync = usePlaybackSync({
+        isAuthenticated: Boolean(user),
+        onSnapshot: applySnapshot,
+        ownerId: selectedSessionOwnerId,
+        onUnauthorized: handleUnauthorized,
+    });
+
+    useEffect(() => {
+        if (selectedSessionOwnerId && !sessions.some(item => item.owner_id === selectedSessionOwnerId && item.shared)) {
+            setSelectedSessionOwnerId(null);
+        } else if (!selectedSessionOwnerId && sessions.length === 1 && sessions[0].shared) {
+            setSelectedSessionOwnerId(sessions[0].owner_id);
+        }
+    }, [selectedSessionOwnerId, sessions]);
+
+    const selectSession = useCallback(async (ownerId: string | null) => {
+        if (ownerId && ownerId !== selectedSessionOwnerId) {
+            const own = sync.currentSnapshot;
+            if (!selectedSessionOwnerId && own?.active_playlist_id && own.active_playlist_track_id) {
+                try {
+                    const deviceId = await registerCurrentDevice();
+                    const response = await commandPlaylistPlayback(own.active_playlist_id, {
+                        command: 'pause', playlist_track_id: own.active_playlist_track_id,
+                        device_id: deviceId, session_id: sync.sessionId,
+                        expected_version: own.version,
+                        position_seconds: sync.getCurrentPosition() ?? own.position_seconds,
+                    });
+                    sync.applyCommandSnapshot(response.payload);
+                } catch {
+                    // Switching remains safe; the backend snapshot is authoritative.
+                }
+            }
+        }
+        setSelectedSessionOwnerId(ownerId);
+    }, [selectedSessionOwnerId, sync]);
 
     useEffect(() => () => {
         if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current);
@@ -175,10 +223,14 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
                 duration_seconds: durationSeconds,
             });
             sync.applyCommandSnapshot(response.payload);
-        } catch {
+        } catch (error) {
+            if (selectedSessionOwnerId && error instanceof ApiError && error.status === 403) {
+                removeSession(selectedSessionOwnerId);
+                setSelectedSessionOwnerId(null);
+            }
             // The realtime snapshot remains authoritative; a later reconnect retries hydration.
         }
-    }, [sync]);
+    }, [removeSession, selectedSessionOwnerId, sync]);
 
     const sendPlaylistCommand = useCallback((
         command: 'play' | 'pause' | 'seek' | 'checkpoint' | 'skip' | 'ended',
@@ -275,6 +327,9 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
             setPlayerReady: handlePlayerReady,
             setPlayerState: handlePlayerState,
             setProgress: reportProgress,
+            sessions,
+            selectedSessionOwnerId,
+            selectSession,
         }}>
             {children}
         </PlayerContext.Provider>

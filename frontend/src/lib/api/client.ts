@@ -64,11 +64,11 @@ export function getPlaylistWebSocketUrl(playlistId: number, token: string, devic
     return apiUrl.toString();
 }
 
-export function getPlaybackWebSocketUrl(sessionId: string, token: string, deviceId?: string): string {
+export function getPlaybackWebSocketUrl(sessionId: string, token: string, deviceId?: string, ownerId?: string): string {
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playback';
-    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}${ownerId ? `&owner_id=${encodeURIComponent(ownerId)}` : ''}`;
     return apiUrl.toString();
 }
 

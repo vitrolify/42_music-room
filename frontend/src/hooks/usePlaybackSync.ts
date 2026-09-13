@@ -14,6 +14,8 @@ import { registerCurrentDevice } from '../lib/deviceIdentity';
 type PlaybackSyncOptions = {
     isAuthenticated: boolean;
     onSnapshot: (snapshot: PlaybackSnapshot) => void;
+    ownerId?: string | null;
+    onUnauthorized?: () => void;
 };
 
 type PlaybackSync = {
@@ -27,11 +29,14 @@ type PlaybackSync = {
     markAutoplayBlocked: () => void;
     markPlaybackStarted: () => void;
     isCurrentSnapshot: (version: number) => boolean;
+    currentSnapshot: PlaybackSnapshot | null;
 };
 
 export function usePlaybackSync({
     isAuthenticated,
     onSnapshot,
+    ownerId = null,
+    onUnauthorized,
 }: PlaybackSyncOptions): PlaybackSync {
     const [syncStatus, setSyncStatus] = useState<SyncStatus>(
         isAuthenticated ? 'connecting' : 'offline',
@@ -70,6 +75,11 @@ export function usePlaybackSync({
         let cancelled = false;
         let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
+        desiredSnapshotRef.current = null;
+        serverVersionRef.current = 0;
+        setServerVersion(0);
+        setActivePlaylistTrackId(null);
+
         if (!isAuthenticated) {
             setSyncStatus('offline');
             return () => undefined;
@@ -81,12 +91,11 @@ export function usePlaybackSync({
             setSyncStatus('connecting');
 
             try {
-                const initial = await request<PlaybackSnapshot | null>(
-                    'GET',
-                    '/playback/state',
-                );
-                if (initial && !cancelled && initial.version > serverVersionRef.current) {
-                    applyCommandSnapshot(initial);
+                if (!ownerId) {
+                    const initial = await request<PlaybackSnapshot | null>('GET', '/playback/state');
+                    if (initial && !cancelled && initial.version > serverVersionRef.current) {
+                        applyCommandSnapshot(initial);
+                    }
                 }
 
                 const token = await getFirebaseToken();
@@ -94,7 +103,7 @@ export function usePlaybackSync({
 
                 const deviceId = await registerCurrentDevice();
                 const socket = new WebSocket(
-                    getPlaybackWebSocketUrl(sessionIdRef.current, token, deviceId),
+                    getPlaybackWebSocketUrl(sessionIdRef.current, token, deviceId, ownerId ?? undefined),
                 );
                 socketRef.current = socket;
                 socket.onopen = () => setSyncStatus('synced');
@@ -111,9 +120,13 @@ export function usePlaybackSync({
                         // Ignore malformed messages from the server.
                     }
                 };
-                socket.onclose = () => {
+                socket.onclose = event => {
                     socketRef.current = null;
                     if (!cancelled) {
+                        if (event.code === 1008) {
+                            setSyncStatus('revoked');
+                            onUnauthorized?.();
+                        }
                         setSyncStatus('offline');
                         reconnectTimer = setTimeout(connect, 1500);
                     }
@@ -135,7 +148,7 @@ export function usePlaybackSync({
             socketRef.current?.close();
             socketRef.current = null;
         };
-    }, [isAuthenticated, onSnapshot]);
+    }, [isAuthenticated, onSnapshot, onUnauthorized, ownerId]);
 
     const getCurrentPosition = useCallback(() => {
         const snapshot = desiredSnapshotRef.current;
@@ -158,5 +171,6 @@ export function usePlaybackSync({
         markAutoplayBlocked,
         markPlaybackStarted,
         isCurrentSnapshot,
+        currentSnapshot: desiredSnapshotRef.current,
     };
 }

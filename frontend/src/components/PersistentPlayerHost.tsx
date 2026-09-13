@@ -37,6 +37,9 @@ export default function PersistentPlayerHost() {
         setProgress,
         syncStatus,
         setPlayerHostHeight,
+        sessions,
+        selectedSessionOwnerId,
+        selectSession,
     } = usePlayer();
 
     const presentation = getPlayerPresentation({ videoId, activePlaylistId, pathname });
@@ -54,9 +57,25 @@ export default function PersistentPlayerHost() {
                     {thumbnailUrl ? <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} /> : null}
                     <View style={{ flex: 1 }}>
                         <Text style={globalStyles.heading} numberOfLines={1}>{videoTitle ?? 'Now Playing'}</Text>
-                        <Text style={globalStyles.small}>Active playlist</Text>
+                        <Text style={globalStyles.small}>{selectedSessionOwnerId ? 'Shared playback session' : 'Your playback'}</Text>
                     </View>
                 </View>
+                {selectedSessionOwnerId ? (
+                    <Text style={globalStyles.small}>
+                        Owner: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.owner_name ?? 'Unknown'} · Device: {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.controller_device_name ?? 'Unknown'}
+                    </Text>
+                ) : null}
+                {sessions.length > 1 ? (
+                    <View style={styles.sessionPicker}>
+                        <Text style={globalStyles.smallBold}>Playback sessions</Text>
+                        {sessions.map(session => (
+                            <Pressable key={session.session_id} onPress={() => void selectSession(session.shared ? session.owner_id : null)} style={styles.sessionOption}>
+                                <Text style={globalStyles.small}>{session.shared ? `${session.owner_name ?? 'Someone'} · ${session.controller_device_name ?? 'shared device'}` : 'Your playback'}</Text>
+                                <Text style={styles.sessionMarker}>{(session.shared ? selectedSessionOwnerId === session.owner_id : selectedSessionOwnerId === null) ? '●' : '○'}</Text>
+                            </Pressable>
+                        ))}
+                    </View>
+                ) : null}
                 {videoId ? (
                     <YouTubePlayer
                         ref={playerRef}
@@ -88,7 +107,9 @@ export default function PersistentPlayerHost() {
                         <Text style={styles.skipLabel}>Skip</Text>
                     </Pressable>
                 </View>
+                {selectedSessionOwnerId ? <Text style={globalStyles.small}>Controls are shared with {sessions.find(item => item.owner_id === selectedSessionOwnerId)?.owner_name ?? 'the owner'}.</Text> : null}
                 {syncStatus === 'autoplay-blocked' ? <Text style={globalStyles.small}>Tap play to start synchronized playback.</Text> : null}
+                {syncStatus === 'offline' ? <Text style={globalStyles.errorText}>Playback connection offline. Reconnecting…</Text> : null}
                 {error ? <Text style={globalStyles.errorText}>{error}</Text> : null}
                 {presentation.showPlayerSurface ? (
                     <Pressable
@@ -112,6 +133,9 @@ const styles = StyleSheet.create({
     surface: { maxWidth: 720, padding: spacing.lg, backgroundColor: colors.bg.base, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border.gray },
     hidden: { opacity: 0, height: 1, overflow: 'hidden', padding: 0, borderBottomWidth: 0 },
     headingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+    sessionPicker: { marginBottom: spacing.sm, padding: spacing.sm, backgroundColor: colors.bg.card, borderRadius: 8 },
+    sessionOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs },
+    sessionMarker: { color: colors.brand, fontSize: 14 },
     thumbnail: { width: 40, height: 40, borderRadius: 4 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
     roundButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },

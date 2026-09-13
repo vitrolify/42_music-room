@@ -15,6 +15,7 @@ from app.schemas.device import (
     DeviceUpdate,
 )
 from app.services import device_service
+from app.websockets.playback_manager import playback_ws_manager
 
 router = APIRouter(tags=["devices"], prefix="/devices")
 
@@ -158,6 +159,7 @@ async def remove_device_delegate(
             message="Device not found, or delegate does not exist.",
             status_code=status.HTTP_404_NOT_FOUND,
         )
+    await playback_ws_manager.close_delegate(user_id, delegate_id, device_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
