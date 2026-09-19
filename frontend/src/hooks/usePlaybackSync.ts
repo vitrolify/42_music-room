@@ -110,8 +110,12 @@ export function usePlaybackSync({
                     getPlaybackWebSocketUrl(sessionIdRef.current, token, deviceId, ownerId ?? undefined),
                 );
                 socketRef.current = socket;
-                socket.onopen = () => setSyncStatus('synced');
+                socket.onopen = () => {
+                    if (cancelled || socketRef.current !== socket) return;
+                    setSyncStatus('synced');
+                };
                 socket.onmessage = event => {
+                    if (cancelled || socketRef.current !== socket) return;
                     try {
                         const message = JSON.parse(event.data) as PlaybackEvent;
                         if (
@@ -125,6 +129,7 @@ export function usePlaybackSync({
                     }
                 };
                 socket.onclose = event => {
+                    if (socketRef.current !== socket) return;
                     socketRef.current = null;
                     if (!cancelled) {
                         if (event.code === 1008) {
@@ -135,7 +140,10 @@ export function usePlaybackSync({
                         reconnectTimer = setTimeout(connect, 1500);
                     }
                 };
-                socket.onerror = () => setSyncStatus('offline');
+                socket.onerror = () => {
+                    if (cancelled || socketRef.current !== socket) return;
+                    setSyncStatus('offline');
+                };
             } catch {
                 if (!cancelled) {
                     setSyncStatus('offline');
