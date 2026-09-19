@@ -46,7 +46,11 @@ class PlaybackConnectionManager:
         room = self.connections.get(str(room_owner_id), set())
         for connection in list(room):
             metadata = self.connection_metadata.get(connection)
-            if metadata and metadata[1:] == (str(delegate_id), device_id):
+            if (
+                metadata
+                and metadata[1] == str(delegate_id)
+                and metadata[2] == device_id
+            ):
                 try:
                     await connection.close(
                         code=1008, reason="Playback delegation revoked"
