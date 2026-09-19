@@ -26,7 +26,7 @@ from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 from app.models.track_info import TrackInfo
 from app.models.user import User
 from app.models.user_playback_state import PlaybackStatus
-from app.services.friend_service import delete_friendship
+from app.services.friend_service import RevokedDelegation, delete_friendship
 from app.services.playback_service import apply_playlist_command, get_state
 
 DATABASE_URL = os.getenv("PLAYBACK_TEST_DATABASE_URL")
@@ -201,7 +201,11 @@ async def test_removing_friend_deletes_playback_delegations(sessions):
         )
         assert removed is True
         assert revoked == [
-            (data["owner_device"], data["owner"], data["delegate"])
+            RevokedDelegation(
+                device_id=data["owner_device"],
+                owner_id=data["owner"],
+                delegate_id=data["delegate"],
+            )
         ]
 
         remaining = await db.scalar(

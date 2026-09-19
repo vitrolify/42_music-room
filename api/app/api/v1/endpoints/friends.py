@@ -184,8 +184,12 @@ async def remove_friend(
             message="Amizade nao encontrada",
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    for device_id, owner_id, delegate_id in revoked_delegations:
-        await playback_ws_manager.close_delegate(owner_id, delegate_id, device_id)
+    for delegation in revoked_delegations:
+        await playback_ws_manager.close_delegate(
+            delegation.owner_id,
+            delegation.delegate_id,
+            delegation.device_id,
+        )
 
 
 @router.patch(

@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.device import Device, DeviceDelegation
 from app.models.friend import FriendRequest, FriendRequestStatus
 from app.models.user import User
+
+
+@dataclass(frozen=True)
+class RevokedDelegation:
+    device_id: uuid.UUID
+    owner_id: uuid.UUID
+    delegate_id: uuid.UUID
 
 
 async def create_friend_request_in_db(
@@ -102,7 +110,7 @@ async def get_friends_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[Use
 
 async def delete_friendship(
     db: AsyncSession, user_id: uuid.UUID, friend_id: uuid.UUID
-) -> tuple[bool, list[tuple[uuid.UUID, uuid.UUID, uuid.UUID]]]:
+) -> tuple[bool, list[RevokedDelegation]]:
     friendship = await get_friendship(db, user_id, friend_id)
     if friendship is None or friendship.status != FriendRequestStatus.ACCEPTED:
         return False, []
@@ -127,7 +135,11 @@ async def delete_friendship(
     )
     delegations = [delegation for delegation, _ in delegation_rows]
     revoked = [
-        (delegation.device_id, device.owner_id, delegation.delegate_user_id)
+        RevokedDelegation(
+            device_id=delegation.device_id,
+            owner_id=device.owner_id,
+            delegate_id=delegation.delegate_user_id,
+        )
         for delegation, device in delegation_rows
     ]
     for delegation in delegations:
