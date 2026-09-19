@@ -16,6 +16,7 @@ from app.schemas.friend import (
 )
 from app.services import friend_service
 from app.services.user_service import UserService
+from app.websockets.playback_manager import playback_ws_manager
 
 router = APIRouter(tags=["friends"])
 
@@ -174,7 +175,7 @@ async def remove_friend(
     db: AsyncSession = Depends(get_db),
     current_user_id: uuid.UUID = Depends(get_current_user_id),
 ):
-    removed = await friend_service.delete_friendship(
+    removed, revoked_delegations = await friend_service.delete_friendship(
         db, user_id=current_user_id, friend_id=user_id
     )
     if not removed:
@@ -183,6 +184,8 @@ async def remove_friend(
             message="Amizade nao encontrada",
             status_code=status.HTTP_404_NOT_FOUND,
         )
+    for device_id, owner_id, delegate_id in revoked_delegations:
+        await playback_ws_manager.close_delegate(owner_id, delegate_id, device_id)
 
 
 @router.patch(
