@@ -28,6 +28,7 @@ import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
 import { usePlayer } from '../../../src/contexts/PlayerContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { applyPlaylistPlaybackChanged } from '../../../src/lib/playlistSync';
 
 export default function PlaylistDetail() {
     const router = useRouter();
@@ -177,6 +178,9 @@ export default function PlaylistDetail() {
                                         }
                                         return updatedTrack;
                                     });
+                                break;
+                            case 'PLAYLIST_PLAYBACK_CHANGED':
+                                nextTracks = applyPlaylistPlaybackChanged(nextTracks, payload);
                                 break;
                             default:
                                 return prevTracks;
