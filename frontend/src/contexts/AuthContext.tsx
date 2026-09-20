@@ -13,6 +13,7 @@ import {
 } from '../lib/firebase';
 import { AuthType } from '../types/auth.types';
 import { registerCurrentDevice } from '../lib/deviceIdentity';
+import { logoutApi, setOnUnauthorized } from '../lib/api';
 
 type AuthContextType = {
     user: AuthType | null;
@@ -45,7 +46,13 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const subscriber = onAuthStateChanged(handleAuthStateChanged);
-        return subscriber;
+        setOnUnauthorized(() => {
+            void signOutUser().catch((err) => console.error('Sign out on 401 failed: ', err));
+        });
+        return () => {
+            subscriber();
+            setOnUnauthorized(null);
+        };
     }, []);
 
     async function googleSignIn() {
@@ -85,6 +92,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const logout = async () => {
         try {
+            await logoutApi().catch((error) => console.warn('Server logout failed: ', error));
             await signOutUser();
             console.log('User signed out successfully');
         } catch (error) {

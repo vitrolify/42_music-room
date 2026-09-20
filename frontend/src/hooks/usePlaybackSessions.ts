@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { request } from '../lib/api/client';
+import { ApiError, request } from '../lib/api/client';
 import type { PlaybackSession } from '../lib/api/playback.types';
 
 export function usePlaybackSessions(isAuthenticated: boolean) {
@@ -13,6 +13,12 @@ export function usePlaybackSessions(isAuthenticated: boolean) {
         }
         try {
             setSessions(await request<PlaybackSession[]>('GET', '/playback/sessions'));
+        } catch (error) {
+            if (error instanceof ApiError && error.status === 401) {
+                setSessions([]);
+            } else {
+                console.warn('Failed to refresh playback sessions:', error);
+            }
         } finally {
             setLoading(false);
         }

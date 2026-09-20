@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import BaseVitrolifyException
 from app.auth.firebase_auth import get_firebase_token_verifier
+from app.db.redis import is_token_revoked
 from app.db.session import get_db
 from app.services.user_service import UserService
 
@@ -27,7 +28,7 @@ async def get_db_context():
         yield db
 
 
-def get_current_user(authorization: str = Header(default="")) -> dict:
+async def get_current_user(authorization: str = Header(default="")) -> dict:
     """Le o header Authorization, valida o token via T012, devolve os claims."""
     if not authorization.startswith("Bearer "):
         raise BaseVitrolifyException(
@@ -53,6 +54,15 @@ def get_current_user(authorization: str = Header(default="")) -> dict:
             error_code="AUTH_EMAIL_NOT_VERIFIED",
             message="Email address must be verified before using the application",
             status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    firebase_uid = claims.get("sub")
+    token_iat = claims.get("iat")
+    if firebase_uid and await is_token_revoked(firebase_uid, token_iat):
+        raise BaseVitrolifyException(
+            error_code="AUTH_TOKEN_REVOKED",
+            message="Token has been revoked",
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     return claims
@@ -116,6 +126,13 @@ async def get_current_user_id_ws(
     if not firebase_uid:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, reason="Token não contém firebase_uid"
+        )
+
+    token_iat = claims.get("iat")
+    if await is_token_revoked(firebase_uid, token_iat):
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Token has been revoked",
         )
 
     async with get_db_context() as db:
