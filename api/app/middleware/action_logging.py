@@ -23,12 +23,16 @@ class UserActionMiddleware(BaseHTTPMiddleware):
         user_id = getattr(request.state, "user_id", None)
         user = str(user_id) if user_id else "anonymous"
         client_ip = request.client.host if request.client else "unknown"
+        device_id = request.headers.get("x-device-id") or "unknown"
+        app_version = request.headers.get("x-app-version") or "unknown"
         logger.info(
-            "%s %s %d - user=%s ip=%s",
+            "%s %s %d - user=%s device=%s version=%s ip=%s",
             request.method,
             request.url.path,
             response.status_code,
             user,
+            device_id,
+            app_version,
             client_ip,
         )
         return response

@@ -1,5 +1,9 @@
+import Constants from 'expo-constants';
 import * as Firebase from '../firebase';
 import { Platform } from 'react-native';
+import { getDeviceId } from '../deviceIdentity';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 function getApiBaseUrl(): string {
     // Expo exposes EXPO_PUBLIC_* at bundle time. Keep the web-specific setting
@@ -83,9 +87,13 @@ export async function request<T>(
         throw new ApiError('Not authenticated', 401, 'AUTH_TOKEN_MISSING');
     }
 
+    const deviceId = await getDeviceId();
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'X-Device-Id': deviceId,
+        'X-App-Version': APP_VERSION,
     };
 
     const res = await fetch(`${API_BASE}${path}`, {
