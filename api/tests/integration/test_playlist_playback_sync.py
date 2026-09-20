@@ -20,11 +20,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 # Import every relationship target before SQLAlchemy configures the mappers.
 from app.models import event_queue, friend, invite  # noqa: F401
 from app.models.device import Device, DeviceDelegation
+from app.models.friend import FriendRequest, FriendRequestStatus
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack, TrackPlaybackStatus
 from app.models.track_info import TrackInfo
 from app.models.user import User
 from app.models.user_playback_state import PlaybackStatus
+from app.services.friend_service import RevokedDelegation, delete_friendship
 from app.services.playback_service import apply_playlist_command, get_state
 
 DATABASE_URL = os.getenv("PLAYBACK_TEST_DATABASE_URL")
@@ -174,6 +176,45 @@ async def test_rejects_foreign_device_and_allows_only_delegated_control(sessions
     )
     assert paused.status is PlaybackStatus.PAUSED
     assert paused.controller_device_id == data["owner_device"]
+
+
+async def test_removing_friend_deletes_playback_delegations(sessions):
+    data = await _seed(sessions)
+
+    async with sessions() as db:
+        db.add(
+            FriendRequest(
+                requester_id=data["owner"],
+                addressee_id=data["delegate"],
+                status=FriendRequestStatus.ACCEPTED,
+            )
+        )
+        db.add(
+            DeviceDelegation(
+                device_id=data["owner_device"], delegate_user_id=data["delegate"]
+            )
+        )
+        await db.commit()
+
+        removed, revoked = await delete_friendship(
+            db, user_id=data["owner"], friend_id=data["delegate"]
+        )
+        assert removed is True
+        assert revoked == [
+            RevokedDelegation(
+                device_id=data["owner_device"],
+                owner_id=data["owner"],
+                delegate_id=data["delegate"],
+            )
+        ]
+
+        remaining = await db.scalar(
+            select(DeviceDelegation).where(
+                DeviceDelegation.device_id == data["owner_device"],
+                DeviceDelegation.delegate_user_id == data["delegate"],
+            )
+        )
+        assert remaining is None
 
 
 async def test_switch_pauses_previous_queue_and_terminal_end_keeps_playlist(sessions):

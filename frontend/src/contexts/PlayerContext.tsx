@@ -4,11 +4,13 @@ import type {
     YouTubePlayerProgress,
     YouTubePlayerState,
 } from '../components/YouTubePlayer.types';
-import type { PlaybackSnapshot, SyncStatus } from '../lib/api/playback.types';
+import type { PlaybackSession, PlaybackSnapshot, SyncStatus } from '../lib/api/playback.types';
 import { usePlaybackSync } from '../hooks/usePlaybackSync';
+import { usePlaybackSessions } from '../hooks/usePlaybackSessions';
 import { useAuth } from './AuthContext';
 import { commandPlaylistPlayback } from '../lib/api/playlistTracks';
 import { registerCurrentDevice } from '../lib/deviceIdentity';
+import { ApiError } from '../lib/api/client';
 
 type PlayerContextType = {
     videoId: string | null;
@@ -22,6 +24,9 @@ type PlayerContextType = {
     sessionId: string;
     serverVersion: number;
     activePlaylistId: number | null;
+    controllerDeviceId: string | null;
+    playerHostHeight: number;
+    setPlayerHostHeight: (height: number) => void;
     togglePlayPause: () => void;
     play: () => void;
     pause: () => void;
@@ -31,6 +36,9 @@ type PlayerContextType = {
     setPlayerReady: (ready: boolean) => void;
     setPlayerState: (state: YouTubePlayerState) => void;
     setProgress: (progress: YouTubePlayerProgress) => void;
+    sessions: PlaybackSession[];
+    selectedSessionOwnerId: string | null;
+    selectSession: (ownerId: string | null) => Promise<void>;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -44,6 +52,31 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     const [playerReady, setPlayerReadyState] = useState(false);
     const [progress, setProgress] = useState<YouTubePlayerProgress>({ currentTime: 0, duration: 0 });
     const [activePlaylistId, setActivePlaylistId] = useState<number | null>(null);
+    const [controllerDeviceId, setControllerDeviceId] = useState<string | null>(null);
+    const [playerHostHeight, setPlayerHostHeight] = useState(0);
+    const [selectedSessionOwnerId, setSelectedSessionOwnerId] = useState<string | null>(null);
+    const { sessions, remove: removeSession } = usePlaybackSessions(Boolean(user));
+    const availableSessions: PlaybackSession[] = [
+        {
+            session_id: 'own-playback',
+            shared: false,
+            owner_id: user?.uid ?? 'self',
+            owner_name: null,
+            playlist_id: activePlaylistId,
+            track: videoId ? { id: null, video_id: videoId, title: videoTitle, channel_title: null, thumbnail_url: thumbnailUrl } : null,
+            status: playerState === 'playing' ? 'playing' : 'paused',
+            position_seconds: progress.currentTime,
+            duration_seconds: progress.duration,
+            version: 0,
+            controller_device_id: controllerDeviceId,
+            controller_device_name: 'Este dispositivo',
+            updated_at: new Date().toISOString(),
+        },
+        // The API may also return the active own session. The frontend-owned
+        // entry above is canonical so the picker always has exactly one own
+        // option, including when the backend has no active snapshot.
+        ...sessions.filter(session => session.shared),
+    ];
 
     const playerRef = useRef<YouTubePlayerHandle | null>(null);
     const playerStateRef = useRef(playerState);
@@ -73,8 +106,20 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    const applySnapshot = useCallback((snapshot: PlaybackSnapshot) => {
+    const applySnapshot = useCallback((snapshot: PlaybackSnapshot | null) => {
+        if (!snapshot) {
+            setVideoId(null);
+            setVideoTitle(null);
+            setThumbnailUrl(null);
+            setProgress({ currentTime: 0, duration: 0 });
+            setActivePlaylistId(null);
+            setControllerDeviceId(null);
+            setPlayerReadyState(false);
+            playerRef.current?.pause();
+            return;
+        }
         setActivePlaylistId(snapshot.active_playlist_id);
+        setControllerDeviceId(snapshot.controller_device_id);
         if (autoplayTimerRef.current) {
             clearTimeout(autoplayTimerRef.current);
             autoplayTimerRef.current = null;
@@ -119,7 +164,55 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
         setProgress({ currentTime: targetPosition, duration: snapshot.duration_seconds });
     }, [loadMetadata]);
 
-    const sync = usePlaybackSync({ isAuthenticated: Boolean(user), onSnapshot: applySnapshot });
+    const handleUnauthorized = useCallback(() => {
+        if (selectedSessionOwnerId) {
+            removeSession(selectedSessionOwnerId);
+            setSelectedSessionOwnerId(null);
+        }
+    }, [removeSession, selectedSessionOwnerId]);
+
+    const sync = usePlaybackSync({
+        isAuthenticated: Boolean(user),
+        onSnapshot: applySnapshot,
+        ownerId: selectedSessionOwnerId,
+        onUnauthorized: handleUnauthorized,
+    });
+
+    const previousOwnerRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (previousOwnerRef.current === selectedSessionOwnerId) return;
+        playerRef.current?.pause();
+        previousOwnerRef.current = selectedSessionOwnerId;
+    }, [selectedSessionOwnerId]);
+
+    useEffect(() => {
+        if (selectedSessionOwnerId && !sessions.some(item => item.owner_id === selectedSessionOwnerId && item.shared)) {
+            setSelectedSessionOwnerId(null);
+        } else if (!selectedSessionOwnerId && sessions.length === 1 && sessions[0].shared) {
+            setSelectedSessionOwnerId(sessions[0].owner_id);
+        }
+    }, [selectedSessionOwnerId, sessions]);
+
+    const selectSession = useCallback(async (ownerId: string | null) => {
+        if (ownerId && ownerId !== selectedSessionOwnerId) {
+            const own = sync.currentSnapshot;
+            if (!selectedSessionOwnerId && own?.active_playlist_id && own.active_playlist_track_id) {
+                try {
+                    const deviceId = await registerCurrentDevice();
+                    const response = await commandPlaylistPlayback(own.active_playlist_id, {
+                        command: 'pause', playlist_track_id: own.active_playlist_track_id,
+                        device_id: deviceId, session_id: sync.sessionId,
+                        expected_version: own.version,
+                        position_seconds: sync.getCurrentPosition() ?? own.position_seconds,
+                    });
+                    sync.applyCommandSnapshot(response.payload);
+                } catch {
+                    // Switching remains safe; the backend snapshot is authoritative.
+                }
+            }
+        }
+        setSelectedSessionOwnerId(ownerId);
+    }, [selectedSessionOwnerId, sync]);
 
     useEffect(() => () => {
         if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current);
@@ -169,10 +262,14 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
                 duration_seconds: durationSeconds,
             });
             sync.applyCommandSnapshot(response.payload);
-        } catch {
+        } catch (error) {
+            if (selectedSessionOwnerId && error instanceof ApiError && error.status === 403) {
+                removeSession(selectedSessionOwnerId);
+                setSelectedSessionOwnerId(null);
+            }
             // The realtime snapshot remains authoritative; a later reconnect retries hydration.
         }
-    }, [sync]);
+    }, [removeSession, selectedSessionOwnerId, sync]);
 
     const sendPlaylistCommand = useCallback((
         command: 'play' | 'pause' | 'seek' | 'checkpoint' | 'skip' | 'ended',
@@ -257,6 +354,9 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
             sessionId: sync.sessionId,
             serverVersion: sync.serverVersion,
             activePlaylistId,
+            controllerDeviceId,
+            playerHostHeight,
+            setPlayerHostHeight,
             togglePlayPause,
             play,
             pause,
@@ -266,6 +366,9 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
             setPlayerReady: handlePlayerReady,
             setPlayerState: handlePlayerState,
             setProgress: reportProgress,
+            sessions: availableSessions,
+            selectedSessionOwnerId,
+            selectSession,
         }}>
             {children}
         </PlayerContext.Provider>

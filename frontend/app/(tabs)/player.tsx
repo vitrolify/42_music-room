@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '../../src/contexts/PlayerContext';
 import { PLAYER_HEADER_HEIGHT } from '../../src/lib/playerPresentation';
 import { colors, globalStyles, spacing } from '../../src/styles';
+import PlayerDelegationCard from '../../src/components/PlayerDelegationCard';
+import PlaybackSessionPicker from '../../src/components/PlaybackSessionPicker';
 
 /**
  * Dedicated player destination. The synchronized YouTube surface is mounted
@@ -13,7 +15,7 @@ import { colors, globalStyles, spacing } from '../../src/styles';
 export default function PlayerScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { videoId, activePlaylistId } = usePlayer();
+    const { videoId, activePlaylistId, playerHostHeight, sessions, selectedSessionOwnerId, selectSession } = usePlayer();
 
     return (
         <View style={globalStyles.screen}>
@@ -26,17 +28,21 @@ export default function PlayerScreen() {
             <ScrollView
                 contentContainerStyle={{
                     padding: spacing.xl,
+                    paddingTop: Math.max(spacing.xl, playerHostHeight + spacing.md),
                     paddingBottom: insets.bottom + spacing.xxl,
                 }}
             >
             {!videoId ? (
                 <View style={{ marginTop: spacing.xl, padding: spacing.lg, backgroundColor: colors.bg.card, borderRadius: 8 }}>
-                    <Text style={globalStyles.heading}>Nothing is playing</Text>
-                    <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>Start a track from a playlist to use the fullplayer.</Text>
+                    <Text style={globalStyles.heading}>Nada tocando</Text>
+                    <Text style={[globalStyles.secondaryText, { marginTop: spacing.sm }]}>Escolha uma sessão para acompanhar.</Text>
+                    <View style={{ marginTop: spacing.lg, alignSelf: 'flex-start' }}>
+                        <PlaybackSessionPicker sessions={sessions} selectedOwnerId={selectedSessionOwnerId} onSelect={selectSession} />
+                    </View>
                 </View>
             ) : activePlaylistId === null ? (
                 <Text style={[globalStyles.small, { color: colors.text.secondary, marginTop: spacing.sm }]}>Playback is synchronizing.</Text>
-            ) : null}
+            ) : <PlayerDelegationCard />}
             </ScrollView>
         </View>
     );
