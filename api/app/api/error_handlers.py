@@ -40,7 +40,9 @@ class BaseVitrolifyException(Exception):
 async def vitrolify_exception_handler(request: Request, exc: BaseVitrolifyException):
     logger = logging.getLogger(__name__)
     logger.error(
-        {"event": "exception_handled", "code": exc.error_code, "msg": exc.message},
+        "Exception handled [%s]: %s",
+        exc.error_code,
+        exc.message,
         exc_info=True,
     )
 
@@ -64,9 +66,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     else:
         message = f"Erro de validação no campo '{field_name}': {first_error.get('msg')}"
 
-    logger.warning(
-        {"event": "validation_error", "code": "VALIDATION_ERROR", "msg": message},
-    )
+    logger.warning("Validation error: %s", message)
 
     error_body = ErrorResponse(error_code="VALIDATION_ERROR", message=message)
     return JSONResponse(

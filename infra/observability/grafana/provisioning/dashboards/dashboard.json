@@ -885,7 +885,7 @@
                       "spec": {
                         "direction": "backward",
                         "editorMode": "code",
-                        "expr": "{container=~\".*api.*\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.method}} {{.path}} - {{.status}} (User: {{.user}})\"",
+                        "expr": "{container=~\".*api.*\"}",
                         "queryType": "range"
                       }
                     },

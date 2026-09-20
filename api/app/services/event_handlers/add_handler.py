@@ -35,7 +35,7 @@ def _parse_add_payload(event: EventQueue) -> AddPayload | None:
     try:
         return AddPayload.model_validate(event.payload)
     except Exception as e:
-        logger.error({"event": "invalid_add_payload", "error": str(e)})
+        logger.error("Invalid add payload: %s", e)
         return None
 
 
@@ -70,12 +70,9 @@ async def _execute_add_transaction(
     except Exception as e:
         await db.rollback()
         logger.error(
-            {
-                "event": "worker_add_failed",
-                "reason": "database_error",
-                "event_id": event.id,
-                "error": str(e),
-            }
+            "Worker add track failed (database error, event_id=%s): %s",
+            event.id,
+            e,
         )
         return None
 
@@ -133,23 +130,19 @@ async def _broadcast_add_success(
     """Envia o sucesso para o logger e para os usuários conectados."""
     try:
         logger.info(
-            {
-                "event": "worker_track_added",
-                "event_id": event.id,
-                "playlist_id": playlist_id,
-                "track_info_id": track_info_id,
-                "position": ws_message["payload"]["position"],
-                "status": "success",
-            }
+            "Worker track added (event_id=%s, playlist_id=%s, track_info_id=%s, "
+            "pos=%s)",
+            event.id,
+            playlist_id,
+            track_info_id,
+            ws_message["payload"]["position"],
         )
         await playlist_ws_manager.broadcast_playlist_update(
             playlist_id, ws_message, event.user_id
         )
     except Exception as e:
         logger.error(
-            {
-                "event": "worker_broadcast_failed",
-                "event_id": event.id,
-                "error": str(e),
-            }
+            "Worker broadcast add track failed (event_id=%s): %s",
+            event.id,
+            e,
         )

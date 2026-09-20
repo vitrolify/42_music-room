@@ -35,19 +35,16 @@ def _parse_move_payload(event: EventQueue) -> MovePayload | None:
     try:
         return MovePayload.model_validate(event.payload)
     except Exception as e:
-        logger.error({"event": "invalid_move_payload", "error": str(e)})
+        logger.error("Invalid move payload: %s", e)
         return None
 
 
 def _is_valid_new_position(event_id: int, payload: MovePayload) -> bool:
     if payload.new_position <= 0:
         logger.error(
-            {
-                "event": "worker_move_aborted",
-                "reason": "invalid_new_position",
-                "event_id": event_id,
-                "requested_position": payload.new_position,
-            }
+            "Worker move aborted: invalid new position %s (event_id=%s)",
+            payload.new_position,
+            event_id,
         )
         return False
     return True
@@ -75,12 +72,10 @@ async def _execute_move_transaction(
     except ValueError as e:
         await db.rollback()
         logger.warning(
-            {
-                "event": "worker_move_aborted",
-                "reason": str(e),
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-            }
+            "Worker move aborted: %s (event_id=%s, track_id=%s)",
+            e,
+            event.id,
+            payload.playlist_track_id,
         )
         await playlist_ws_manager.broadcast_error(
             playlist_id=playlist_id,
@@ -92,12 +87,9 @@ async def _execute_move_transaction(
     except Exception as e:
         await db.rollback()
         logger.error(
-            {
-                "event": "worker_move_failed",
-                "reason": "database_error",
-                "event_id": event.id,
-                "error": str(e),
-            }
+            "Worker move track failed (database error, event_id=%s): %s",
+            event.id,
+            e,
         )
         return None
 
@@ -140,12 +132,10 @@ async def _get_clamped_position(
 
     if payload.new_position > total_tracks:
         logger.info(
-            {
-                "event": "worker_move_clamped_to_last",
-                "event_id": event.id,
-                "requested_position": payload.new_position,
-                "adjusted_position": total_tracks,
-            }
+            "Worker move clamped to last position %s -> %s (event_id=%s)",
+            payload.new_position,
+            total_tracks,
+            event.id,
         )
         if payload.current_position == total_tracks:
             raise ValueError("track_already_in_last_position")
@@ -180,16 +170,15 @@ async def _broadcast_move_success(
         )
 
         logger.info(
-            {
-                "event": "worker_track_moved",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-                "old_position": payload.current_position,
-                "new_position": new_position,
-                "status": "success",
-            }
+            "Worker track moved (event_id=%s, track_id=%s, %s -> %s)",
+            event.id,
+            payload.playlist_track_id,
+            payload.current_position,
+            new_position,
         )
     except Exception as e:
         logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+            "Worker broadcast move track failed (event_id=%s): %s",
+            event.id,
+            e,
         )

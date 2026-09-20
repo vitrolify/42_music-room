@@ -21,13 +21,14 @@ class UserActionMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         user_id = getattr(request.state, "user_id", None)
-        log_data = {
-            "event": "user_action",
-            "user": str(user_id) if user_id else "anonymous",
-            "method": request.method,
-            "path": request.url.path,
-            "status": response.status_code,
-            "client_ip": request.client.host if request.client else "unknown",
-        }
-        logger.info(log_data)
+        user = str(user_id) if user_id else "anonymous"
+        client_ip = request.client.host if request.client else "unknown"
+        logger.info(
+            "%s %s %d - user=%s ip=%s",
+            request.method,
+            request.url.path,
+            response.status_code,
+            user,
+            client_ip,
+        )
         return response
