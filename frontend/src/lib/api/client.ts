@@ -87,7 +87,7 @@ export async function request<T>(
         throw new ApiError('Not authenticated', 401, 'AUTH_TOKEN_MISSING');
     }
 
-    const deviceId = await getDeviceId();
+    const deviceId = await getDeviceId().catch(() => 'unknown');
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
