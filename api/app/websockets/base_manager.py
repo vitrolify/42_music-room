@@ -20,12 +20,10 @@ class BaseConnectionManager:
         self.active_connections[room_id].add(websocket)
         self.connection_user_map[websocket] = str(user_id)
         logger.info(
-            {
-                "event": "playlist_websocket_connection",
-                "user": user_id,
-                "room": room_id,
-                "current_connections": len(self.active_connections[room_id]),
-            }
+            "WebSocket connected (room=%s, user=%s, connections=%d)",
+            room_id,
+            user_id,
+            len(self.active_connections[room_id]),
         )
 
     def disconnect(self, websocket: WebSocket, room_id: str, user_id: uuid.UUID):
@@ -34,12 +32,10 @@ class BaseConnectionManager:
                 self.active_connections[room_id].discard(websocket)
                 self.connection_user_map.pop(websocket, None)
                 logger.info(
-                    {
-                        "event": "playlist_websocket_disconnection",
-                        "user": user_id,
-                        "room": room_id,
-                        "current_connections": len(self.active_connections[room_id]),
-                    }
+                    "WebSocket disconnected (room=%s, user=%s, connections=%d)",
+                    room_id,
+                    user_id,
+                    len(self.active_connections[room_id]),
                 )
 
                 if not self.active_connections[room_id]:
