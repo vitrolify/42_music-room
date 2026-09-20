@@ -44,7 +44,7 @@ def get_current_user(authorization: str = Header(default="")) -> dict:
         logger.error("Token verification failed: %s", exc)
         raise BaseVitrolifyException(
             error_code="AUTH_INVALID_TOKEN",
-            message=f"Token verification failed: {exc}",
+            message="Token verification failed",
             status_code=status.HTTP_401_UNAUTHORIZED,
         ) from exc
 
@@ -103,7 +103,7 @@ async def get_current_user_id_ws(
         logger.error("WS Token verification failed: %s", exc)
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
-            reason=f"Token verification failed: {exc}",
+            reason="Token verification failed",
         )
 
     if claims.get("email_verified") is not True:
