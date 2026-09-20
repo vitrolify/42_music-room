@@ -49,7 +49,7 @@ class AddPayload(BaseModel):
         raise BaseVitrolifyException(
             error_code="INVALID_URL",
             message="Invalid URL. Use a youtube link or send the video ID directly",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
 
