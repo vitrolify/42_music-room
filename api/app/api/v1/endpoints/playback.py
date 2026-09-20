@@ -148,6 +148,7 @@ async def playback_websocket(
     session_id: str | None = None,
     device_id: uuid.UUID | None = None,
     owner_id: uuid.UUID | None = None,
+    app_version: str | None = None,
 ):
     if not session_id or len(session_id) > 128:
         raise WebSocketException(

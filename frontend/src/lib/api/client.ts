@@ -64,7 +64,7 @@ export function getPlaylistWebSocketUrl(playlistId: number, token: string, devic
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + `/ws/playlists/${playlistId}`;
-    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
     return apiUrl.toString();
 }
 
@@ -72,7 +72,7 @@ export function getPlaybackWebSocketUrl(sessionId: string, token: string, device
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playback';
-    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}${ownerId ? `&owner_id=${encodeURIComponent(ownerId)}` : ''}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}${ownerId ? `&owner_id=${encodeURIComponent(ownerId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
     return apiUrl.toString();
 }
 
