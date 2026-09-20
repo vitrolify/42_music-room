@@ -39,12 +39,20 @@ class BaseVitrolifyException(Exception):
 # Exception Handlers
 async def vitrolify_exception_handler(request: Request, exc: BaseVitrolifyException):
     logger = logging.getLogger(__name__)
-    logger.error(
-        "Exception handled [%s]: %s",
-        exc.error_code,
-        exc.message,
-        exc_info=True,
-    )
+    if exc.status_code >= 500:
+        logger.error(
+            "Exception handled [%s]: %s",
+            exc.error_code,
+            exc.message,
+            exc_info=True,
+        )
+    else:
+        logger.warning(
+            "Client error [%s]: %s (status=%d)",
+            exc.error_code,
+            exc.message,
+            exc.status_code,
+        )
 
     error_body = ErrorResponse(error_code=exc.error_code, message=exc.message)
     return JSONResponse(status_code=exc.status_code, content=error_body.model_dump())
