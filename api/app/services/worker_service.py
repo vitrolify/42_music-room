@@ -28,31 +28,24 @@ EVENT_HANDLERS = {
 async def dispatch_event(db: AsyncSession, event: EventQueue) -> None:
     if event.playlist_id is None:
         logger.error(
-            {
-                "event": "worker_dispatch_failed",
-                "reason": "missing_playlist_id",
-                "event_id": event.id,
-                "event_type": event.event,
-            }
+            "Worker dispatch failed: missing playlist_id (event_id=%s, event_type=%s)",
+            event.id,
+            event.event,
         )
         return
 
     handler = EVENT_HANDLERS.get(event.event)
     if not handler:
         logger.error(
-            {
-                "event": "worker_unsupported_event_type",
-                "event_id": event.id,
-                "event_type": event.event,
-            }
+            "Worker unsupported event type (event_id=%s, event_type=%s)",
+            event.id,
+            event.event,
         )
         return
 
     logger.info(
-        {
-            "event": "worker_dispatching",
-            "event_id": event.id,
-            "event_type": event.event,
-        }
+        "Worker dispatching event %s (%s)",
+        event.id,
+        event.event,
     )
     await handler(db, event, event.playlist_id)

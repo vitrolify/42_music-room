@@ -40,6 +40,7 @@ async def playlist_websocket_endpoint(
     playlist_id: int,
     user_id: uuid.UUID = Depends(get_current_user_id_ws),
     device_id: str | None = Query(default=None),
+    app_version: str | None = Query(default=None),
 ):
     is_owner = False
 
@@ -67,12 +68,12 @@ async def playlist_websocket_endpoint(
 
     except Exception as e:
         logger.error(
-            {
-                "event": "websocket_connecting",
-                "user": user_id,
-                "room": playlist_id,
-                "msg": str(e),
-            }
+            "WebSocket error (room=%s, user=%s, device=%s, version=%s): %s",
+            playlist_id,
+            user_id,
+            device_id or "unknown",
+            app_version or "unknown",
+            e,
         )
         playlist_ws_manager.disconnect_from_playlist(websocket, playlist_id, user_id)
 
@@ -113,6 +114,10 @@ async def _verify_playlist_access(
     """,
     include_in_schema=True,
 )
-def ws_docs_placeholder(playlist_id: int, device_id: str | None = Query(default=None)):
+def ws_docs_placeholder(
+    playlist_id: int,
+    device_id: str | None = Query(default=None),
+    app_version: str | None = Query(default=None),
+):
     """Placeholder route purely to render WebSocket specifications in Swagger UI."""
     pass

@@ -32,7 +32,7 @@ def _parse_delete_payload(event: EventQueue) -> PlaybackPayload | None:
     try:
         return PlaybackPayload.model_validate(event.payload)
     except Exception as e:
-        logger.error({"event": "invalid_delete_payload", "error": str(e)})
+        logger.error("Invalid delete payload: %s", e)
         return None
 
 
@@ -49,12 +49,9 @@ async def _execute_delete_transaction(
         if not track_to_delete:
             await db.rollback()
             logger.warning(
-                {
-                    "event": "delete_aborted",
-                    "reason": "track_not_found",
-                    "playlist_id": playlist_id,
-                    "track_id": payload.playlist_track_id,
-                }
+                "Delete aborted: track %s not found in playlist %s",
+                payload.playlist_track_id,
+                playlist_id,
             )
             await playlist_ws_manager.broadcast_error(
                 playlist_id=playlist_id,
@@ -67,11 +64,8 @@ async def _execute_delete_transaction(
         deleted_position = track_to_delete.position
         if deleted_position == 0:
             logger.warning(
-                {
-                    "event": "delete_aborted",
-                    "reason": "cannot_delete_position_zero",
-                    "track_id": payload.playlist_track_id,
-                }
+                "Delete aborted: cannot delete track at position zero (track_id=%s)",
+                payload.playlist_track_id,
             )
             await db.rollback()
             return None
@@ -91,12 +85,9 @@ async def _execute_delete_transaction(
     except Exception as e:
         await db.rollback()
         logger.error(
-            {
-                "event": "worker_delete_failed",
-                "reason": "database_error",
-                "event_id": event.id,
-                "error": str(e),
-            }
+            "Worker delete track failed (database error, event_id=%s): %s",
+            event.id,
+            e,
         )
         return None
 
@@ -114,17 +105,16 @@ async def _broadcast_delete_success(
 ) -> None:
     try:
         logger.info(
-            {
-                "event": "worker_track_deleted",
-                "event_id": event.id,
-                "track_id": payload.playlist_track_id,
-                "status": "success",
-            }
+            "Worker track deleted (event_id=%s, track_id=%s)",
+            event.id,
+            payload.playlist_track_id,
         )
         await playlist_ws_manager.broadcast_playlist_update(
             playlist_id=playlist_id, message=ws_message, user_id=event.user_id
         )
     except Exception as e:
         logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+            "Worker broadcast delete track failed (event_id=%s): %s",
+            event.id,
+            e,
         )

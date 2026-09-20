@@ -8,6 +8,13 @@ from app.db.redis import redis_client
 logger = logging.getLogger(__name__)
 
 
+def _get_connection_metadata(websocket) -> tuple[str, str]:
+    query_params = getattr(websocket, "query_params", {})
+    device_id = query_params.get("device_id") or "unknown"
+    app_version = query_params.get("app_version") or "unknown"
+    return device_id, app_version
+
+
 class PlaybackConnectionManager:
     def __init__(self):
         self.connections: dict[str, set] = {}
@@ -31,11 +38,30 @@ class PlaybackConnectionManager:
             str(viewer_id),
             controller_device_id,
         )
+        device_id, app_version = _get_connection_metadata(websocket)
+        logger.info(
+            "Playback WebSocket connected (room=%s, user=%s, device=%s, version=%s, "
+            "connections=%d)",
+            room,
+            viewer_id,
+            device_id,
+            app_version,
+            len(self.connections[room]),
+        )
 
     def disconnect(self, websocket, room_owner_id: uuid.UUID):
+        device_id, app_version = _get_connection_metadata(websocket)
         room = self.connections.get(str(room_owner_id))
         if room:
             room.discard(websocket)
+            logger.info(
+                "Playback WebSocket disconnected (room=%s, device=%s, version=%s, "
+                "connections=%d)",
+                room_owner_id,
+                device_id,
+                app_version,
+                len(room),
+            )
             if not room:
                 self.connections.pop(str(room_owner_id), None)
         self.connection_metadata.pop(websocket, None)

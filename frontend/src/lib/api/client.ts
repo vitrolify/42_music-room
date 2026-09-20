@@ -1,5 +1,9 @@
+import Constants from 'expo-constants';
 import * as Firebase from '../firebase';
 import { Platform } from 'react-native';
+import { getDeviceId } from '../deviceIdentity';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 function getApiBaseUrl(): string {
     // Expo exposes EXPO_PUBLIC_* at bundle time. Keep the web-specific setting
@@ -60,7 +64,7 @@ export function getPlaylistWebSocketUrl(playlistId: number, token: string, devic
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + `/ws/playlists/${playlistId}`;
-    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
     return apiUrl.toString();
 }
 
@@ -68,7 +72,7 @@ export function getPlaybackWebSocketUrl(sessionId: string, token: string, device
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playback';
-    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}${ownerId ? `&owner_id=${encodeURIComponent(ownerId)}` : ''}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}${ownerId ? `&owner_id=${encodeURIComponent(ownerId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
     return apiUrl.toString();
 }
 
@@ -83,9 +87,13 @@ export async function request<T>(
         throw new ApiError('Not authenticated', 401, 'AUTH_TOKEN_MISSING');
     }
 
+    const deviceId = await getDeviceId().catch(() => 'unknown');
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'X-Device-Id': deviceId,
+        'X-App-Version': APP_VERSION,
     };
 
     const res = await fetch(`${API_BASE}${path}`, {

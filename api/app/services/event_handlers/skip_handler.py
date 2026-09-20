@@ -45,7 +45,7 @@ def _parse_skip_payload(event: EventQueue) -> PlaybackPayload | None:
     try:
         return PlaybackPayload.model_validate(event.payload)
     except Exception as e:
-        logger.error({"event": "invalid_skip_payload", "error": str(e)})
+        logger.error("Invalid skip payload: %s", e)
         return None
 
 
@@ -70,7 +70,7 @@ async def _execute_skip_transaction(
             ) | {"playback_version": state.version}
         except (PermissionError, ValueError) as exc:
             await db.rollback()
-            logger.warning({"event": "skip_or_end_rejected", "reason": str(exc)})
+            logger.warning("Skip or end rejected: %s", exc)
             return None
     try:
         await lock_playlist(db, playlist_id)
@@ -81,12 +81,8 @@ async def _execute_skip_transaction(
         if not current_track:
             await db.rollback()
             logger.warning(
-                {
-                    "event": "skip_ignored",
-                    "reason": "track_not_at_position_zero",
-                    "playlist_track_id": payload.playlist_track_id,
-                    "msg": "Track is no longer at position 0. Ignoring skip.",
-                }
+                "Skip ignored: track %s is no longer at position 0",
+                payload.playlist_track_id,
             )
             await playlist_ws_manager.broadcast_error(
                 playlist_id=playlist_id,
@@ -119,12 +115,9 @@ async def _execute_skip_transaction(
     except Exception as e:
         await db.rollback()
         logger.error(
-            {
-                "event": "worker_skip_handler_error",
-                "reason": "database_error",
-                "event_id": event.id,
-                "error": str(e),
-            }
+            "Worker skip handler failed (database error, event_id=%s): %s",
+            event.id,
+            e,
         )
         return None
 
@@ -147,12 +140,9 @@ async def _broadcast_skip_success(
 ) -> None:
     try:
         logger.info(
-            {
-                "event": "worker_track_skipped",
-                "event_id": event.id,
-                "playlist_id": playlist_id,
-                "status": "success",
-            }
+            "Worker track skipped (event_id=%s, playlist_id=%s)",
+            event.id,
+            playlist_id,
         )
         await playlist_ws_manager.broadcast_playlist_update(
             playlist_id=playlist_id, message=ws_message, user_id=event.user_id
@@ -173,7 +163,9 @@ async def _broadcast_skip_success(
                 )
     except Exception as e:
         logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+            "Worker broadcast skip failed (event_id=%s): %s",
+            event.id,
+            e,
         )
 
 

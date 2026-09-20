@@ -48,7 +48,7 @@ def _parse_playback_payload(event: EventQueue) -> PlaybackPayload | None:
     try:
         return PlaybackPayload.model_validate(event.payload)
     except Exception as e:
-        logger.error({"event": "invalid_playback_payload", "error": str(e)})
+        logger.error("Invalid playback payload: %s", e)
         return None
 
 
@@ -75,7 +75,7 @@ async def _execute_playback_transaction(
             ) | {"playback_version": state.version}
         except (PermissionError, ValueError) as exc:
             await db.rollback()
-            logger.warning({"event": "playback_rejected", "reason": str(exc)})
+            logger.warning("Playback rejected: %s", exc)
             return None
     try:
         await lock_playlist(db, playlist_id)
@@ -120,12 +120,10 @@ async def _execute_playback_transaction(
     except Exception as e:
         await db.rollback()
         logger.error(
-            {
-                "event": f"worker_{event.event.value}_failed",
-                "reason": "database_error",
-                "event_id": event.id,
-                "error": str(e),
-            }
+            "Worker %s failed (database error, event_id=%s): %s",
+            event.event.value,
+            event.id,
+            e,
         )
         return None
 
@@ -138,20 +136,16 @@ def _state_is_valid(
 ) -> TypeGuard[PlaylistTrack]:
     if not current_track:
         logger.warning(
-            {
-                "event": f"{event.event.value}_ignored",
-                "reason": "track_not_at_position_zero",
-                "playlist_track_id": payload.playlist_track_id,
-            }
+            "%s ignored: track %s is not at position zero",
+            event.event.value,
+            payload.playlist_track_id,
         )
         return False
     if current_track.status == target_status:
         logger.info(
-            {
-                "event": f"worker_{event.event.value}_aborted",
-                "reason": "already_in_target_status",
-                "playlist_track_id": payload.playlist_track_id,
-            }
+            "Worker %s aborted: track %s already in target status",
+            event.event.value,
+            payload.playlist_track_id,
         )
         return False
     return True
@@ -181,12 +175,10 @@ async def _broadcast_playback_success(
 ) -> None:
     try:
         logger.info(
-            {
-                "event": f"worker_{event.event.value}_success",
-                "event_id": event.id,
-                "playlist_id": playlist_id,
-                "status": "success",
-            }
+            "Worker %s success (event_id=%s, playlist_id=%s)",
+            event.event.value,
+            event.id,
+            playlist_id,
         )
         await playlist_ws_manager.broadcast_playlist_update(
             playlist_id=playlist_id, message=ws_message, user_id=event.user_id
@@ -209,7 +201,10 @@ async def _broadcast_playback_success(
                 )
     except Exception as e:
         logger.error(
-            {"event": "worker_broadcast_failed", "event_id": event.id, "error": str(e)}
+            "Worker broadcast %s failed (event_id=%s): %s",
+            event.event.value,
+            event.id,
+            e,
         )
 
 
