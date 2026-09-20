@@ -15,7 +15,7 @@ EXCLUDED_PATHS = {
 class UserActionMiddleware(BaseHTTPMiddleware):
     @override
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in EXCLUDED_PATHS:
+        if request.method == "OPTIONS" or request.url.path in EXCLUDED_PATHS:
             return await call_next(request)
 
         response = await call_next(request)
