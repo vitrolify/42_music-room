@@ -111,13 +111,18 @@ export async function request<T>(
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
+        const detail = typeof err.detail === 'string'
+            ? err.detail
+            : Array.isArray(err.detail)
+                ? err.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(', ')
+                : undefined;
         if (res.status === 401) {
             onUnauthorizedHandler?.();
         }
         throw new ApiError(
-            err.message ?? res.statusText ?? 'Request failed',
+            err.message ?? detail ?? res.statusText ?? 'Request failed',
             res.status,
-            err.error_code,
+            err.error_code ?? err.code,
         );
     }
 

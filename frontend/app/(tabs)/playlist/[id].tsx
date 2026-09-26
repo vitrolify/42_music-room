@@ -398,7 +398,14 @@ export default function PlaylistDetail() {
                     onAction={action => handleTrackAction(item, action)}
                 />
             )}
-            onDragEnd={({ data, from, to }) => { void handleDragEnd(data, from, to); }}
+            onDragEnd={({ data, from, to }) => {
+                void handleDragEnd(data, from, to).catch(error => {
+                    console.error('Playlist drag reorder failed', error);
+                    setMutationMessage(null);
+                    setMutating(false);
+                    Alert.alert('Error', getPlaylistTrackMutationErrorMessage(error, 'move track'));
+                });
+            }}
             activationDistance={8}
             refreshControl={
                 <RefreshControl
