@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useRef, useState } from 'react';
+import { createElement, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -11,7 +11,7 @@ import {
     Image,
 } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import { DotsSixVertical } from 'phosphor-react-native';
+import { ArrowDown, ArrowUp, DotsSixVertical, Trash } from 'phosphor-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -610,22 +610,31 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                     <MoveButton
-                        label="Up"
+                        label="Move up"
+                        icon={<ArrowUp size={18} color={colors.text.primary} weight="bold" />}
                         disabled={disabled || isFirst}
                         onPress={() => onMove(track, track.position - 1)}
                     />
                     <MoveButton
-                        label="Down"
+                        label="Move down"
+                        icon={<ArrowDown size={18} color={colors.text.primary} weight="bold" />}
                         disabled={disabled || isLast || isFirst}
                         onPress={() => onMove(track, track.position + 1)}
                     />
+                    {!isFirst && track.status === 'queued' ? (
+                        <MoveButton
+                            label="Delete"
+                            icon={<Trash size={18} color={colors.semantic.error} weight="bold" />}
+                            disabled={disabled}
+                            onPress={() => onAction('delete')}
+                        />
+                    ) : null}
                 </View>
             </View>
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                 {isFirst && track.status !== 'playing' ? <MoveButton label="Play" disabled={disabled} onPress={() => onAction('play')} /> : null}
                 {isFirst && track.status === 'playing' ? <MoveButton label="Pause" disabled={disabled} onPress={() => onAction('pause')} /> : null}
                 {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
-                {!isFirst && track.status === 'queued' ? <MoveButton label="Delete" disabled={disabled} onPress={() => onAction('delete')} /> : null}
             </View>
         </Pressable>
     );
@@ -642,22 +651,25 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
 
 type MoveButtonProps = {
     label: string;
+    icon?: ReactNode;
     disabled: boolean;
     onPress: () => void;
 };
 
-function MoveButton({ label, disabled, onPress }: MoveButtonProps) {
+function MoveButton({ label, icon, disabled, onPress }: MoveButtonProps) {
     return (
         <Pressable
             style={({ pressed }) => ({
                 ...globalStyles.pillButton,
-                paddingHorizontal: spacing.md,
+                paddingHorizontal: icon ? spacing.sm : spacing.md,
                 opacity: disabled || pressed ? 0.55 : 1,
             })}
             onPress={onPress}
             disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={label}
         >
-            <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>{label}</Text>
+            {icon ?? <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>{label}</Text>}
         </Pressable>
     );
 }
