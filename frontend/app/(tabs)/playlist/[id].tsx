@@ -595,7 +595,7 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
         >
             <View style={{ flexDirection: 'row' }}>
                 {showDragHandle ? (
-                    <View style={{ width: 20, marginRight: spacing.sm, paddingTop: spacing.xs }}>
+                    <View style={{ width: 20, marginRight: spacing.sm, alignItems: 'center', justifyContent: 'center' }}>
                         <DotsSixVertical size={20} color={colors.text.secondary} weight="bold" />
                     </View>
                 ) : null}
