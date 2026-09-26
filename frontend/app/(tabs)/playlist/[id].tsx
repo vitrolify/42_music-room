@@ -608,35 +608,36 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
             delayLongPress={180}
             style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
         >
-            <View>
+            <View style={{ flexDirection: 'row' }}>
                 {showDragHandle ? (
-                    <View style={{ position: 'absolute', left: 0, top: 0 }}>
+                    <View style={{ width: 20, marginRight: spacing.sm, paddingTop: spacing.xs }}>
                         <DotsSixVertical size={20} color={colors.text.secondary} weight="bold" />
                     </View>
                 ) : null}
-                <View style={showDragHandle ? { paddingLeft: 28 } : undefined}>
-                    <Text style={globalStyles.bodyBold} numberOfLines={1}>
-                        {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
-                    </Text>
-                    {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.sm }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
-                        {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36 }} /> : null}
-                        <View style={{ justifyContent: 'space-between', minHeight: 36 }}>
-                            {track.track_info.duration_seconds != null ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Duration: ${formatDuration(track.track_info.duration_seconds)}`}>
-                                    <Clock size={14} color={colors.text.secondary} weight="bold" />
-                                    <Text style={globalStyles.small}>{formatDuration(track.track_info.duration_seconds)}</Text>
+                <View style={{ flex: 1 }}>
+                    <View>
+                        <Text style={globalStyles.bodyBold} numberOfLines={1}>
+                            {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
+                        </Text>
+                        {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.sm }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
+                            {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36 }} /> : null}
+                            <View style={{ justifyContent: 'space-between', minHeight: 36 }}>
+                                {track.track_info.duration_seconds != null ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Duration: ${formatDuration(track.track_info.duration_seconds)}`}>
+                                        <Clock size={14} color={colors.text.secondary} weight="bold" />
+                                        <Text style={globalStyles.small}>{formatDuration(track.track_info.duration_seconds)}</Text>
+                                    </View>
+                                ) : null}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Status: ${formatTrackStatus(track.status)}`}>
+                                    <Info size={14} color={colors.text.secondary} weight="bold" />
+                                    <Text style={globalStyles.small}>{formatTrackStatus(track.status)}</Text>
                                 </View>
-                            ) : null}
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Status: ${formatTrackStatus(track.status)}`}>
-                                <Info size={14} color={colors.text.secondary} weight="bold" />
-                                <Text style={globalStyles.small}>{formatTrackStatus(track.status)}</Text>
                             </View>
                         </View>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: spacing.sm, flexShrink: 0 }}>
+                        <View style={{ flexDirection: 'row', gap: spacing.sm, flexShrink: 0 }}>
                         {!isFirst ? (
                             <>
                                 <MoveButton
@@ -685,6 +686,7 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
                                 onPress={() => onAction('skip')}
                             />
                         ) : null}
+                        </View>
                     </View>
                 </View>
             </View>
