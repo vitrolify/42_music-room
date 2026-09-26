@@ -4,12 +4,12 @@ import {
     Alert,
     Pressable,
     RefreshControl,
-    ScrollView,
     Text,
     TextInput,
     View,
     Image,
 } from 'react-native';
+import DraggableFlatList from 'react-native-draggable-flatlist';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -288,6 +288,84 @@ export default function PlaylistDetail() {
         }
     }
 
+    async function handleTrackAction(
+        track: PlaylistTrack,
+        action: 'play' | 'pause' | 'skip' | 'delete',
+    ) {
+        if (action === 'delete' && track.position === 0) return;
+        if (action === 'delete') {
+            const confirmed = await new Promise<boolean>(resolve => {
+                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
+                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+                ]);
+            });
+            if (!confirmed) return;
+        }
+
+        setMutating(true);
+        setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
+        try {
+            if (action === 'play' || action === 'pause' || action === 'skip') {
+                await commandPlaylistTrack(playlistId, track.id, action);
+            }
+            if (action === 'delete') await deletePlaylistTrack(playlistId, track);
+            await refreshTracksAfterMutation(
+                nextTracks => {
+                    if (action === 'delete') {
+                        return !nextTracks.some(nextTrack => nextTrack.id === track.id);
+                    }
+                    if (action === 'skip') {
+                        return nextTracks[0]?.id !== track.id;
+                    }
+                    const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
+                    return action === 'play'
+                        ? updatedTrack?.status === 'playing'
+                        : updatedTrack?.status === 'paused';
+                },
+                `The ${action} request was accepted, but the queue has not updated yet if it stays unchanged.`,
+            );
+        } catch (err) {
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
+        } finally {
+            setMutationMessage(null);
+            setMutating(false);
+        }
+    }
+
+    async function handleDragEnd(data: PlaylistTrack[], from: number, to: number) {
+        if (from === to || mutating) return;
+
+        const draggedTrack = tracks.filter(track => track.position > 0)[from];
+        const newPosition = to + 1;
+        if (!draggedTrack || draggedTrack.position === newPosition) return;
+
+        const activeTrack = tracks.find(track => track.position === 0);
+        const reorderedTracks = [
+            ...(activeTrack ? [activeTrack] : []),
+            ...data,
+        ].map((track, position) => ({ ...track, position }));
+
+        setTracks(reorderedTracks);
+        setMutating(true);
+        setMutationMessage('Moving track...');
+        try {
+            await movePlaylistTrack(playlistId, draggedTrack, newPosition);
+            await refreshTracksAfterMutation(
+                nextTracks => nextTracks.some(nextTrack => (
+                    nextTrack.id === draggedTrack.id && nextTrack.position === newPosition
+                )),
+                'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
+            );
+        } catch (err) {
+            await fetchData();
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
+        } finally {
+            setMutationMessage(null);
+            setMutating(false);
+        }
+    }
+
     if (loading) {
         return (
             <View style={[globalStyles.container, { paddingTop: insets.top + spacing.xl }]}>
@@ -296,13 +374,32 @@ export default function PlaylistDetail() {
         );
     }
 
+    const activeTrack = tracks.find(track => track.position === 0) ?? null;
+    const queuedTracks = tracks.filter(track => track.position > 0);
+
     return (
-        <ScrollView
+        <DraggableFlatList
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
-                padding: spacing.xl,
+                paddingHorizontal: spacing.xl,
                 paddingBottom: insets.bottom + spacing.xxl,
             }}
+            data={error ? [] : queuedTracks}
+            keyExtractor={track => String(track.id)}
+            renderItem={({ item, drag, isActive }) => (
+                <TrackRow
+                    track={item}
+                    isFirst={false}
+                    isLast={item.position === tracks.length - 1}
+                    disabled={mutating}
+                    onDrag={drag}
+                    isActive={isActive}
+                    onMove={handleMoveTrack}
+                    onAction={action => handleTrackAction(item, action)}
+                />
+            )}
+            onDragEnd={({ data, from, to }) => { void handleDragEnd(data, from, to); }}
+            activationDistance={8}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -310,7 +407,8 @@ export default function PlaylistDetail() {
                     tintColor={colors.brand}
                 />
             }
-        >
+            ListHeaderComponent={
+                <>
             <View style={{ marginBottom: spacing.xl }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
                     <Pressable
@@ -394,60 +492,26 @@ export default function PlaylistDetail() {
                             <Text style={[globalStyles.heading, { marginBottom: spacing.sm }]}>No tracks yet</Text>
                             <Text style={globalStyles.secondaryText}>Add a track id to start building this playlist.</Text>
                         </View>
-                    ) : (
-                        <View style={{ gap: spacing.sm }}>
-                            {tracks.map(track => (
-                                <TrackRow
-                                    key={track.id}
-                                    track={track}
-                                    isFirst={track.position === 0}
-                                    isLast={track.position === tracks.length - 1}
-                                    disabled={mutating}
-                                    onMove={handleMoveTrack}
-                                    onAction={async action => {
-                                        if (action === 'delete' && track.position === 0) return;
-                                        if (action === 'delete') {
-                                            const confirmed = await new Promise<boolean>(resolve => {
-                                                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
-                                                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                                                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-                                                ]);
-                                            });
-                                            if (!confirmed) return;
-                                        }
-                                        setMutating(true);
-                                        setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
-                                        try {
-                                            if (action === 'play' || action === 'pause' || action === 'skip') {
-                                                await commandPlaylistTrack(playlistId, track.id, action);
-                                            }
-                                            if (action === 'delete') await deletePlaylistTrack(playlistId, track);
-                                            await refreshTracksAfterMutation(
-                                                nextTracks => {
-                                                    if (action === 'delete') {
-                                                        return !nextTracks.some(nextTrack => nextTrack.id === track.id);
-                                                    }
-                                                    if (action === 'skip') {
-                                                        return nextTracks[0]?.id !== track.id;
-                                                    }
-                                                    const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
-                                                    return action === 'play'
-                                                        ? updatedTrack?.status === 'playing'
-                                                        : updatedTrack?.status === 'paused';
-                                                },
-                                                `The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
-                                            );
-                                        } catch (err) {
-                                            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
-                                        } finally { setMutationMessage(null); setMutating(false); }
-                                    }}
-                                />
-                            ))}
+                    ) : activeTrack ? (
+                        <View style={{ marginBottom: spacing.sm }}>
+                            <TrackRow
+                                track={activeTrack}
+                                isFirst
+                                isLast={tracks.length === 1}
+                                disabled={mutating}
+                                onMove={handleMoveTrack}
+                                onAction={action => handleTrackAction(activeTrack, action)}
+                            />
+                            {queuedTracks.length > 0 ? (
+                                <Text style={[globalStyles.small, { marginTop: spacing.md, marginBottom: spacing.sm }]}>Drag tracks to reorder the queue</Text>
+                            ) : null}
                         </View>
-                    )}
+                    ) : null}
                 </>
             )}
-        </ScrollView>
+                </>
+            }
+        />
     );
 }
 
@@ -456,13 +520,19 @@ type TrackRowProps = {
     isFirst: boolean;
     isLast: boolean;
     disabled: boolean;
+    onDrag?: () => void;
+    isActive?: boolean;
     onMove: (track: PlaylistTrack, newPosition: number) => void;
     onAction: (action: 'play' | 'pause' | 'skip' | 'delete') => void;
 };
 
-function TrackRow({ track, isFirst, isLast, disabled, onMove, onAction }: TrackRowProps) {
+function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, onMove, onAction }: TrackRowProps) {
     return (
-        <View style={cardStyle}>
+        <Pressable
+            onLongPress={onDrag}
+            delayLongPress={180}
+            style={[cardStyle, isActive ? { backgroundColor: colors.bg.elevated } : null]}
+        >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
                     <Text style={globalStyles.bodyBold} numberOfLines={1}>
@@ -492,7 +562,7 @@ function TrackRow({ track, isFirst, isLast, disabled, onMove, onAction }: TrackR
                 {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
                 {!isFirst && track.status === 'queued' ? <MoveButton label="Delete" disabled={disabled} onPress={() => onAction('delete')} /> : null}
             </View>
-        </View>
+        </Pressable>
     );
 }
 
