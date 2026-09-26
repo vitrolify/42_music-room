@@ -593,18 +593,20 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
             delayLongPress={180}
             style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
         >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View>
                 {showDragHandle ? (
-                    <View style={{ paddingRight: spacing.sm }}>
+                    <View style={{ position: 'absolute', left: 0, top: 0 }}>
                         <DotsSixVertical size={20} color={colors.text.secondary} weight="bold" />
                     </View>
                 ) : null}
-                <View style={{ flex: 1, marginRight: spacing.md }}>
+                <View style={showDragHandle ? { paddingLeft: 28 } : undefined}>
                     <Text style={globalStyles.bodyBold} numberOfLines={1}>
                         {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
                     </Text>
                     {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
                         {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36 }} /> : null}
                         <View style={{ justifyContent: 'space-between', minHeight: 36 }}>
                             {track.track_info.duration_seconds != null ? (
@@ -619,55 +621,57 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
                             </View>
                         </View>
                     </View>
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, flexShrink: 0 }}>
+                        {!isFirst ? (
+                            <>
+                                <MoveButton
+                                    label="Move up"
+                                    icon={<ArrowUp size={18} color={colors.text.primary} weight="bold" />}
+                                    disabled={disabled}
+                                    onPress={() => onMove(track, track.position - 1)}
+                                />
+                                <MoveButton
+                                    label="Move down"
+                                    icon={<ArrowDown size={18} color={colors.text.primary} weight="bold" />}
+                                    disabled={disabled || isLast}
+                                    onPress={() => onMove(track, track.position + 1)}
+                                />
+                                {track.status === 'queued' ? (
+                                    <MoveButton
+                                        label="Delete"
+                                        icon={<Trash size={18} color={colors.semantic.error} weight="bold" />}
+                                        disabled={disabled}
+                                        onPress={() => onAction('delete')}
+                                    />
+                                ) : null}
+                            </>
+                        ) : null}
+                        {isFirst && track.status !== 'playing' ? (
+                            <MoveButton
+                                label="Play"
+                                icon={<Play size={18} color={colors.text.primary} weight="fill" />}
+                                disabled={disabled}
+                                onPress={() => onAction('play')}
+                            />
+                        ) : null}
+                        {isFirst && track.status === 'playing' ? (
+                            <MoveButton
+                                label="Pause"
+                                icon={<Pause size={18} color={colors.text.primary} weight="fill" />}
+                                disabled={disabled}
+                                onPress={() => onAction('pause')}
+                            />
+                        ) : null}
+                        {isFirst ? (
+                            <MoveButton
+                                label="Skip"
+                                icon={<SkipForward size={18} color={colors.text.primary} weight="fill" />}
+                                disabled={disabled}
+                                onPress={() => onAction('skip')}
+                            />
+                        ) : null}
+                    </View>
                 </View>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    <MoveButton
-                        label="Move up"
-                        icon={<ArrowUp size={18} color={colors.text.primary} weight="bold" />}
-                        disabled={disabled || isFirst}
-                        onPress={() => onMove(track, track.position - 1)}
-                    />
-                    <MoveButton
-                        label="Move down"
-                        icon={<ArrowDown size={18} color={colors.text.primary} weight="bold" />}
-                        disabled={disabled || isLast || isFirst}
-                        onPress={() => onMove(track, track.position + 1)}
-                    />
-                    {!isFirst && track.status === 'queued' ? (
-                        <MoveButton
-                            label="Delete"
-                            icon={<Trash size={18} color={colors.semantic.error} weight="bold" />}
-                            disabled={disabled}
-                            onPress={() => onAction('delete')}
-                        />
-                    ) : null}
-                </View>
-            </View>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                {isFirst && track.status !== 'playing' ? (
-                    <MoveButton
-                        label="Play"
-                        icon={<Play size={18} color={colors.text.primary} weight="fill" />}
-                        disabled={disabled}
-                        onPress={() => onAction('play')}
-                    />
-                ) : null}
-                {isFirst && track.status === 'playing' ? (
-                    <MoveButton
-                        label="Pause"
-                        icon={<Pause size={18} color={colors.text.primary} weight="fill" />}
-                        disabled={disabled}
-                        onPress={() => onAction('pause')}
-                    />
-                ) : null}
-                {isFirst ? (
-                    <MoveButton
-                        label="Skip"
-                        icon={<SkipForward size={18} color={colors.text.primary} weight="fill" />}
-                        disabled={disabled}
-                        onPress={() => onAction('skip')}
-                    />
-                ) : null}
             </View>
         </Pressable>
     );
