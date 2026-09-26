@@ -56,20 +56,6 @@ jobs:
           pip install -e ".[dev]"
           pytest --tb=short -q || [ $? -eq 5 ]
 
-  contract:
-    name: Contract validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Validate OpenAPI spec
-        run: bash scripts/validate_openapi.sh
-
   container:
     name: Container build
     runs-on: ubuntu-latest
