@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     Pressable,
     RefreshControl,
     Text,
@@ -28,11 +29,13 @@ import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
 import { usePlayer } from '../../../src/contexts/PlayerContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { usePlayerBarPadding } from '../../../src/hooks/usePlayerBarPadding';
 import { applyPlaylistPlaybackChanged } from '../../../src/lib/playlistSync';
 
 export default function PlaylistDetail() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const playerBarPadding = usePlayerBarPadding();
     const { id } = useLocalSearchParams<{ id: string }>();
     const playlistId = Number(id);
     const { commandPlaylistTrack } = usePlayer();
@@ -51,6 +54,7 @@ export default function PlaylistDetail() {
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttempt = useRef(0);
     const staleErrorCount = useRef(0);
+    const webDragIndex = useRef<number | null>(null);
     const STALE_THRESHOLD = 3;
 
     const isValidPlaylistId = Number.isInteger(playlistId) && playlistId > 0;
@@ -351,12 +355,14 @@ export default function PlaylistDetail() {
         setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, draggedTrack, newPosition);
-            await refreshTracksAfterMutation(
-                nextTracks => nextTracks.some(nextTrack => (
-                    nextTrack.id === draggedTrack.id && nextTrack.position === newPosition
-                )),
-                'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
-            );
+            if (connectionState !== 'connected') {
+                await refreshTracksAfterMutation(
+                    nextTracks => nextTracks.some(nextTrack => (
+                        nextTrack.id === draggedTrack.id && nextTrack.position === newPosition
+                    )),
+                    'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
+                );
+            }
         } catch (err) {
             await fetchData();
             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
@@ -364,6 +370,27 @@ export default function PlaylistDetail() {
             setMutationMessage(null);
             setMutating(false);
         }
+    }
+
+    function handleWebDragStart(index: number) {
+        webDragIndex.current = index;
+    }
+
+    function handleWebDrop(targetIndex: number, event: any) {
+        event.preventDefault();
+        const from = webDragIndex.current;
+        webDragIndex.current = null;
+        if (from === null || from === targetIndex) return;
+
+        const data = [...queuedTracks];
+        const [draggedTrack] = data.splice(from, 1);
+        data.splice(targetIndex, 0, draggedTrack);
+        void handleDragEnd(data, from, targetIndex).catch(error => {
+            console.error('Playlist web drag reorder failed', error);
+            setMutationMessage(null);
+            setMutating(false);
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(error, 'move track'));
+        });
     }
 
     if (loading) {
@@ -383,22 +410,39 @@ export default function PlaylistDetail() {
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 paddingHorizontal: spacing.xl,
-                paddingBottom: insets.bottom + spacing.xxl,
+                paddingBottom: insets.bottom + spacing.xxl + playerBarPadding,
             }}
             data={error ? [] : queuedTracks}
             keyExtractor={track => String(track.id)}
-            renderItem={({ item, drag, isActive }) => (
-                <TrackRow
-                    track={item}
-                    isFirst={false}
-                    isLast={item.position === tracks.length - 1}
-                    disabled={mutating}
-                    onDrag={drag}
-                    isActive={isActive}
-                    onMove={handleMoveTrack}
-                    onAction={action => handleTrackAction(item, action)}
-                />
-            )}
+            renderItem={({ item, drag, isActive, getIndex }) => {
+                const index = getIndex() ?? 0;
+                return (
+                    <TrackRow
+                        track={item}
+                        isFirst={false}
+                        isLast={item.position === tracks.length - 1}
+                        disabled={mutating}
+                        onDrag={Platform.OS === 'web' ? undefined : drag}
+                        isActive={isActive}
+                        webDragProps={Platform.OS === 'web' ? {
+                            draggable: true,
+                            onDragStart: () => handleWebDragStart(index),
+                            onDragOver: (event: any) => event.preventDefault(),
+                            onDrop: (event: any) => {
+                                event.preventDefault();
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                const insertionIndex = index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+                                const from = webDragIndex.current;
+                                const to = from !== null && from < insertionIndex ? insertionIndex - 1 : insertionIndex;
+                                handleWebDrop(to, event);
+                            },
+                            onDragEnd: () => { webDragIndex.current = null; },
+                        } : undefined}
+                        onMove={handleMoveTrack}
+                        onAction={action => handleTrackAction(item, action)}
+                    />
+                );
+            }}
             onDragEnd={({ data, from, to }) => {
                 void handleDragEnd(data, from, to).catch(error => {
                     console.error('Playlist drag reorder failed', error);
@@ -530,16 +574,18 @@ type TrackRowProps = {
     disabled: boolean;
     onDrag?: () => void;
     isActive?: boolean;
+    webDragProps?: Record<string, unknown>;
     onMove: (track: PlaylistTrack, newPosition: number) => void;
     onAction: (action: 'play' | 'pause' | 'skip' | 'delete') => void;
 };
 
-function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, onMove, onAction }: TrackRowProps) {
+function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
     return (
         <Pressable
+            {...webDragProps}
             onLongPress={onDrag}
             delayLongPress={180}
-            style={[cardStyle, isActive ? { backgroundColor: colors.bg.elevated } : null]}
+            style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
