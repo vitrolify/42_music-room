@@ -54,6 +54,7 @@ export default function PlaylistDetail() {
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttempt = useRef(0);
     const staleErrorCount = useRef(0);
+    const pendingMove = useRef<{ trackId: number; newPosition: number } | null>(null);
     const webDragIndex = useRef<number | null>(null);
     const STALE_THRESHOLD = 3;
 
@@ -152,6 +153,15 @@ export default function PlaylistDetail() {
                                 });
                                 break;
                             case 'TRACK_MOVED': {
+                                const pending = pendingMove.current;
+                                if (
+                                    pending
+                                    && pending.trackId === payload.playlist_track_id
+                                    && pending.newPosition === payload.new_position
+                                ) {
+                                    pendingMove.current = null;
+                                    return prevTracks;
+                                }
                                 const index = nextTracks.findIndex(t => t.id === payload.playlist_track_id);
                                 if (index !== -1) {
                                     const [movedTrack] = nextTracks.splice(index, 1);
@@ -350,6 +360,9 @@ export default function PlaylistDetail() {
             ...data,
         ].map((track, position) => ({ ...track, position }));
 
+        if (connectionState === 'connected') {
+            pendingMove.current = { trackId: draggedTrack.id, newPosition };
+        }
         setTracks(reorderedTracks);
         setMutating(true);
         setMutationMessage('Moving track...');
@@ -364,6 +377,7 @@ export default function PlaylistDetail() {
                 );
             }
         } catch (err) {
+            pendingMove.current = null;
             await fetchData();
             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
         } finally {
@@ -391,6 +405,23 @@ export default function PlaylistDetail() {
             setMutating(false);
             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(error, 'move track'));
         });
+    }
+
+    function createWebDragProps(index: number): Record<string, unknown> {
+        return {
+            draggable: true,
+            onDragStart: () => handleWebDragStart(index),
+            onDragOver: (event: any) => event.preventDefault(),
+            onDrop: (event: any) => {
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+                const insertionIndex = index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+                const from = webDragIndex.current;
+                const to = from !== null && from < insertionIndex ? insertionIndex - 1 : insertionIndex;
+                handleWebDrop(to, event);
+            },
+            onDragEnd: () => { webDragIndex.current = null; },
+        };
     }
 
     if (loading) {
@@ -424,20 +455,7 @@ export default function PlaylistDetail() {
                         disabled={mutating}
                         onDrag={Platform.OS === 'web' ? undefined : drag}
                         isActive={isActive}
-                        webDragProps={Platform.OS === 'web' ? {
-                            draggable: true,
-                            onDragStart: () => handleWebDragStart(index),
-                            onDragOver: (event: any) => event.preventDefault(),
-                            onDrop: (event: any) => {
-                                event.preventDefault();
-                                const rect = event.currentTarget.getBoundingClientRect();
-                                const insertionIndex = index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
-                                const from = webDragIndex.current;
-                                const to = from !== null && from < insertionIndex ? insertionIndex - 1 : insertionIndex;
-                                handleWebDrop(to, event);
-                            },
-                            onDragEnd: () => { webDragIndex.current = null; },
-                        } : undefined}
+                        webDragProps={Platform.OS === 'web' ? createWebDragProps(index) : undefined}
                         onMove={handleMoveTrack}
                         onAction={action => handleTrackAction(item, action)}
                     />
@@ -581,12 +599,12 @@ type TrackRowProps = {
 
 function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
     return (
-        <Pressable
-            {...webDragProps}
-            onLongPress={onDrag}
-            delayLongPress={180}
-            style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
-        >
+        <View {...webDragProps}>
+            <Pressable
+                onLongPress={onDrag}
+                delayLongPress={180}
+                style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
+            >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
                     <Text style={globalStyles.bodyBold} numberOfLines={1}>
@@ -616,7 +634,8 @@ function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragP
                 {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
                 {!isFirst && track.status === 'queued' ? <MoveButton label="Delete" disabled={disabled} onPress={() => onAction('delete')} /> : null}
             </View>
-        </Pressable>
+            </Pressable>
+        </View>
     );
 }
 
