@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event_queue import EventQueue
-from app.schemas.event import PlaybackPayload
+from app.schemas.event import DeletePayload
 from app.services.playlist_service import lock_playlist
 from app.services.playlist_track_service import get_track_by_id, shift_queue_up
 from app.websockets.playlist_manager import playlist_ws_manager
@@ -28,16 +28,16 @@ async def process_delete_track(
     await _broadcast_delete_success(playlist_id, event, payload, ws_message)
 
 
-def _parse_delete_payload(event: EventQueue) -> PlaybackPayload | None:
+def _parse_delete_payload(event: EventQueue) -> DeletePayload | None:
     try:
-        return PlaybackPayload.model_validate(event.payload)
+        return DeletePayload.model_validate(event.payload)
     except Exception as e:
         logger.error("Invalid delete payload: %s", e)
         return None
 
 
 async def _execute_delete_transaction(
-    db: AsyncSession, event: EventQueue, playlist_id: int, payload: PlaybackPayload
+    db: AsyncSession, event: EventQueue, playlist_id: int, payload: DeletePayload
 ) -> dict | None:
     try:
         await lock_playlist(db, playlist_id)
@@ -101,7 +101,7 @@ def _build_track_deleted_payload(track_id: int, pos: int) -> dict:
 
 
 async def _broadcast_delete_success(
-    playlist_id: int, event: EventQueue, payload: PlaybackPayload, ws_message: dict
+    playlist_id: int, event: EventQueue, payload: DeletePayload, ws_message: dict
 ) -> None:
     try:
         logger.info(
