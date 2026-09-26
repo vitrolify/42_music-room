@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.invite import InviteStatus
 from app.models.user import Avatar
@@ -13,7 +13,7 @@ class InviteCreate(BaseModel):
 
 
 class InviteByEmailCreate(BaseModel):
-    email: str
+    email: str = Field(min_length=3, max_length=254)
 
 
 class InviteRead(BaseModel):

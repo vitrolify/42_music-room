@@ -23,7 +23,7 @@ class TrackMoveEvent(MovePayload):
 
 
 class AddPayload(BaseModel):
-    track_info_id: str
+    track_info_id: str = Field(min_length=1, max_length=500)
 
     @field_validator("track_info_id")
     @classmethod
