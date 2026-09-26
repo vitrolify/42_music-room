@@ -11,7 +11,7 @@ import {
     Image,
 } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import { ArrowDown, ArrowUp, DotsSixVertical, Pause, Play, SkipForward, Trash } from 'phosphor-react-native';
+import { ArrowDown, ArrowUp, Clock, DotsSixVertical, ListBullets, Pause, PauseCircle, Play, PlayCircle, SkipForward, Trash } from 'phosphor-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -605,8 +605,17 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
                     </Text>
                     {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
                     {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36, marginTop: spacing.xs }} /> : null}
-                    {track.track_info.duration_seconds != null ? <Text style={globalStyles.small}>Duration: {formatDuration(track.track_info.duration_seconds)}</Text> : null}
-                    <Text style={globalStyles.small}>Status: {track.status}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs }}>
+                        {track.track_info.duration_seconds != null ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Duration: ${formatDuration(track.track_info.duration_seconds)}`}>
+                                <Clock size={14} color={colors.text.secondary} weight="bold" />
+                                <Text style={globalStyles.small}>{formatDuration(track.track_info.duration_seconds)}</Text>
+                            </View>
+                        ) : null}
+                        <View accessibilityLabel={`Status: ${formatTrackStatus(track.status)}`}>
+                            <TrackStatusIcon status={track.status} />
+                        </View>
+                    </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                     <MoveButton
@@ -708,6 +717,20 @@ function sleep(ms: number) {
 function formatDuration(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function TrackStatusIcon({ status }: { status: PlaylistTrack['status'] }) {
+    const iconProps = { size: 18, color: colors.text.secondary, weight: 'fill' as const };
+
+    if (status === 'playing') return <PlayCircle {...iconProps} color={colors.brand} />;
+    if (status === 'paused') return <PauseCircle {...iconProps} />;
+    return <ListBullets {...iconProps} weight="bold" />;
+}
+
+function formatTrackStatus(status: PlaylistTrack['status']) {
+    if (status === 'playing') return 'Playing';
+    if (status === 'paused') return 'Paused';
+    return 'Queued';
 }
 
 function getPlaylistTrackLoadErrorMessage(error: unknown) {
