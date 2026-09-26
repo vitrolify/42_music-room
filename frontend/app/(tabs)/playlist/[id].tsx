@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -360,22 +360,12 @@ export default function PlaylistDetail() {
             ...data,
         ].map((track, position) => ({ ...track, position }));
 
-        if (connectionState === 'connected') {
-            pendingMove.current = { trackId: draggedTrack.id, newPosition };
-        }
+        pendingMove.current = { trackId: draggedTrack.id, newPosition };
         setTracks(reorderedTracks);
         setMutating(true);
         setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, draggedTrack, newPosition);
-            if (connectionState !== 'connected') {
-                await refreshTracksAfterMutation(
-                    nextTracks => nextTracks.some(nextTrack => (
-                        nextTrack.id === draggedTrack.id && nextTrack.position === newPosition
-                    )),
-                    'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
-                );
-            }
         } catch (err) {
             pendingMove.current = null;
             await fetchData();
@@ -469,7 +459,7 @@ export default function PlaylistDetail() {
                     Alert.alert('Error', getPlaylistTrackMutationErrorMessage(error, 'move track'));
                 });
             }}
-            activationDistance={8}
+            activationDistance={Platform.OS === 'web' ? 100000 : 8}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -598,13 +588,12 @@ type TrackRowProps = {
 };
 
 function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
-    return (
-        <View {...webDragProps}>
-            <Pressable
-                onLongPress={onDrag}
-                delayLongPress={180}
-                style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
-            >
+    const row = (
+        <Pressable
+            onLongPress={onDrag}
+            delayLongPress={180}
+            style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
+        >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
                     <Text style={globalStyles.bodyBold} numberOfLines={1}>
@@ -634,9 +623,17 @@ function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragP
                 {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
                 {!isFirst && track.status === 'queued' ? <MoveButton label="Delete" disabled={disabled} onPress={() => onAction('delete')} /> : null}
             </View>
-            </Pressable>
-        </View>
+        </Pressable>
     );
+
+    if (Platform.OS === 'web' && webDragProps) {
+        return createElement('div', {
+            ...webDragProps,
+            style: { cursor: 'grab', userSelect: 'none' },
+        }, row);
+    }
+
+    return row;
 }
 
 type MoveButtonProps = {
