@@ -286,7 +286,6 @@ export default function PlaylistDetail() {
         if (track.position === newPosition) return;
 
         setMutating(true);
-        setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, track, newPosition);
         } catch (err) {
@@ -362,7 +361,6 @@ export default function PlaylistDetail() {
             pendingMove.current = null;
         }
         setMutating(true);
-        setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, draggedTrack, newPosition);
         } catch (err) {
