@@ -3,13 +3,23 @@ import type { PlaylistTrack } from './api/playlistTracks';
 type PlaylistPlaybackChangedPayload = {
     playing_track_id: number | null;
     status: 'playing' | 'paused';
+    queue_advanced?: boolean;
 };
 
-/** Apply the post-transaction playlist playback snapshot to a local queue. */
+/** Apply a playlist playback update without changing the queue unless it advanced. */
 export function applyPlaylistPlaybackChanged(
     tracks: PlaylistTrack[],
     payload: PlaylistPlaybackChangedPayload,
 ): PlaylistTrack[] {
+    if (!payload.queue_advanced) {
+        return tracks.map(track => ({
+            ...track,
+            status: track.id === payload.playing_track_id
+                ? payload.status
+                : track.status === 'playing' ? 'paused' : track.status,
+        }));
+    }
+
     const nextTracks = tracks
         .filter(track => track.position !== 0)
         .map(track => ({

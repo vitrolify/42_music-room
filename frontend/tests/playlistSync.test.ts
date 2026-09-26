@@ -21,10 +21,10 @@ function track(id: number, position: number, status: PlaylistTrack['status']): P
     };
 }
 
-test('completion removes the finished track and marks the successor playing', () => {
+test('queue advancement removes the finished track and marks the successor playing', () => {
     const next = applyPlaylistPlaybackChanged(
         [track(1, 0, 'playing'), track(2, 1, 'queued'), track(3, 2, 'queued')],
-        { playing_track_id: 2, status: 'playing' },
+        { playing_track_id: 2, status: 'playing', queue_advanced: true },
     );
 
     assert.deepEqual(next.map(item => [item.id, item.position, item.status]), [
@@ -33,20 +33,33 @@ test('completion removes the finished track and marks the successor playing', ()
     ]);
 });
 
-test('terminal completion removes the finished track and leaves no successor', () => {
+test('terminal queue advancement removes the finished track and leaves no successor', () => {
     const next = applyPlaylistPlaybackChanged(
         [track(1, 0, 'playing')],
-        { playing_track_id: null, status: 'paused' },
+        { playing_track_id: null, status: 'paused', queue_advanced: true },
     );
 
     assert.deepEqual(next, []);
 });
 
-test('completion pauses any stale playing state on the successor queue', () => {
+test('queue advancement pauses any stale playing state on the successor queue', () => {
     const next = applyPlaylistPlaybackChanged(
         [track(1, 0, 'playing'), track(2, 1, 'playing')],
-        { playing_track_id: null, status: 'paused' },
+        { playing_track_id: null, status: 'paused', queue_advanced: true },
     );
 
     assert.equal(next[0]?.status, 'paused');
+});
+
+test('playback state changes keep the queue positions intact', () => {
+    const next = applyPlaylistPlaybackChanged(
+        [track(1, 0, 'queued'), track(2, 1, 'playing'), track(3, 2, 'queued')],
+        { playing_track_id: 1, status: 'playing' },
+    );
+
+    assert.deepEqual(next.map(item => [item.id, item.position, item.status]), [
+        [1, 0, 'playing'],
+        [2, 1, 'paused'],
+        [3, 2, 'queued'],
+    ]);
 });

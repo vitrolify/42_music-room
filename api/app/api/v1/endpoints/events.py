@@ -54,6 +54,7 @@ async def command_playlist_playback(
             "playlist_id": playlist_id,
             "playing_track_id": track.id if track else None,
             "status": state.status.value,
+            "queue_advanced": payload.command in {"skip", "ended"},
             "version": state.version,
         }},
     )
