@@ -22,11 +22,11 @@ function getApiBaseUrl(): string {
 
         if (debuggerHost) {
             const ip = debuggerHost.split(':')[0];
-            return `http://${ip}/api/v1`;
+            return `http://${ip}:8000/api/v1`;
         }
     } catch {}
 
-    return 'http://localhost/api/v1';
+    return 'http://localhost:8000/api/v1';
 }
 
 export const API_BASE = getApiBaseUrl();
