@@ -379,6 +379,7 @@ export default function PlaylistDetail() {
 
     return (
         <DraggableFlatList
+            containerStyle={[globalStyles.screen, { flex: 1 }]}
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
                 paddingHorizontal: spacing.xl,
