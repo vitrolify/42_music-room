@@ -13,6 +13,9 @@ export function usePlaybackSessions(isAuthenticated: boolean) {
         }
         try {
             setSessions(await request<PlaybackSession[]>('GET', '/playback/sessions'));
+        } catch (error) {
+            console.warn('Failed to refresh playback sessions:', error);
+            setSessions([]);
         } finally {
             setLoading(false);
         }
