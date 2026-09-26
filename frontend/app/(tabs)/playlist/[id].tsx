@@ -11,7 +11,7 @@ import {
     Image,
 } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import { ArrowDown, ArrowUp, DotsSixVertical, Trash } from 'phosphor-react-native';
+import { ArrowDown, ArrowUp, DotsSixVertical, Pause, Play, SkipForward, Trash } from 'phosphor-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -632,9 +632,30 @@ function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, is
                 </View>
             </View>
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                {isFirst && track.status !== 'playing' ? <MoveButton label="Play" disabled={disabled} onPress={() => onAction('play')} /> : null}
-                {isFirst && track.status === 'playing' ? <MoveButton label="Pause" disabled={disabled} onPress={() => onAction('pause')} /> : null}
-                {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
+                {isFirst && track.status !== 'playing' ? (
+                    <MoveButton
+                        label="Play"
+                        icon={<Play size={18} color={colors.text.primary} weight="fill" />}
+                        disabled={disabled}
+                        onPress={() => onAction('play')}
+                    />
+                ) : null}
+                {isFirst && track.status === 'playing' ? (
+                    <MoveButton
+                        label="Pause"
+                        icon={<Pause size={18} color={colors.text.primary} weight="fill" />}
+                        disabled={disabled}
+                        onPress={() => onAction('pause')}
+                    />
+                ) : null}
+                {isFirst ? (
+                    <MoveButton
+                        label="Skip"
+                        icon={<SkipForward size={18} color={colors.text.primary} weight="fill" />}
+                        disabled={disabled}
+                        onPress={() => onAction('skip')}
+                    />
+                ) : null}
             </View>
         </Pressable>
     );
