@@ -1,4 +1,4 @@
-# 42_swifty-companion
+# 42_music-room (Vitrolify)
 
 ## Expo App
 ### To create a new app:
