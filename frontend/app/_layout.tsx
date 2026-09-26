@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { PlayerProvider } from '../src/contexts/PlayerContext';
@@ -70,12 +71,14 @@ export default function RootLayout() {
     if (!appReady) return null;
 
     return (
-        <SafeAreaProvider>
-            <AuthProvider>
-                <PlayerProvider>
-                    <RootNavigator />
-                </PlayerProvider>
-            </AuthProvider>
-        </SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+                <AuthProvider>
+                    <PlayerProvider>
+                        <RootNavigator />
+                    </PlayerProvider>
+                </AuthProvider>
+            </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }
