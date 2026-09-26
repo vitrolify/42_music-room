@@ -11,6 +11,7 @@ import {
     Image,
 } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
+import { DotsSixVertical } from 'phosphor-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -288,12 +289,6 @@ export default function PlaylistDetail() {
         setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, track, newPosition);
-            await refreshTracksAfterMutation(
-                nextTracks => nextTracks.some(nextTrack => (
-                    nextTrack.id === track.id && nextTrack.position === newPosition
-                )),
-                'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
-            );
         } catch (err) {
             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
         } finally {
@@ -360,8 +355,12 @@ export default function PlaylistDetail() {
             ...data,
         ].map((track, position) => ({ ...track, position }));
 
-        pendingMove.current = { trackId: draggedTrack.id, newPosition };
-        setTracks(reorderedTracks);
+        if (Platform.OS === 'web') {
+            pendingMove.current = { trackId: draggedTrack.id, newPosition };
+            setTracks(reorderedTracks);
+        } else {
+            pendingMove.current = null;
+        }
         setMutating(true);
         setMutationMessage('Moving track...');
         try {
@@ -588,6 +587,7 @@ type TrackRowProps = {
 };
 
 function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
+    const isDraggable = Boolean(onDrag || webDragProps);
     const row = (
         <Pressable
             onLongPress={onDrag}
@@ -595,6 +595,11 @@ function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragP
             style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                {isDraggable ? (
+                    <View style={{ paddingRight: spacing.sm }}>
+                        <DotsSixVertical size={20} color={colors.text.secondary} weight="bold" />
+                    </View>
+                ) : null}
                 <View style={{ flex: 1, marginRight: spacing.md }}>
                     <Text style={globalStyles.bodyBold} numberOfLines={1}>
                         {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
