@@ -323,7 +323,7 @@ export default function PlaylistDetail() {
                         ? updatedTrack?.status === 'playing'
                         : updatedTrack?.status === 'paused';
                 },
-                `The ${action} request was accepted, but the queue has not updated yet if it stays unchanged.`,
+                `The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
             );
         } catch (err) {
             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
