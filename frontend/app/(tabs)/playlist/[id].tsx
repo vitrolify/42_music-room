@@ -223,6 +223,21 @@ export default function PlaylistDetail() {
         };
     }, [fetchData, isValidPlaylistId, playlistId]);
 
+    useEffect(() => {
+        if (Platform.OS !== 'web' || !isValidPlaylistId) return;
+
+        const reconcileDisconnectedSocket = () => {
+            if (socketRef.current?.readyState === WebSocket.OPEN) return;
+
+            void listPlaylistTracks(playlistId)
+                .then(setTracks)
+                .catch(() => { /* The next reconciliation retries. */ });
+        };
+
+        const timer = setInterval(reconcileDisconnectedSocket, 3000);
+        return () => clearInterval(timer);
+    }, [isValidPlaylistId, playlistId]);
+
     async function handleRefresh() {
         setRefreshing(true);
         await fetchData();
