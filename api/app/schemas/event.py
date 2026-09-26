@@ -82,7 +82,11 @@ class TrackEndedEvent(PlaybackPayload):
     event: Literal[PlaylistEventType.ended]
 
 
-class TrackDeleteEvent(PlaybackPayload):
+class DeletePayload(BaseModel):
+    playlist_track_id: int
+
+
+class TrackDeleteEvent(DeletePayload):
     event: Literal[PlaylistEventType.delete]
 
 
