@@ -440,6 +440,7 @@ export default function PlaylistDetail() {
                         isFirst={false}
                         isLast={item.position === tracks.length - 1}
                         disabled={mutating}
+                        showDragHandle
                         onDrag={Platform.OS === 'web' ? undefined : drag}
                         isActive={isActive}
                         webDragProps={Platform.OS === 'web' ? createWebDragProps(index) : undefined}
@@ -577,6 +578,7 @@ type TrackRowProps = {
     isFirst: boolean;
     isLast: boolean;
     disabled: boolean;
+    showDragHandle?: boolean;
     onDrag?: () => void;
     isActive?: boolean;
     webDragProps?: Record<string, unknown>;
@@ -584,8 +586,7 @@ type TrackRowProps = {
     onAction: (action: 'play' | 'pause' | 'skip' | 'delete') => void;
 };
 
-function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
-    const isDraggable = Boolean(onDrag || webDragProps);
+function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
     const row = (
         <Pressable
             onLongPress={onDrag}
@@ -593,7 +594,7 @@ function TrackRow({ track, isFirst, isLast, disabled, onDrag, isActive, webDragP
             style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                {isDraggable ? (
+                {showDragHandle ? (
                     <View style={{ paddingRight: spacing.sm }}>
                         <DotsSixVertical size={20} color={colors.text.secondary} weight="bold" />
                     </View>
