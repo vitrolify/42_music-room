@@ -26,7 +26,7 @@ test('keeps the player mounted but hides controls after navigating away', () => 
         videoId: 'abc123', activePlaylistId: 42, pathname: '/(tabs)/playlist/42',
     });
     const elsewhere = getPlayerPresentation({
-        videoId: 'abc123', activePlaylistId: 42, pathname: '/(tabs)/search',
+        videoId: 'abc123', activePlaylistId: 42, pathname: '/(tabs)/playlists',
     });
 
     assert.equal(onPlayerRoute.shouldMountHost, true);
@@ -65,7 +65,7 @@ test('terminal paused playback still exposes the dedicated player', () => {
 
 test('a stale standalone video cannot render a non-navigable player', () => {
     const stalePlayback = getPlayerPresentation({
-        videoId: 'abc123', activePlaylistId: null, pathname: '/(tabs)/index',
+        videoId: 'abc123', activePlaylistId: null, pathname: '/(tabs)/playlists',
     });
 
     assert.deepEqual(stalePlayback, {

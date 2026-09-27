@@ -34,7 +34,7 @@ function RootNavigator() {
         } else if (isLoggedIn && !emailVerified && !inVerificationScreen) {
             router.replace('/(auth)/verify-email');
         } else if (isLoggedIn && emailVerified && inAuthGroup) {
-            router.replace('/(tabs)');
+            router.replace('/playlists');
         }
     }, [emailVerified, initializing, isLoggedIn, segments, router]);
 
