@@ -40,7 +40,7 @@ async def playlist_catalog_websocket_endpoint(
     user_id: uuid.UUID = Depends(get_current_user_id_ws),
 ):
     room_id = playlist_ws_manager._get_catalog_room_id(user_id)
-    await playlist_ws_manager.connect(websocket, room_id, user_id)
+    await playlist_ws_manager.connect_to_catalog(websocket, user_id)
 
     try:
         while True:

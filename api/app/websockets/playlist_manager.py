@@ -27,6 +27,11 @@ class PlaylistConnectionManager(BaseConnectionManager):
             self._pubsub_task = asyncio.create_task(self._listen_to_redis())
         await self.connect(websocket, self._get_room_id(playlist_id), user_id)
 
+    async def connect_to_catalog(self, websocket, user_id: uuid.UUID):
+        if self._pubsub_task is None:
+            self._pubsub_task = asyncio.create_task(self._listen_to_redis())
+        await self.connect(websocket, self._get_catalog_room_id(user_id), user_id)
+
     def disconnect_from_playlist(self, websocket, playlist_id: int, user_id: uuid.UUID):
         self.disconnect(websocket, self._get_room_id(playlist_id), user_id)
 
