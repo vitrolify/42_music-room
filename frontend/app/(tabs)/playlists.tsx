@@ -357,6 +357,7 @@ export default function Playlists() {
                                         opacity: pressed ? 0.7 : 1,
                                     })}
                                     onPress={event => {
+                                        event.preventDefault();
                                         event.stopPropagation();
                                         openEditModal(playlist);
                                     }}
@@ -382,8 +383,9 @@ export default function Playlists() {
                                         opacity: pressed ? 0.7 : 1,
                                     })}
                                     onPress={event => {
+                                        event.preventDefault();
                                         event.stopPropagation();
-                                        handleDelete(playlist);
+                                        void handleDelete(playlist);
                                     }}
                                 >
                                     <Trash weight="bold" size={18} color={colors.text.primary} />

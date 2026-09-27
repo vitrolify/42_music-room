@@ -717,7 +717,11 @@ function MoveButton({ label, icon, disabled, onPress }: MoveButtonProps) {
                 paddingHorizontal: icon ? spacing.sm : spacing.md,
                 opacity: disabled || pressed ? 0.55 : 1,
             })}
-            onPress={onPress}
+            onPress={event => {
+                event.preventDefault?.();
+                event.stopPropagation?.();
+                onPress();
+            }}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={label}
