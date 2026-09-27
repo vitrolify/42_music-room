@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createElement, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     Pressable,
     RefreshControl,
-    ScrollView,
     Text,
     TextInput,
     View,
     Image,
 } from 'react-native';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+import { ArrowDown, ArrowUp, Clock, DotsSixVertical, Info, Pause, Play, SkipForward, Trash } from 'phosphor-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -28,11 +30,13 @@ import { registerCurrentDevice } from '../../../src/lib/deviceIdentity';
 import { colors, globalStyles, spacing } from '../../../src/styles';
 import { usePlayer } from '../../../src/contexts/PlayerContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { usePlayerBarPadding } from '../../../src/hooks/usePlayerBarPadding';
 import { applyPlaylistPlaybackChanged } from '../../../src/lib/playlistSync';
 
 export default function PlaylistDetail() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const playerBarPadding = usePlayerBarPadding();
     const { id } = useLocalSearchParams<{ id: string }>();
     const playlistId = Number(id);
     const { commandPlaylistTrack } = usePlayer();
@@ -51,6 +55,8 @@ export default function PlaylistDetail() {
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttempt = useRef(0);
     const staleErrorCount = useRef(0);
+    const pendingMove = useRef<{ trackId: number; newPosition: number } | null>(null);
+    const webDragIndex = useRef<number | null>(null);
     const STALE_THRESHOLD = 3;
 
     const isValidPlaylistId = Number.isInteger(playlistId) && playlistId > 0;
@@ -148,6 +154,15 @@ export default function PlaylistDetail() {
                                 });
                                 break;
                             case 'TRACK_MOVED': {
+                                const pending = pendingMove.current;
+                                if (
+                                    pending
+                                    && pending.trackId === payload.playlist_track_id
+                                    && pending.newPosition === payload.new_position
+                                ) {
+                                    pendingMove.current = null;
+                                    return prevTracks;
+                                }
                                 const index = nextTracks.findIndex(t => t.id === payload.playlist_track_id);
                                 if (index !== -1) {
                                     const [movedTrack] = nextTracks.splice(index, 1);
@@ -271,21 +286,129 @@ export default function PlaylistDetail() {
         if (track.position === newPosition) return;
 
         setMutating(true);
-        setMutationMessage('Moving track...');
         try {
             await movePlaylistTrack(playlistId, track, newPosition);
-            await refreshTracksAfterMutation(
-                nextTracks => nextTracks.some(nextTrack => (
-                    nextTrack.id === track.id && nextTrack.position === newPosition
-                )),
-                'The move request was accepted, but the order did not change yet. Refresh and retry if the list stays the same.',
-            );
         } catch (err) {
             Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
         } finally {
             setMutationMessage(null);
             setMutating(false);
         }
+    }
+
+    async function handleTrackAction(
+        track: PlaylistTrack,
+        action: 'play' | 'pause' | 'skip' | 'delete',
+    ) {
+        if (action === 'delete' && track.position === 0) return;
+        if (action === 'delete') {
+            const confirmed = await new Promise<boolean>(resolve => {
+                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
+                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+                ]);
+            });
+            if (!confirmed) return;
+        }
+
+        setMutating(true);
+        setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
+        try {
+            if (action === 'play' || action === 'pause' || action === 'skip') {
+                await commandPlaylistTrack(playlistId, track.id, action);
+            }
+            if (action === 'delete') await deletePlaylistTrack(playlistId, track);
+            await refreshTracksAfterMutation(
+                nextTracks => {
+                    if (action === 'delete') {
+                        return !nextTracks.some(nextTrack => nextTrack.id === track.id);
+                    }
+                    if (action === 'skip') {
+                        return nextTracks[0]?.id !== track.id;
+                    }
+                    const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
+                    return action === 'play'
+                        ? updatedTrack?.status === 'playing'
+                        : updatedTrack?.status === 'paused';
+                },
+                `The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
+            );
+        } catch (err) {
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
+        } finally {
+            setMutationMessage(null);
+            setMutating(false);
+        }
+    }
+
+    async function handleDragEnd(data: PlaylistTrack[], from: number, to: number) {
+        if (from === to || mutating) return;
+
+        const draggedTrack = tracks.filter(track => track.position > 0)[from];
+        const newPosition = to + 1;
+        if (!draggedTrack || draggedTrack.position === newPosition) return;
+
+        const activeTrack = tracks.find(track => track.position === 0);
+        const reorderedTracks = [
+            ...(activeTrack ? [activeTrack] : []),
+            ...data,
+        ].map((track, position) => ({ ...track, position }));
+
+        if (Platform.OS === 'web') {
+            pendingMove.current = { trackId: draggedTrack.id, newPosition };
+            setTracks(reorderedTracks);
+        } else {
+            pendingMove.current = null;
+        }
+        setMutating(true);
+        try {
+            await movePlaylistTrack(playlistId, draggedTrack, newPosition);
+        } catch (err) {
+            pendingMove.current = null;
+            await fetchData();
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, 'move track'));
+        } finally {
+            setMutationMessage(null);
+            setMutating(false);
+        }
+    }
+
+    function handleWebDragStart(index: number) {
+        webDragIndex.current = index;
+    }
+
+    function handleWebDrop(targetIndex: number, event: any) {
+        event.preventDefault();
+        const from = webDragIndex.current;
+        webDragIndex.current = null;
+        if (from === null || from === targetIndex) return;
+
+        const data = [...queuedTracks];
+        const [draggedTrack] = data.splice(from, 1);
+        data.splice(targetIndex, 0, draggedTrack);
+        void handleDragEnd(data, from, targetIndex).catch(error => {
+            console.error('Playlist web drag reorder failed', error);
+            setMutationMessage(null);
+            setMutating(false);
+            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(error, 'move track'));
+        });
+    }
+
+    function createWebDragProps(index: number): Record<string, unknown> {
+        return {
+            draggable: true,
+            onDragStart: () => handleWebDragStart(index),
+            onDragOver: (event: any) => event.preventDefault(),
+            onDrop: (event: any) => {
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+                const insertionIndex = index + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
+                const from = webDragIndex.current;
+                const to = from !== null && from < insertionIndex ? insertionIndex - 1 : insertionIndex;
+                handleWebDrop(to, event);
+            },
+            onDragEnd: () => { webDragIndex.current = null; },
+        };
     }
 
     if (loading) {
@@ -296,13 +419,45 @@ export default function PlaylistDetail() {
         );
     }
 
+    const activeTrack = tracks.find(track => track.position === 0) ?? null;
+    const queuedTracks = tracks.filter(track => track.position > 0);
+
     return (
-        <ScrollView
+        <DraggableFlatList
+            containerStyle={[globalStyles.screen, { flex: 1 }]}
             style={[globalStyles.screen, { paddingTop: insets.top + spacing.xl }]}
             contentContainerStyle={{
-                padding: spacing.xl,
-                paddingBottom: insets.bottom + spacing.xxl,
+                paddingHorizontal: spacing.xl,
+                paddingBottom: insets.bottom + spacing.xxl + playerBarPadding,
             }}
+            data={error ? [] : queuedTracks}
+            keyExtractor={track => String(track.id)}
+            renderItem={({ item, drag, isActive, getIndex }) => {
+                const index = getIndex() ?? 0;
+                return (
+                    <TrackRow
+                        track={item}
+                        isFirst={false}
+                        isLast={item.position === tracks.length - 1}
+                        disabled={mutating}
+                        showDragHandle
+                        onDrag={Platform.OS === 'web' ? undefined : drag}
+                        isActive={isActive}
+                        webDragProps={Platform.OS === 'web' ? createWebDragProps(index) : undefined}
+                        onMove={handleMoveTrack}
+                        onAction={action => handleTrackAction(item, action)}
+                    />
+                );
+            }}
+            onDragEnd={({ data, from, to }) => {
+                void handleDragEnd(data, from, to).catch(error => {
+                    console.error('Playlist drag reorder failed', error);
+                    setMutationMessage(null);
+                    setMutating(false);
+                    Alert.alert('Error', getPlaylistTrackMutationErrorMessage(error, 'move track'));
+                });
+            }}
+            activationDistance={Platform.OS === 'web' ? 100000 : 8}
             refreshControl={
                 <RefreshControl
                     refreshing={refreshing}
@@ -310,7 +465,8 @@ export default function PlaylistDetail() {
                     tintColor={colors.brand}
                 />
             }
-        >
+            ListHeaderComponent={
+                <>
             <View style={{ marginBottom: spacing.xl }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
                     <Pressable
@@ -394,60 +550,26 @@ export default function PlaylistDetail() {
                             <Text style={[globalStyles.heading, { marginBottom: spacing.sm }]}>No tracks yet</Text>
                             <Text style={globalStyles.secondaryText}>Add a track id to start building this playlist.</Text>
                         </View>
-                    ) : (
-                        <View style={{ gap: spacing.sm }}>
-                            {tracks.map(track => (
-                                <TrackRow
-                                    key={track.id}
-                                    track={track}
-                                    isFirst={track.position === 0}
-                                    isLast={track.position === tracks.length - 1}
-                                    disabled={mutating}
-                                    onMove={handleMoveTrack}
-                                    onAction={async action => {
-                                        if (action === 'delete' && track.position === 0) return;
-                                        if (action === 'delete') {
-                                            const confirmed = await new Promise<boolean>(resolve => {
-                                                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
-                                                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                                                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-                                                ]);
-                                            });
-                                            if (!confirmed) return;
-                                        }
-                                        setMutating(true);
-                                        setMutationMessage(`${action[0].toUpperCase()}${action.slice(1)} track...`);
-                                        try {
-                                            if (action === 'play' || action === 'pause' || action === 'skip') {
-                                                await commandPlaylistTrack(playlistId, track.id, action);
-                                            }
-                                            if (action === 'delete') await deletePlaylistTrack(playlistId, track);
-                                            await refreshTracksAfterMutation(
-                                                nextTracks => {
-                                                    if (action === 'delete') {
-                                                        return !nextTracks.some(nextTrack => nextTrack.id === track.id);
-                                                    }
-                                                    if (action === 'skip') {
-                                                        return nextTracks[0]?.id !== track.id;
-                                                    }
-                                                    const updatedTrack = nextTracks.find(nextTrack => nextTrack.id === track.id);
-                                                    return action === 'play'
-                                                        ? updatedTrack?.status === 'playing'
-                                                        : updatedTrack?.status === 'paused';
-                                                },
-                                                `The ${action} request was accepted, but the queue has not updated yet. Refresh and try again if it stays unchanged.`,
-                                            );
-                                        } catch (err) {
-                                            Alert.alert('Error', getPlaylistTrackMutationErrorMessage(err, `${action} track`));
-                                        } finally { setMutationMessage(null); setMutating(false); }
-                                    }}
-                                />
-                            ))}
+                    ) : activeTrack ? (
+                        <View style={{ marginBottom: spacing.sm }}>
+                            <TrackRow
+                                track={activeTrack}
+                                isFirst
+                                isLast={tracks.length === 1}
+                                disabled={mutating}
+                                onMove={handleMoveTrack}
+                                onAction={action => handleTrackAction(activeTrack, action)}
+                            />
+                            {queuedTracks.length > 0 ? (
+                                <Text style={[globalStyles.small, { marginTop: spacing.md, marginBottom: spacing.sm }]}>Drag tracks to reorder the queue</Text>
+                            ) : null}
                         </View>
-                    )}
+                    ) : null}
                 </>
             )}
-        </ScrollView>
+                </>
+            }
+        />
     );
 }
 
@@ -456,64 +578,137 @@ type TrackRowProps = {
     isFirst: boolean;
     isLast: boolean;
     disabled: boolean;
+    showDragHandle?: boolean;
+    onDrag?: () => void;
+    isActive?: boolean;
+    webDragProps?: Record<string, unknown>;
     onMove: (track: PlaylistTrack, newPosition: number) => void;
     onAction: (action: 'play' | 'pause' | 'skip' | 'delete') => void;
 };
 
-function TrackRow({ track, isFirst, isLast, disabled, onMove, onAction }: TrackRowProps) {
-    return (
-        <View style={cardStyle}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flex: 1, marginRight: spacing.md }}>
-                    <Text style={globalStyles.bodyBold} numberOfLines={1}>
-                        {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
-                    </Text>
-                    {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
-                    {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36, marginTop: spacing.xs }} /> : null}
-                    {track.track_info.duration_seconds != null ? <Text style={globalStyles.small}>Duration: {formatDuration(track.track_info.duration_seconds)}</Text> : null}
-                    <Text style={globalStyles.small}>Status: {track.status}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    <MoveButton
-                        label="Up"
-                        disabled={disabled || isFirst}
-                        onPress={() => onMove(track, track.position - 1)}
-                    />
-                    <MoveButton
-                        label="Down"
-                        disabled={disabled || isLast || isFirst}
-                        onPress={() => onMove(track, track.position + 1)}
-                    />
+function TrackRow({ track, isFirst, isLast, disabled, showDragHandle, onDrag, isActive, webDragProps, onMove, onAction }: TrackRowProps) {
+    const row = (
+        <Pressable
+            onLongPress={onDrag}
+            delayLongPress={180}
+            style={[cardStyle, { marginBottom: spacing.sm }, isActive ? { backgroundColor: colors.bg.elevated } : null]}
+        >
+            <View style={{ flexDirection: 'row' }}>
+                {showDragHandle ? (
+                    <View style={{ width: 20, marginRight: spacing.sm, alignItems: 'center', justifyContent: 'center' }}>
+                        <DotsSixVertical size={20} color={colors.text.secondary} weight="bold" />
+                    </View>
+                ) : null}
+                <View style={{ flex: 1 }}>
+                    <View>
+                        <Text style={globalStyles.bodyBold} numberOfLines={1}>
+                            {track.position}. {track.track_info.title || track.track_info_id || 'Unknown track'}
+                        </Text>
+                        {track.track_info.channel_title ? <Text style={globalStyles.small}>{track.track_info.channel_title}</Text> : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.sm }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
+                            {track.track_info.thumbnail_url ? <Image source={{ uri: track.track_info.thumbnail_url }} style={{ width: 64, height: 36 }} /> : null}
+                            <View style={{ justifyContent: 'space-between', minHeight: 36 }}>
+                                {track.track_info.duration_seconds != null ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Duration: ${formatDuration(track.track_info.duration_seconds)}`}>
+                                        <Clock size={14} color={colors.text.secondary} weight="bold" />
+                                        <Text style={globalStyles.small}>{formatDuration(track.track_info.duration_seconds)}</Text>
+                                    </View>
+                                ) : null}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLabel={`Status: ${formatTrackStatus(track.status)}`}>
+                                    <Info size={14} color={colors.text.secondary} weight="bold" />
+                                    <Text style={globalStyles.small}>{formatTrackStatus(track.status)}</Text>
+                                </View>
+                            </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: spacing.sm, flexShrink: 0 }}>
+                        {!isFirst ? (
+                            <>
+                                <MoveButton
+                                    label="Move up"
+                                    icon={<ArrowUp size={18} color={colors.text.primary} weight="bold" />}
+                                    disabled={disabled}
+                                    onPress={() => onMove(track, track.position - 1)}
+                                />
+                                <MoveButton
+                                    label="Move down"
+                                    icon={<ArrowDown size={18} color={colors.text.primary} weight="bold" />}
+                                    disabled={disabled || isLast}
+                                    onPress={() => onMove(track, track.position + 1)}
+                                />
+                                {track.status === 'queued' ? (
+                                    <MoveButton
+                                        label="Delete"
+                                        icon={<Trash size={18} color={colors.semantic.error} weight="bold" />}
+                                        disabled={disabled}
+                                        onPress={() => onAction('delete')}
+                                    />
+                                ) : null}
+                            </>
+                        ) : null}
+                        {isFirst && track.status !== 'playing' ? (
+                            <MoveButton
+                                label="Play"
+                                icon={<Play size={18} color={colors.text.primary} weight="fill" />}
+                                disabled={disabled}
+                                onPress={() => onAction('play')}
+                            />
+                        ) : null}
+                        {isFirst && track.status === 'playing' ? (
+                            <MoveButton
+                                label="Pause"
+                                icon={<Pause size={18} color={colors.text.primary} weight="fill" />}
+                                disabled={disabled}
+                                onPress={() => onAction('pause')}
+                            />
+                        ) : null}
+                        {isFirst ? (
+                            <MoveButton
+                                label="Skip"
+                                icon={<SkipForward size={18} color={colors.text.primary} weight="fill" />}
+                                disabled={disabled}
+                                onPress={() => onAction('skip')}
+                            />
+                        ) : null}
+                        </View>
+                    </View>
                 </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                {isFirst && track.status !== 'playing' ? <MoveButton label="Play" disabled={disabled} onPress={() => onAction('play')} /> : null}
-                {isFirst && track.status === 'playing' ? <MoveButton label="Pause" disabled={disabled} onPress={() => onAction('pause')} /> : null}
-                {isFirst ? <MoveButton label="Skip" disabled={disabled} onPress={() => onAction('skip')} /> : null}
-                {!isFirst && track.status === 'queued' ? <MoveButton label="Delete" disabled={disabled} onPress={() => onAction('delete')} /> : null}
-            </View>
-        </View>
+        </Pressable>
     );
+
+    if (Platform.OS === 'web' && webDragProps) {
+        return createElement('div', {
+            ...webDragProps,
+            style: { cursor: 'grab', userSelect: 'none' },
+        }, row);
+    }
+
+    return row;
 }
 
 type MoveButtonProps = {
     label: string;
+    icon?: ReactNode;
     disabled: boolean;
     onPress: () => void;
 };
 
-function MoveButton({ label, disabled, onPress }: MoveButtonProps) {
+function MoveButton({ label, icon, disabled, onPress }: MoveButtonProps) {
     return (
         <Pressable
             style={({ pressed }) => ({
                 ...globalStyles.pillButton,
-                paddingHorizontal: spacing.md,
+                paddingHorizontal: icon ? spacing.sm : spacing.md,
                 opacity: disabled || pressed ? 0.55 : 1,
             })}
             onPress={onPress}
             disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={label}
         >
-            <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>{label}</Text>
+            {icon ?? <Text style={[globalStyles.pillButtonText, { fontSize: 11 }]}>{label}</Text>}
         </Pressable>
     );
 }
@@ -531,6 +726,12 @@ function sleep(ms: number) {
 function formatDuration(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function formatTrackStatus(status: PlaylistTrack['status']) {
+    if (status === 'playing') return 'Playing';
+    if (status === 'paused') return 'Paused';
+    return 'Queued';
 }
 
 function getPlaylistTrackLoadErrorMessage(error: unknown) {
