@@ -332,6 +332,14 @@ export default function PlaylistDetail() {
                 await commandPlaylistTrack(playlistId, track.id, action);
             }
             if (action === 'delete') await deletePlaylistTrack(playlistId, track);
+            if (action === 'delete') {
+                setTracks(current => current
+                    .filter(nextTrack => nextTrack.id !== track.id)
+                    .map(nextTrack => nextTrack.position > track.position
+                        ? { ...nextTrack, position: nextTrack.position - 1 }
+                        : nextTrack)
+                    .sort((a, b) => a.position - b.position));
+            }
             await refreshTracksAfterMutation(
                 nextTracks => {
                     if (action === 'delete') {

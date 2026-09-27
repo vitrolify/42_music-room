@@ -147,6 +147,8 @@ export default function Playlists() {
 
         try {
             await deletePlaylist(playlist.id);
+            setPlaylists(current => current.filter(item => item.id !== playlist.id));
+            setMyInvites(current => current.filter(invite => invite.playlist.id !== playlist.id));
             if (inviteModalPlaylist?.id === playlist.id) {
                 setInviteModalPlaylist(null);
             }
