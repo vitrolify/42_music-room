@@ -97,3 +97,7 @@ export async function getAuthToken(): Promise<string | null> {
   if (!auth.currentUser) return null;
   return auth.currentUser.getIdToken(false);
 }
+
+export function getAuthUserId(): string | null {
+  return auth.currentUser?.uid ?? null;
+}

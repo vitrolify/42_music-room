@@ -116,3 +116,7 @@ export async function linkGoogleAccount() {
 export async function getAuthToken(): Promise<string | null> {
 	return auth().currentUser?.getIdToken() ?? null;
 }
+
+export function getAuthUserId(): string | null {
+	return auth().currentUser?.uid ?? null;
+}

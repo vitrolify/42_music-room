@@ -12,7 +12,7 @@ import {
     type AuthUser,
 } from '../lib/firebase';
 import { AuthType } from '../types/auth.types';
-import { registerCurrentDevice } from '../lib/deviceIdentity';
+import { registerCurrentDevice, resetDeviceIdCache } from '../lib/deviceIdentity';
 
 type AuthContextType = {
     user: AuthType | null;
@@ -39,7 +39,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     function handleAuthStateChanged(user: AuthUser | null) {
         setUser(user);
-        if (user) void registerCurrentDevice().catch(() => undefined);
+        if (user) {
+            void registerCurrentDevice(user.uid).catch(() => undefined);
+        } else {
+            resetDeviceIdCache();
+        }
         if (initializing) setInitializing(false);
     }
 
@@ -85,6 +89,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const logout = async () => {
         try {
+            resetDeviceIdCache();
             await signOutUser();
             console.log('User signed out successfully');
         } catch (error) {

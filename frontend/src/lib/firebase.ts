@@ -41,3 +41,7 @@ export async function signOutUser() {
 export async function getAuthToken(): Promise<string | null> {
 	throw new Error('Platform-specific Firebase auth module was not resolved.');
 }
+
+export function getAuthUserId(): string | null {
+	throw new Error('Platform-specific Firebase auth module was not resolved.');
+}
