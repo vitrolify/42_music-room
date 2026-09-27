@@ -19,7 +19,7 @@ export function useDeviceDelegation() {
         if (!user) return;
         setLoadState('loading'); setError(null);
         try {
-            const deviceId = await getDeviceId();
+            const deviceId = await getDeviceId(user.uid);
             const snapshot = await deviceDelegationApiGateway.load(user.uid, deviceId);
             setDevices(snapshot.devices); setDelegatesByDevice(snapshot.delegatesByDevice); setFriends(snapshot.friends); setLoadState('ready');
         } catch (err) { setLoadState('error'); setError(formatDeviceError(err)); }

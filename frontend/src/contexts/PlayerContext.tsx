@@ -202,7 +202,6 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
                     const response = await commandPlaylistPlayback(own.active_playlist_id, {
                         command: 'pause', playlist_track_id: own.active_playlist_track_id,
                         device_id: deviceId, session_id: sync.sessionId,
-                        expected_version: own.version,
                         position_seconds: sync.getCurrentPosition() ?? own.position_seconds,
                     });
                     sync.applyCommandSnapshot(response.payload);
@@ -252,12 +251,15 @@ function PlayerProvider({ children }: { children: React.ReactNode }) {
     ) => {
         try {
             const deviceId = await registerCurrentDevice();
+            const expectedVersion = (command === 'ended' || command === 'skip')
+                ? sync.getServerVersion()
+                : undefined;
             const response = await commandPlaylistPlayback(playlistId, {
                 command,
                 playlist_track_id: playlistTrackId,
                 device_id: deviceId,
                 session_id: sync.sessionId,
-                expected_version: sync.serverVersion,
+                expected_version: expectedVersion,
                 position_seconds: positionSeconds,
                 duration_seconds: durationSeconds,
             });

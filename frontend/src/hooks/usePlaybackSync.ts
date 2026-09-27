@@ -22,6 +22,7 @@ type PlaybackSync = {
     syncStatus: SyncStatus;
     sessionId: string;
     serverVersion: number;
+    getServerVersion: () => number;
     activePlaylistTrackId: number | null;
     isController: boolean;
     applyCommandSnapshot: (snapshot: PlaybackSnapshot) => void;
@@ -62,6 +63,8 @@ export function usePlaybackSync({
         (version: number) => desiredSnapshotRef.current?.version === version,
         [],
     );
+
+    const getServerVersion = useCallback(() => serverVersionRef.current, []);
 
     const applyCommandSnapshot = useCallback((snapshot: PlaybackSnapshot) => {
         desiredSnapshotRef.current = snapshot;
@@ -176,6 +179,7 @@ export function usePlaybackSync({
         syncStatus,
         sessionId: sessionIdRef.current,
         serverVersion,
+        getServerVersion,
         activePlaylistTrackId,
         isController: desiredSnapshotRef.current?.controller_session_id === sessionIdRef.current,
         applyCommandSnapshot,

@@ -21,6 +21,39 @@ function track(id: number, position: number, status: PlaylistTrack['status']): P
     };
 }
 
+test('playing position zero retains all tracks and marks track 0 playing', () => {
+    const queue = [track(1, 0, 'queued'), track(2, 1, 'queued'), track(3, 2, 'queued')];
+    const next = applyPlaylistPlaybackChanged(queue, { playing_track_id: 1, status: 'playing' });
+
+    assert.deepEqual(next.map(item => [item.id, item.position, item.status]), [
+        [1, 0, 'playing'],
+        [2, 1, 'queued'],
+        [3, 2, 'queued'],
+    ]);
+});
+
+test('checkpoint event while playing retains all tracks and does not drop track 0', () => {
+    const queue = [track(1, 0, 'playing'), track(2, 1, 'queued'), track(3, 2, 'queued')];
+    const next = applyPlaylistPlaybackChanged(queue, { playing_track_id: 1, status: 'playing' });
+
+    assert.deepEqual(next.map(item => [item.id, item.position, item.status]), [
+        [1, 0, 'playing'],
+        [2, 1, 'queued'],
+        [3, 2, 'queued'],
+    ]);
+});
+
+test('pausing track 0 retains all tracks and marks track 0 paused', () => {
+    const queue = [track(1, 0, 'playing'), track(2, 1, 'queued'), track(3, 2, 'queued')];
+    const next = applyPlaylistPlaybackChanged(queue, { playing_track_id: 1, status: 'paused' });
+
+    assert.deepEqual(next.map(item => [item.id, item.position, item.status]), [
+        [1, 0, 'paused'],
+        [2, 1, 'queued'],
+        [3, 2, 'queued'],
+    ]);
+});
+
 test('completion removes the finished track and marks the successor playing', () => {
     const next = applyPlaylistPlaybackChanged(
         [track(1, 0, 'playing'), track(2, 1, 'queued'), track(3, 2, 'queued')],

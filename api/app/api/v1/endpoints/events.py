@@ -47,16 +47,17 @@ async def command_playlist_playback(
 
     from app.api.v1.endpoints.playback import read_state
     event = PlaybackEvent(version=state.version, payload=read_state(state))
-    await playlist_ws_manager.broadcast_playlist_update(
-        playlist_id=playlist_id,
-        user_id=user_id,
-        message={"type": "PLAYLIST_PLAYBACK_CHANGED", "payload": {
-            "playlist_id": playlist_id,
-            "playing_track_id": track.id if track else None,
-            "status": state.status.value,
-            "version": state.version,
-        }},
-    )
+    if payload.command not in {"checkpoint", "seek"}:
+        await playlist_ws_manager.broadcast_playlist_update(
+            playlist_id=playlist_id,
+            user_id=user_id,
+            message={"type": "PLAYLIST_PLAYBACK_CHANGED", "payload": {
+                "playlist_id": playlist_id,
+                "playing_track_id": track.id if track else None,
+                "status": state.status.value,
+                "version": state.version,
+            }},
+        )
     await playback_ws_manager.publish(playlist.owner_id, event.model_dump(mode="json"))
     return event
 

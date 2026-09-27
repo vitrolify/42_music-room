@@ -48,6 +48,7 @@ async def apply_command(
     if (
         command.expected_version is not None
         and command.expected_version != state.version
+        and command.command not in {"play", "pause", "checkpoint", "seek"}
     ):
         raise ValueError("Stale playback state")
 
@@ -190,7 +191,11 @@ async def apply_playlist_command(
             .with_for_update()
         )
     ).scalar_one()
-    if expected_version is not None and expected_version != state.version:
+    if (
+        expected_version is not None
+        and expected_version != state.version
+        and command in {"ended", "skip"}
+    ):
         raise ValueError("Stale playback state")
 
     is_owner = actor_id == playlist.owner_id
