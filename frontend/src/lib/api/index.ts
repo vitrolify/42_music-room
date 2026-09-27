@@ -4,3 +4,4 @@ export * from './playlists';
 export * from './invites';
 export * from './playlistTracks';
 export * from './friends';
+export * from './auth';

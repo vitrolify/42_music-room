@@ -1,14 +1,14 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.friend import FriendRequestStatus
 from app.models.user import Avatar
 
 
 class FriendRequestByEmailCreate(BaseModel):
-    email: str
+    email: str = Field(min_length=3, max_length=254)
 
 
 class FriendRequestRead(BaseModel):

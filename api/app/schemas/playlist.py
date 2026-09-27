@@ -1,17 +1,17 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PlaylistCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=100)
     public: bool = True
     invited_only_edit: bool = False
 
 
 class PlaylistUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=100)
     public: bool | None = None
     invited_only_edit: bool | None = None
 

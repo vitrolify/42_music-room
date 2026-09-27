@@ -48,7 +48,7 @@ async def list_playlists(
 async def get_playlist(
     playlist_id: int,
     db: AsyncSession = Depends(get_db),
-    _user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     playlist = await playlist_service.get_playlist_by_id(db=db, playlist_id=playlist_id)
     if playlist is None:
@@ -56,6 +56,16 @@ async def get_playlist(
             error_code="PLAYLIST_NOT_FOUND",
             message="Playlist nao encontrada",
             status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    has_permission = await playlist_service.user_has_playlist_permission(
+        db=db, user_id=user_id, playlist=playlist, action="read"
+    )
+    if not has_permission:
+        raise BaseVitrolifyException(
+            error_code="FORBIDDEN",
+            message="Você não tem permissão para acessar esta playlist privada",
+            status_code=status.HTTP_403_FORBIDDEN,
         )
 
     active_device_str = await get_active_device(playlist_id)

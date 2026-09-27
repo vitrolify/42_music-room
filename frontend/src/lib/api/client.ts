@@ -47,6 +47,13 @@ export class ApiError extends Error {
     }
 }
 
+type UnauthorizedHandler = () => void;
+let onUnauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setOnUnauthorized(handler: UnauthorizedHandler | null) {
+    onUnauthorizedHandler = handler;
+}
+
 export async function getFirebaseToken(): Promise<string | null> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -104,6 +111,9 @@ export async function request<T>(
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
+        if (res.status === 401) {
+            onUnauthorizedHandler?.();
+        }
         throw new ApiError(
             err.message ?? res.statusText ?? 'Request failed',
             res.status,
