@@ -31,6 +31,7 @@ import {
 } from '../../src/lib/api';
 import { colors, spacing, globalStyles } from '../../src/styles';
 import InviteModal from '../../src/components/InviteModal';
+import { confirmDestructiveAction } from '../../src/lib/confirmDestructiveAction';
 
 export default function Playlists() {
     const router = useRouter();
@@ -137,30 +138,23 @@ export default function Playlists() {
         }
     }
 
-    function handleDelete(playlist: Playlist) {
-        Alert.alert(
+    async function handleDelete(playlist: Playlist) {
+        const confirmed = await confirmDestructiveAction(
             'Delete playlist?',
             `This will permanently delete "${playlist.name}".`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deletePlaylist(playlist.id);
-                            if (inviteModalPlaylist?.id === playlist.id) {
-                                setInviteModalPlaylist(null);
-                            }
-                            await fetchData();
-                        } catch (err) {
-                            const msg = err instanceof Error ? err.message : 'Failed to delete playlist';
-                            Alert.alert('Error', msg);
-                        }
-                    },
-                },
-            ],
         );
+        if (!confirmed) return;
+
+        try {
+            await deletePlaylist(playlist.id);
+            if (inviteModalPlaylist?.id === playlist.id) {
+                setInviteModalPlaylist(null);
+            }
+            await fetchData();
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to delete playlist';
+            Alert.alert('Error', msg);
+        }
     }
 
     async function handleAccept(inviteId: number) {

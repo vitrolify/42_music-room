@@ -32,6 +32,7 @@ import { usePlayer } from '../../../src/contexts/PlayerContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { usePlayerBarPadding } from '../../../src/hooks/usePlayerBarPadding';
 import { applyPlaylistPlaybackChanged } from '../../../src/lib/playlistSync';
+import { confirmDestructiveAction } from '../../../src/lib/confirmDestructiveAction';
 
 export default function PlaylistDetail() {
     const router = useRouter();
@@ -317,12 +318,10 @@ export default function PlaylistDetail() {
     ) {
         if (action === 'delete' && track.position === 0) return;
         if (action === 'delete') {
-            const confirmed = await new Promise<boolean>(resolve => {
-                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-                ]);
-            });
+            const confirmed = await confirmDestructiveAction(
+                'Delete track?',
+                'This removes the queued track from the playlist.',
+            );
             if (!confirmed) return;
         }
 
