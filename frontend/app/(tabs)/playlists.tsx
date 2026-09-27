@@ -13,12 +13,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MusicNote, Trash, UserPlus } from 'phosphor-react-native';
+import { Gear, MusicNote, Trash, UserPlus } from 'phosphor-react-native';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { usePlayerBarPadding } from '../../src/hooks/usePlayerBarPadding';
 import {
     listPlaylists,
     createPlaylist,
+    updatePlaylist,
     deletePlaylist,
     getMyProfile,
     getMyInvites,
@@ -48,6 +49,12 @@ export default function Playlists() {
     const [createInvitedOnly, setCreateInvitedOnly] = useState(false);
     const [creating, setCreating] = useState(false);
     const [createModalVisible, setCreateModalVisible] = useState(false);
+
+    const [editModalPlaylist, setEditModalPlaylist] = useState<Playlist | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editPublic, setEditPublic] = useState(true);
+    const [editInvitedOnly, setEditInvitedOnly] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const [inviteModalPlaylist, setInviteModalPlaylist] = useState<Playlist | null>(null);
 
@@ -101,6 +108,32 @@ export default function Playlists() {
             Alert.alert('Error', msg);
         } finally {
             setCreating(false);
+        }
+    }
+
+    function openEditModal(playlist: Playlist) {
+        setEditModalPlaylist(playlist);
+        setEditName(playlist.name);
+        setEditPublic(playlist.public);
+        setEditInvitedOnly(playlist.invited_only_edit);
+    }
+
+    async function handleUpdate() {
+        if (!editModalPlaylist || !editName.trim()) return;
+        setSaving(true);
+        try {
+            await updatePlaylist(editModalPlaylist.id, {
+                name: editName.trim(),
+                public: editPublic,
+                invited_only_edit: editInvitedOnly,
+            });
+            setEditModalPlaylist(null);
+            await fetchData();
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Failed to update playlist';
+            Alert.alert('Error', msg);
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -331,6 +364,18 @@ export default function Playlists() {
                                     })}
                                     onPress={event => {
                                         event.stopPropagation();
+                                        openEditModal(playlist);
+                                    }}
+                                >
+                                    <Gear weight="bold" size={18} color={colors.text.primary} />
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => ({
+                                        ...iconButtonStyle,
+                                        opacity: pressed ? 0.7 : 1,
+                                    })}
+                                    onPress={event => {
+                                        event.stopPropagation();
                                         setInviteModalPlaylist(playlist);
                                     }}
                                 >
@@ -407,6 +452,19 @@ export default function Playlists() {
                 onChangeInvitedOnly={setCreateInvitedOnly}
                 onCreate={handleCreate}
                 onClose={() => setCreateModalVisible(false)}
+            />
+
+            <EditPlaylistModal
+                visible={editModalPlaylist !== null}
+                name={editName}
+                isPublic={editPublic}
+                invitedOnly={editInvitedOnly}
+                saving={saving}
+                onChangeName={setEditName}
+                onChangePublic={setEditPublic}
+                onChangeInvitedOnly={setEditInvitedOnly}
+                onSave={handleUpdate}
+                onClose={() => setEditModalPlaylist(null)}
             />
         </ScrollView>
     );
@@ -515,6 +573,141 @@ function CreatePlaylistModal({
                             <ActivityIndicator size="small" color={colors.text.primary} />
                         ) : (
                             <Text style={globalStyles.primaryPillButtonText}>Create</Text>
+                        )}
+                    </Pressable>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
+type EditPlaylistModalProps = {
+    visible: boolean;
+    name: string;
+    isPublic: boolean;
+    invitedOnly: boolean;
+    saving: boolean;
+    onChangeName: (name: string) => void;
+    onChangePublic: (value: boolean) => void;
+    onChangeInvitedOnly: (value: boolean) => void;
+    onSave: () => void;
+    onClose: () => void;
+};
+
+function EditPlaylistModal({
+    visible,
+    name,
+    isPublic,
+    invitedOnly,
+    saving,
+    onChangeName,
+    onChangePublic,
+    onChangeInvitedOnly,
+    onSave,
+    onClose,
+}: EditPlaylistModalProps) {
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <View
+                style={{
+                    flex: 1,
+                    backgroundColor: colors.overlay,
+                    justifyContent: 'center',
+                    padding: spacing.xl,
+                }}
+            >
+                <View
+                    style={{
+                        backgroundColor: colors.bg.elevated,
+                        borderRadius: 12,
+                        padding: spacing.xl,
+                    }}
+                >
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: spacing.lg,
+                        }}
+                    >
+                        <Text style={globalStyles.heading}>Playlist Settings</Text>
+                        <Pressable
+                            onPress={onClose}
+                            style={({ pressed }) => ({
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: pressed ? colors.bg.card : 'transparent',
+                            })}
+                        >
+                            <Text style={{ fontSize: 18, color: colors.text.secondary }}>✕</Text>
+                        </Pressable>
+                    </View>
+
+                    <TextInput
+                        style={globalStyles.input}
+                        value={name}
+                        onChangeText={onChangeName}
+                        placeholder="Playlist name"
+                        placeholderTextColor={colors.text.secondary}
+                    />
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: spacing.md,
+                        }}
+                    >
+                        <View style={{ flex: 1, marginRight: spacing.md }}>
+                            <Text style={globalStyles.body}>Public</Text>
+                            <Text style={globalStyles.small}>
+                                {isPublic ? 'Anyone can view this playlist' : 'Only invited members can view this playlist'}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={isPublic}
+                            onValueChange={onChangePublic}
+                            trackColor={{ false: colors.bg.card, true: colors.brand }}
+                            thumbColor={colors.text.primary}
+                        />
+                    </View>
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: spacing.lg,
+                        }}
+                    >
+                        <View style={{ flex: 1, marginRight: spacing.md }}>
+                            <Text style={globalStyles.body}>Invite-only edit</Text>
+                            <Text style={globalStyles.small}>
+                                {invitedOnly ? 'Only invited members can edit' : 'Anyone who can access can edit'}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={invitedOnly}
+                            onValueChange={onChangeInvitedOnly}
+                            trackColor={{ false: colors.bg.card, true: colors.brand }}
+                            thumbColor={colors.text.primary}
+                        />
+                    </View>
+                    <Pressable
+                        style={({ pressed }) => ({
+                            ...globalStyles.primaryPillButton,
+                            opacity: pressed || saving || !name.trim() ? 0.7 : 1,
+                        })}
+                        onPress={onSave}
+                        disabled={saving || !name.trim()}
+                    >
+                        {saving ? (
+                            <ActivityIndicator size="small" color={colors.text.primary} />
+                        ) : (
+                            <Text style={globalStyles.primaryPillButtonText}>Save Changes</Text>
                         )}
                     </Pressable>
                 </View>
