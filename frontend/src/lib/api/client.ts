@@ -75,6 +75,14 @@ export function getPlaylistWebSocketUrl(playlistId: number, token: string, devic
     return apiUrl.toString();
 }
 
+export function getPlaylistCatalogWebSocketUrl(token: string, deviceId?: string): string {
+    const apiUrl = new URL(API_BASE);
+    apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playlists/catalog';
+    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
+    return apiUrl.toString();
+}
+
 export function getPlaybackWebSocketUrl(sessionId: string, token: string, deviceId?: string, ownerId?: string): string {
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';

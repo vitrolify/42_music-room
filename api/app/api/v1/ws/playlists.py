@@ -34,6 +34,24 @@ async def get_db_context():
         yield db
 
 
+@router.websocket("/catalog")
+async def playlist_catalog_websocket_endpoint(
+    websocket: WebSocket,
+    user_id: uuid.UUID = Depends(get_current_user_id_ws),
+):
+    room_id = playlist_ws_manager._get_catalog_room_id(user_id)
+    await playlist_ws_manager.connect(websocket, room_id, user_id)
+
+    try:
+        while True:
+            _ = await websocket.receive_text()
+    except WebSocketDisconnect:
+        playlist_ws_manager.disconnect(websocket, room_id, user_id)
+    except Exception as exc:
+        logger.error("Playlist catalog WebSocket error (user=%s): %s", user_id, exc)
+        playlist_ws_manager.disconnect(websocket, room_id, user_id)
+
+
 @router.websocket("/{playlist_id}")
 async def playlist_websocket_endpoint(
     websocket: WebSocket,

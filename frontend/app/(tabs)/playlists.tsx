@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -25,6 +25,8 @@ import {
     getMyInvites,
     acceptInvite,
     declineInvite,
+    getFirebaseToken,
+    getPlaylistCatalogWebSocketUrl,
     ApiError,
     type Playlist,
     type InviteWithPlaylist,
@@ -32,6 +34,7 @@ import {
 import { colors, spacing, globalStyles } from '../../src/styles';
 import InviteModal from '../../src/components/InviteModal';
 import { confirmDestructiveAction } from '../../src/lib/confirmDestructiveAction';
+import { getDeviceId } from '../../src/lib/deviceIdentity';
 
 export default function Playlists() {
     const router = useRouter();
@@ -58,6 +61,9 @@ export default function Playlists() {
     const [saving, setSaving] = useState(false);
 
     const [inviteModalPlaylist, setInviteModalPlaylist] = useState<Playlist | null>(null);
+    const catalogSocketRef = useRef<WebSocket | null>(null);
+    const catalogReconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const catalogReconnectAttempt = useRef(0);
 
     const fetchData = useCallback(async () => {
         try {
@@ -82,6 +88,51 @@ export default function Playlists() {
             await fetchData();
             setLoading(false);
         })();
+    }, [fetchData, initializing, user]);
+
+    useEffect(() => {
+        let active = true;
+
+        async function connectCatalogSocket() {
+            if (initializing || !user) return;
+            const token = await getFirebaseToken();
+            if (!active || !token) return;
+            const deviceId = await getDeviceId().catch(() => undefined);
+            if (!active) return;
+
+            const socket = new WebSocket(getPlaylistCatalogWebSocketUrl(token, deviceId));
+            catalogSocketRef.current = socket;
+            socket.onopen = () => { catalogReconnectAttempt.current = 0; };
+            socket.onmessage = message => {
+                try {
+                    const event = JSON.parse(message.data);
+                    if (event.type !== 'PLAYLIST_DELETED') return;
+                    const deletedId = event.payload?.playlist_id;
+                    if (typeof deletedId !== 'number') return;
+                    setPlaylists(current => current.filter(playlist => playlist.id !== deletedId));
+                    setMyInvites(current => current.filter(invite => invite.playlist.id !== deletedId));
+                    setInviteModalPlaylist(current => current?.id === deletedId ? null : current);
+                    void fetchData();
+                } catch {
+                    // Ignore malformed catalog broadcasts.
+                }
+            };
+            socket.onerror = () => socket.close();
+            socket.onclose = () => {
+                if (!active) return;
+                const delay = Math.min(1000 * 2 ** catalogReconnectAttempt.current, 10000);
+                catalogReconnectAttempt.current += 1;
+                catalogReconnectTimer.current = setTimeout(() => void connectCatalogSocket(), delay);
+            };
+        }
+
+        void connectCatalogSocket();
+        return () => {
+            active = false;
+            if (catalogReconnectTimer.current) clearTimeout(catalogReconnectTimer.current);
+            catalogSocketRef.current?.close();
+            catalogSocketRef.current = null;
+        };
     }, [fetchData, initializing, user]);
 
     async function handleRefresh() {

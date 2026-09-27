@@ -17,6 +17,9 @@ class PlaylistConnectionManager(BaseConnectionManager):
     def _get_room_id(self, playlist_id: int) -> str:
         return f"playlist_{playlist_id}"
 
+    def _get_catalog_room_id(self, user_id: uuid.UUID) -> str:
+        return f"playlist_catalog_{user_id}"
+
     async def connect_to_playlist(
         self, websocket, playlist_id: int, user_id: uuid.UUID
     ):
@@ -35,6 +38,12 @@ class PlaylistConnectionManager(BaseConnectionManager):
         """
         room_id = self._get_room_id(playlist_id)
         await redis_client.publish(room_id, json.dumps(message))
+
+    async def broadcast_catalog_update(self, user_id: uuid.UUID, message: dict):
+        """Publishes a playlist collection invalidation to one user's devices."""
+        await redis_client.publish(
+            self._get_catalog_room_id(user_id), json.dumps(message)
+        )
 
     async def broadcast_error(
         self, playlist_id: int, target_user_id: uuid.UUID, code: str, message: str
