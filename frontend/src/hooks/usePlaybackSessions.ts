@@ -18,6 +18,7 @@ export function usePlaybackSessions(isAuthenticated: boolean) {
                 setSessions([]);
             } else {
                 console.warn('Failed to refresh playback sessions:', error);
+                setSessions([]);
             }
         } finally {
             setLoading(false);

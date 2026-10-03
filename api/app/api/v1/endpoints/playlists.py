@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.device import Device
 from app.schemas.playlist import PlaylistCreate, PlaylistRead, PlaylistUpdate
 from app.services import playlist_service
+from app.websockets.playlist_manager import playlist_ws_manager
 
 router = APIRouter(tags=["playlists"])
 
@@ -134,3 +135,7 @@ async def delete_playlist(
         )
 
     await playlist_service.delete_playlist(db=db, playlist=playlist)
+    await playlist_ws_manager.broadcast_catalog_update(
+        user_id,
+        {"type": "PLAYLIST_DELETED", "payload": {"playlist_id": playlist_id}},
+    )

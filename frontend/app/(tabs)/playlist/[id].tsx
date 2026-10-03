@@ -32,6 +32,7 @@ import { usePlayer } from '../../../src/contexts/PlayerContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { usePlayerBarPadding } from '../../../src/hooks/usePlayerBarPadding';
 import { applyPlaylistPlaybackChanged } from '../../../src/lib/playlistSync';
+import { confirmDestructiveAction } from '../../../src/lib/confirmDestructiveAction';
 
 export default function PlaylistDetail() {
     const router = useRouter();
@@ -223,6 +224,21 @@ export default function PlaylistDetail() {
         };
     }, [fetchData, isValidPlaylistId, playlistId]);
 
+    useEffect(() => {
+        if (Platform.OS !== 'web' || !isValidPlaylistId) return;
+
+        const reconcileDisconnectedSocket = () => {
+            if (socketRef.current?.readyState === WebSocket.OPEN) return;
+
+            void listPlaylistTracks(playlistId)
+                .then(setTracks)
+                .catch(() => { /* The next reconciliation retries. */ });
+        };
+
+        const timer = setInterval(reconcileDisconnectedSocket, 3000);
+        return () => clearInterval(timer);
+    }, [isValidPlaylistId, playlistId]);
+
     async function handleRefresh() {
         setRefreshing(true);
         await fetchData();
@@ -302,12 +318,10 @@ export default function PlaylistDetail() {
     ) {
         if (action === 'delete' && track.position === 0) return;
         if (action === 'delete') {
-            const confirmed = await new Promise<boolean>(resolve => {
-                Alert.alert('Delete track?', 'This removes the queued track from the playlist.', [
-                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-                    { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-                ]);
-            });
+            const confirmed = await confirmDestructiveAction(
+                'Delete track?',
+                'This removes the queued track from the playlist.',
+            );
             if (!confirmed) return;
         }
 
@@ -318,6 +332,14 @@ export default function PlaylistDetail() {
                 await commandPlaylistTrack(playlistId, track.id, action);
             }
             if (action === 'delete') await deletePlaylistTrack(playlistId, track);
+            if (action === 'delete') {
+                setTracks(current => current
+                    .filter(nextTrack => nextTrack.id !== track.id)
+                    .map(nextTrack => nextTrack.position > track.position
+                        ? { ...nextTrack, position: nextTrack.position - 1 }
+                        : nextTrack)
+                    .sort((a, b) => a.position - b.position));
+            }
             await refreshTracksAfterMutation(
                 nextTracks => {
                     if (action === 'delete') {
@@ -703,7 +725,11 @@ function MoveButton({ label, icon, disabled, onPress }: MoveButtonProps) {
                 paddingHorizontal: icon ? spacing.sm : spacing.md,
                 opacity: disabled || pressed ? 0.55 : 1,
             })}
-            onPress={onPress}
+            onPress={event => {
+                event.preventDefault?.();
+                event.stopPropagation?.();
+                onPress();
+            }}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={label}

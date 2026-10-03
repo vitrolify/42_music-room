@@ -22,11 +22,11 @@ function getApiBaseUrl(): string {
 
         if (debuggerHost) {
             const ip = debuggerHost.split(':')[0];
-            return `http://${ip}/api/v1`;
+            return `http://${ip}:8000/api/v1`;
         }
     } catch {}
 
-    return 'http://localhost/api/v1';
+    return 'http://localhost:8000/api/v1';
 }
 
 export const API_BASE = getApiBaseUrl();
@@ -71,6 +71,14 @@ export function getPlaylistWebSocketUrl(playlistId: number, token: string, devic
     const apiUrl = new URL(API_BASE);
     apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + `/ws/playlists/${playlistId}`;
+    apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
+    return apiUrl.toString();
+}
+
+export function getPlaylistCatalogWebSocketUrl(token: string, deviceId?: string): string {
+    const apiUrl = new URL(API_BASE);
+    apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    apiUrl.pathname = apiUrl.pathname.replace(/\/?api\/v1\/?$/, '') + '/ws/playlists/catalog';
     apiUrl.search = `?token=${encodeURIComponent(token)}${deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : ''}&app_version=${encodeURIComponent(APP_VERSION)}`;
     return apiUrl.toString();
 }
