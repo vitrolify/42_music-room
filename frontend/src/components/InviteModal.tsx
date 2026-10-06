@@ -7,8 +7,8 @@ import {
     Modal,
     ScrollView,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
+import { Trash } from 'phosphor-react-native';
 import {
     listInvites,
     createInviteByEmail,
@@ -18,6 +18,8 @@ import {
     type InviteWithUser,
 } from '../lib/api';
 import { colors, spacing, globalStyles } from '../styles';
+import { showAlert } from '../lib/alerts';
+import { confirmDestructiveAction } from '../lib/confirmDestructiveAction';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -53,7 +55,7 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
         const normalizedEmail = email.trim().toLowerCase();
         if (!playlist || !normalizedEmail) return;
         if (!EMAIL_RE.test(normalizedEmail)) {
-            Alert.alert('Invalid email', 'Enter a valid email address.');
+            showAlert('Invalid email', 'Enter a valid email address.');
             return;
         }
 
@@ -66,20 +68,30 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
             setInvites(data);
         } catch (err) {
             const msg = getInviteErrorMessage(err);
-            Alert.alert('Error', msg);
+            showAlert('Error', msg);
         } finally {
             setSending(false);
         }
     }
 
-    async function handleCancel(inviteId: number) {
+    async function handleRemove(invite: InviteWithUser, action: 'cancel' | 'exclude') {
+        if (action === 'exclude') {
+            const confirmed = await confirmDestructiveAction(
+                'Exclude user?',
+                `Are you sure you want to exclude ${invite.user.display_name || invite.user.email} from this playlist?`,
+                'Exclude',
+                'Keep access',
+            );
+            if (!confirmed) return;
+        }
+
         try {
-            await deleteInvite(inviteId);
-            setInvites(prev => prev.filter(i => i.id !== inviteId));
+            await deleteInvite(invite.id);
+            setInvites(prev => prev.filter(i => i.id !== invite.id));
             await onInviteChanged();
         } catch (err) {
-            const msg = getInviteErrorMessage(err, 'cancel');
-            Alert.alert('Error', msg);
+            const msg = getInviteErrorMessage(err, action);
+            showAlert('Error', msg);
         }
     }
 
@@ -200,7 +212,7 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
                                                         opacity: pressed ? 0.7 : 1,
                                                         paddingVertical: spacing.xs,
                                                     })}
-                                                    onPress={() => handleCancel(invite.id)}
+                                                    onPress={() => handleRemove(invite, 'cancel')}
                                                 >
                                                     <Text
                                                         style={[
@@ -230,10 +242,20 @@ export default function InviteModal({ playlist, visible, onClose, onInviteChange
                                                     borderRadius: 8,
                                                     padding: spacing.md,
                                                     marginBottom: spacing.xs,
-                                                    opacity: 0.6,
+                                                    flexDirection: 'row',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
                                                 }}
                                             >
-                                                <InviteUserLabel invite={invite} muted />
+                                                <InviteUserLabel invite={invite} />
+                                                <Pressable
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`Exclude ${invite.user.display_name || invite.user.email}`}
+                                                    hitSlop={8}
+                                                    onPress={() => handleRemove(invite, 'exclude')}
+                                                >
+                                                    <Trash size={19} color={colors.semantic.error} />
+                                                </Pressable>
                                             </View>
                                         ))}
                                     </View>
@@ -298,7 +320,7 @@ function InviteUserLabel({ invite, muted = false }: { invite: InviteWithUser; mu
     );
 }
 
-function getInviteErrorMessage(error: unknown, action: 'send' | 'cancel' = 'send') {
+function getInviteErrorMessage(error: unknown, action: 'send' | 'cancel' | 'exclude' = 'send') {
     if (error instanceof ApiError) {
         if (error.errorCode === 'USER_NOT_FOUND') return 'No user found with that email.';
         if (error.errorCode === 'INVITE_SELF') return "You can't invite yourself.";
@@ -306,9 +328,9 @@ function getInviteErrorMessage(error: unknown, action: 'send' | 'cancel' = 'send
         if (error.errorCode === 'PLAYLIST_NOT_FOUND') return 'This playlist no longer exists.';
         if (error.errorCode === 'INVITE_NOT_FOUND') return 'This invite no longer exists.';
         if (error.errorCode === 'FORBIDDEN') {
-            return action === 'cancel'
-                ? 'You cannot cancel this invite.'
-                : 'Only the playlist owner can send invites.';
+            if (action === 'cancel') return 'You cannot cancel this invite.';
+            if (action === 'exclude') return 'You cannot exclude this user.';
+            return 'Only the playlist owner can send invites.';
         }
     }
     return error instanceof Error ? error.message : `Failed to ${action} invite`;
