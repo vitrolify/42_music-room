@@ -7,11 +7,11 @@ import {
     Image,
     ScrollView,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { getMyProfile, updateMyProfile } from '../../src/lib/api';
+import { showAlert } from '../../src/lib/alerts';
 import { getAvatarSource } from '../../src/lib/avatars';
 import { usePlayerBarPadding } from '../../src/hooks/usePlayerBarPadding';
 import { colors, fonts, fontSizes, spacing, borderRadius, globalStyles } from '../../src/styles';
@@ -116,10 +116,10 @@ export default function Profile() {
                 favoriteGenre: updated.favorite_genre ?? '',
                 profileVisibility: updated.profile_visibility,
             });
-            Alert.alert('Saved', 'Your profile has been updated.');
+            showAlert('Saved', 'Your profile has been updated.');
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to save profile';
-            Alert.alert('Error', message);
+            showAlert('Error', message);
         } finally {
             setSaving(false);
         }
