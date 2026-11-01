@@ -123,4 +123,43 @@ Then scan QR Code in Expo Go app.
 npx expo prebuild --platform android
 npx expo run:android
 npx expo run:android --variant release
+
+npx expo export --platform web
 ```
+
+## Produção
+
+O endereço da API é embutido no bundle na hora do build (`EXPO_PUBLIC_*` em `frontend/.env.production`; o dev usa `frontend/.env.local`).
+
+### Web
+```bash
+# build (gera frontend/dist/)
+./scripts/build-web.sh
+
+# deploy no servidor (ajuste o destino; o rsync substitui o diretório de destino)
+DEPLOY_TARGET=lucas@servidor:~/42_music-room/frontend/dist ./scripts/deploy-web.sh
+
+# opcional: smoke test pós-deploy
+DEPLOY_TARGET=... PUBLIC_URL=https://vitrolify.lucasfads.com ./scripts/deploy-web.sh
+```
+
+No servidor, o nginx do compose (`infra/docker/compose`) serve o front pelo host
+`vitrolify.lucasfads.com` (monta `frontend/dist`) e mantém a API em `vitrolify-api.lucasfads.com`
+(`/api/v1` e `/ws` com proxy de WebSocket). O host do site precisa existir no DNS apontando
+para o servidor, e o backend precisa aceitar a origem via `CORS_ORIGINS` no `.env` da raiz.
+
+### Android (release)
+```bash
+./scripts/build-android.sh
+# APK: frontend/android/app/build/outputs/apk/release/app-release.apk
+```
+> Hoje o release assina com `debug.keystore` (`frontend/android/app/build.gradle`); gere um
+> keystore próprio antes de distribuir.
+
+### Backend (produção)
+O compose sobe `api` com `--reload` e volume de código — é modo de desenvolvimento
+(comentário no `docker-compose.yml`). Para produção remova o volume `api/app` e o
+`--reload` do `command`, e reduza os workers conforme a máquina.
+
+
+
