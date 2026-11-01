@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, DeviceMobile, Globe, PencilSimple, Plus, Trash, X } from 'phosphor-react-native';
 import type { DeviceDelegate, EligibleFriend, PlaybackDevice } from '../lib/deviceDelegation.types';
 import { colors, fonts, globalStyles, spacing } from '../styles';
+import { confirmDestructiveAction } from '../lib/confirmDestructiveAction';
 
 type Props = { device: PlaybackDevice; delegates: DeviceDelegate[]; friends: EligibleFriend[]; operation: string | null; onRename: (name: string) => Promise<void>; onGrant: (friendId: string) => Promise<void>; onRevoke: (friendId: string) => Promise<void>; compact?: boolean };
 
@@ -12,6 +13,16 @@ export default function DeviceDelegationPanel({ device, delegates, friends, oper
     const [showFriends, setShowFriends] = useState(false);
     const availableFriends = friends.filter(friend => !delegates.some(delegate => delegate.userId === friend.id));
     const saveName = async () => { if (name.trim() && name.trim() !== device.name) await onRename(name); setEditing(false); };
+    const handleRevoke = async (delegate: DeviceDelegate) => {
+        const confirmed = await confirmDestructiveAction(
+            'Revoke access?',
+            `${delegate.displayName} will no longer control this device.`,
+            'Revoke',
+            'Keep access',
+        );
+        if (!confirmed) return;
+        await onRevoke(delegate.userId);
+    };
     return <View style={styles.card}>
         <View style={styles.row}>
             <View style={styles.deviceIcon}>{device.platform === 'web' ? <Globe size={22} color={colors.brand} /> : <DeviceMobile size={22} color={colors.brand} />}</View>
@@ -23,7 +34,7 @@ export default function DeviceDelegationPanel({ device, delegates, friends, oper
         </View>
         <View style={styles.divider} />
         <Text style={styles.label}>People with playback control</Text>
-        {!delegates.length ? <Text style={globalStyles.small}>No friends have access yet.</Text> : delegates.map(delegate => <View style={styles.delegateRow} key={delegate.userId}><View style={{ flex: 1 }}><Text style={globalStyles.bodyBold}>{delegate.displayName}</Text><Text style={globalStyles.small}>{delegate.email}</Text></View><Pressable disabled={Boolean(operation)} onPress={() => Alert.alert('Revoke access?', `${delegate.displayName} will no longer control this device.`, [{ text: 'Keep access', style: 'cancel' }, { text: 'Revoke', style: 'destructive', onPress: () => void onRevoke(delegate.userId) }])}><Trash size={19} color={colors.semantic.error} /></Pressable></View>)}
+        {!delegates.length ? <Text style={globalStyles.small}>No friends have access yet.</Text> : delegates.map(delegate => <View style={styles.delegateRow} key={delegate.userId}><View style={{ flex: 1 }}><Text style={globalStyles.bodyBold}>{delegate.displayName}</Text><Text style={globalStyles.small}>{delegate.email}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Revoke access for ${delegate.displayName}`} hitSlop={8} disabled={Boolean(operation)} onPress={() => void handleRevoke(delegate)}><Trash size={19} color={colors.semantic.error} /></Pressable></View>)}
         {!compact ? <Pressable style={styles.addButton} disabled={Boolean(operation)} onPress={() => setShowFriends(true)}><Plus size={18} color={colors.text.primary} /><Text style={styles.addText}>Grant access to a friend</Text></Pressable> : null}
         <Modal visible={showFriends} transparent animationType="fade" onRequestClose={() => setShowFriends(false)}><View style={styles.modalBackdrop}><View style={styles.modalCard}><View style={styles.modalHeader}><Text style={globalStyles.heading}>Choose a friend</Text><Pressable onPress={() => setShowFriends(false)}><X size={21} color={colors.text.secondary} /></Pressable></View><Text style={[globalStyles.small, { marginBottom: spacing.md }]}>They will be able to control “{device.name}”.</Text>{availableFriends.length ? availableFriends.map(friend => <Pressable key={friend.id} style={styles.friendOption} onPress={() => { setShowFriends(false); void onGrant(friend.id); }}><View style={styles.avatar}><Text style={styles.avatarText}>{friend.displayName.slice(0, 1)}</Text></View><View><Text style={globalStyles.bodyBold}>{friend.displayName}</Text><Text style={globalStyles.small}>{friend.email}</Text></View></Pressable>) : <Text style={globalStyles.small}>All eligible friends already have access.</Text>}</View></View></Modal>
         {operation ? <ActivityIndicator style={styles.spinner} size="small" color={colors.brand} /> : null}
