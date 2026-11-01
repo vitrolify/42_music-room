@@ -1,5 +1,92 @@
 # 42_music-room (Vitrolify)
 
+## Development
+
+### Create a new app
+
+```bash
+npx create-expo-app@latest --template blank-typescript
+```
+
+### Run the project
+
+```bash
+npx expo start --tunnel
+```
+
+> The `--tunnel` flag is optional; it makes the app reachable over the internet.
+
+Then scan the QR code with the Expo Go app.
+
+### Backend stack
+
+```bash
+make up     # build and start the Docker Compose stack
+make down   # stop it
+```
+
+## Build commands
+
+```bash
+npx expo prebuild --platform android
+npx expo run:android
+npx expo run:android --variant release
+
+npx expo export --platform web
+```
+
+## Production
+
+The API address is embedded into the bundle at build time. Production builds read `EXPO_PUBLIC_*` from `frontend/.env.production`; development uses `frontend/.env.local`. Never put secrets in `EXPO_PUBLIC_*` variables, since they end up in the client bundle.
+
+### Web
+
+```bash
+make web
+```
+
+This runs `scripts/build-web.sh` (exports to `frontend/dist/` and checks that the production API URL is in the bundle) and recreates the `nginx` container so it serves the new build.
+
+Nginx (`infra/docker/compose/nginx/nginx.conf`) routes by `Host` header on port 80:
+
+| Host                          | Served by                                                        |
+| :---------------------------- | :--------------------------------------------------------------- |
+| `vitrolify.lucasfads.com`     | Static web build (`frontend/dist`, SPA fallback to `index.html`) |
+| `vitrolify-api.lucasfads.com` | Reverse proxy to the API (`/api/v1` and `/ws`, WebSocket enabled) |
+
+Requirements:
+
+- Both hostnames must point to the server (for example, Cloudflare Tunnel public hostnames targeting `http://nginx:80`).
+- The root `.env` must list the site origin in `CORS_ORIGINS` (see `.env.example`). After changing `.env`, recreate the API container, because `restart` does not reload it:
+
+```bash
+cd infra/docker/compose && docker compose --env-file ../../../.env up -d --no-deps --force-recreate api
+```
+
+To publish the build to a remote server instead (rsync over SSH):
+
+```bash
+./scripts/build-web.sh
+DEPLOY_TARGET=user@host:~/42_music-room/frontend/dist ./scripts/deploy-web.sh
+# optional post-deploy smoke test
+DEPLOY_TARGET=... PUBLIC_URL=https://vitrolify.lucasfads.com ./scripts/deploy-web.sh
+```
+
+### Android (release)
+
+```bash
+make android
+# APK: frontend/android/app/build/outputs/apk/release/app-release.apk
+```
+
+> The release build is currently signed with `debug.keystore` (`frontend/android/app/build.gradle`). Generate your own keystore before distributing.
+
+### Backend
+
+The compose file runs `api` with `--reload` and a code volume, which is development mode (see the comment in `docker-compose.yml`). For production, remove the `api/app` volume and `--reload` from `command`, and reduce `--workers` to fit the machine.
+
+---
+
 ## Ramp-up & Load Capacity Evaluation (Subject V.7)
 
 According to **Chapter V.7 (Ramp-up)** of the subject:
@@ -96,31 +183,3 @@ make test
 ```
 
 The target spins up an isolated database (`db-test`), applies migrations (`migrations-test`), boots the optimized API instance (`api-test`), executes the k6 test container (`k6`), and automatically cleans up resources upon completion.
-
----
-
-## Expo App
-
-### To create a new app:
-
-```bash
-npx create-expo-app@latest --template blank-typescript
-```
-
-### To run/test project:
-
-```bash
-npx expo start --tunnel
-```
-
-> `--tunnel` flag is optional for having app available via internet
-
-Then scan QR Code in Expo Go app.
-
-## Commands
-
-```sh
-npx expo prebuild --platform android
-npx expo run:android
-npx expo run:android --variant release
-```

@@ -27,4 +27,11 @@ psql:
 ruff:
 	uvx ruff check .
 
-.PHONY: up down fclean test migration psql
+web:
+	./scripts/build-web.sh
+	cd infra/docker/compose && docker compose --env-file ../../../.env up -d --no-deps --force-recreate nginx
+
+android:
+	./scripts/build-android.sh
+
+.PHONY: up down fclean test re migration psql ruff web android
