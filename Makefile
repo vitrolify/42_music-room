@@ -32,6 +32,7 @@ web:
 	cd infra/docker/compose && docker compose --env-file ../../../.env up -d --no-deps --force-recreate nginx
 
 android:
+	test -d frontend/android || (cd frontend && npx expo prebuild --platform android)
 	./scripts/build-android.sh
 
 .PHONY: up down fclean test re migration psql ruff web android
